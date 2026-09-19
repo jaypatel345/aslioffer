@@ -1,110 +1,268 @@
-# AsliOffer — Is this job offer real?
+# AsliOffer — Evidence-Backed Job Offer Verification
 
-> An AI agent that checks a job or internship offer against live public search data and tells Indian freshers, in under a minute, whether the offer is genuine or a scam — with proof.
+[![SerpApi Hackathon 2026](https://img.shields.io/badge/SerpApi%20India%20Hackathon-2026-emerald.svg)](https://serpapi.com)
+[![Track](https://img.shields.io/badge/Track-AI%20Agents-blue.svg)](#)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-009688.svg?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
+[![React](https://img.shields.io/badge/React-18-61DAFB.svg?logo=react&logoColor=black)](https://react.dev)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-3178C6.svg?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**Hackathon:** SerpApi India Hackathon 2026
-**Track:** AI Agents
-**Submission deadline:** October 5, 2026, 23:59 IST
-
----
-
-## The Problem
-
-Every year, lakhs of students and freshers in India receive job and internship "offers" on WhatsApp, Telegram, email and even LinkedIn. Many of them are fake.
-
-These scams are hard to spot because they **borrow the name of a real company**. The message looks like it came from TCS, Infosys, Accenture, India Post, or a well-known startup. The salary sounds realistic. The recruiter is polite and professional. Sometimes there is even an offer letter on what looks like official company letterhead.
-
-A typical scam goes like this:
-
-1. A "recruiter" messages you saying your profile has been shortlisted.
-2. You get a quick "interview" over chat or call.
-3. You receive an offer letter that looks official.
-4. Then comes the catch: pay a "registration fee", "training fee", "security deposit" or "laptop charge" — or share your Aadhaar, bank details or OTP.
-5. After you pay, the recruiter disappears.
-
-By the time money is asked for, the victim is already emotionally invested and believes the job is real.
-
-### Why this matters
-
-- **The victims are the most vulnerable job seekers** — final-year students, fresh graduates, laid-off employees, and people looking for work-from-home income. They want the job to be real, which makes them easier to fool.
-- **The losses are real** — money paid through UPI is very hard to recover after the first few hours, and shared personal documents can be misused later (for example, opening bank accounts in the victim's name).
-- **The problem is growing** — the Ministry of Home Affairs reported 11,126 online job-fraud incidents in 2025 on the National Cyber Crime Reporting Portal, and that figure covered only complaints related to women, so the real total is much higher ([source](https://pulseofnoida.com/education/skill-development-careers/job-internship-scams-india-red-flags-3122/)).
-- **Companies and the government keep issuing warnings** — India Post, IT companies and the government's CyberDost initiative have all warned about fake offer letters using their names.
-
-### Why people still get fooled
-
-The official advice is simple: *"Verify the employer before accepting the offer."*
-
-But in practice, a fresher does not know **how** to verify. It means manually:
-
-- finding the company's real website (not the one in the message),
-- checking whether the recruiter's email actually belongs to that company,
-- searching whether this job opening really exists,
-- checking whether the office address in the letter is real,
-- checking whether the salary makes sense for the role,
-- searching whether other people have reported the same number, handle or message as a scam.
-
-This takes time, effort and know-how. Most people skip it — especially when the "recruiter" is pressuring them to reply quickly.
+> **Scammers can copy a company's name, but they cannot fake the company's entire public footprint.**
+> 
+> AsliOffer is an AI-powered job offer verification platform that cross-references employment claims against live public search data to protect Indian freshers and job seekers from employment fraud in under a minute — with proof.
 
 ---
 
-## Our Key Insight
+## 1. Problem Statement
 
-**A scammer can copy a company's name, but cannot fake the company's whole public footprint.**
+Every year, lakhs of students, final-year undergraduates, and fresh graduates in India receive fraudulent job and internship offers via WhatsApp, Telegram, email, and LinkedIn. 
 
-A genuine job offer leaves a consistent trail across the internet:
+These scams are devastatingly effective because they **borrow the brand names of legitimate, trusted enterprises** (e.g. TCS, Infosys, Wipro, Accenture, India Post, or fast-growing startups).
 
-| A real offer... | A fake offer usually... |
-|---|---|
-| comes from an email on the company's official domain | comes from Gmail, Outlook, or a look-alike domain |
-| matches a real job listing from that company | has no matching opening anywhere |
-| has a salary within the normal market range | offers an unusually high salary for little work |
-| lists a real office address belonging to that company | lists a fake, residential or unrelated address |
-| never asks for money | asks for a "fee", "deposit" or UPI payment |
-| has no scam reports against it | has a phone number, handle or pattern already reported online |
+### The Typical Scam Pattern:
+1. **Unsolicited Shortlisting:** Candidate receives an unsolicited message claiming their profile was shortlisted.
+2. **Superficial Chat Interview:** A perfunctory chat interview takes place over WhatsApp or Telegram.
+3. **Official-Looking Offer:** An offer letter is issued on forged corporate letterhead with realistic CTC figures.
+4. **The Catch (Advance Fee Fraud):** The recruiter demands a "refundable laptop security deposit," "screening fee," "gate pass charge," or "training deposit" via UPI or QR code.
+5. **Disappearance:** Once payment is made, the recruiter blocks the victim.
 
-A scam almost always breaks **at least one** of these. Live search data lets us check all of them automatically, in seconds.
+Victims lose substantial savings and risk identity theft through shared Aadhaar and bank details. In 2025 alone, the Ministry of Home Affairs recorded over 11,000 online job fraud incidents on the National Cyber Crime Reporting Portal.
 
 ---
 
-## What We Are Building
+## 2. Our Core Insight
 
-**AsliOffer** is an AI agent that does this verification work for the job seeker.
+A genuine job offer leaves an immutable public trail across the internet:
 
-**The user gives us:** the offer they received — pasted message text, a screenshot, or the offer letter PDF.
+| Verification Surface | Genuine Offer | Fraudulent Offer Pattern |
+|---|---|---|
+| **Sender Email** | Official corporate domain (`@company.com`) | Free webmail (`@gmail.com`, `@outlook.com`) or lookalikes |
+| **Corporate Existence** | Verified MCA registration & active CIN | Unregistered entity or hijacked name |
+| **Careers Portal** | Verifiable listing or recruiter registry | No matching openings on official careers site |
+| **Compensation** | Realistic market salary bands | Inflated salary bait to induce emotional compliance |
+| **Fee Demanded** | **Strictly ₹0** (Complies with Ministry of Labour) | Demands advance deposit for laptop, badge, or training |
+| **Public Reports** | Zero fraud advisories | Flagged on CyberDost or scam registries |
 
-**The user gets back:**
-
-1. **A clear verdict** — *Likely Genuine*, *Suspicious*, or *Likely Scam*.
-2. **The reasons, with proof** — every red flag or green flag comes with a link to the source we found, so the user can check it themselves.
-3. **The company's real contact** — the official website and careers page, so the user can confirm directly with the real HR team.
-4. **What to do next** — if it looks like a scam: don't pay, don't share documents, report at [cybercrime.gov.in](https://cybercrime.gov.in) or call the national cybercrime helpline **1930**.
-
-### Who it is for
-
-- **Students and freshers** checking an offer before replying.
-- **Job seekers** looking for work-from-home or part-time work, where task scams are common.
-- **College placement cells** that want to warn students about fake recruiters using their college's or a company's name.
+A scam almost always breaks **at least one** of these pillars. AsliOffer automates checking all of them in seconds using live public search data.
 
 ---
 
-## What Success Looks Like
+## 3. Architecture Overview
 
-- A fresher can paste an offer and get a trustworthy answer in **under a minute**.
-- Every verdict is **backed by evidence**, not just an AI's opinion.
-- The agent **never sounds more confident than the evidence allows** — if it cannot verify something, it says so honestly.
-- The user comes away knowing **how to protect themselves**, not just whether this one offer is fake.
+```
+User Upload
+    │
+    ▼
+Extraction Layer
+    │
+    ▼
+Entity Extraction
+    │
+    ▼
+Investigation Agents
+ ├── Company Agent
+ ├── Recruiter Agent
+ ├── Salary Agent
+ └── Scam Agent
+    │
+    ▼
+Risk Engine
+    │
+    ▼
+Evidence Report
+```
+
+### Risk Classification Matrix:
+To avoid misleading binary reassurance, AsliOffer classifies offers into three evidence-backed tiers:
+- **`VERIFIED`**: Credentials match the company's authentic public footprint, legitimate domain, no advance fees.
+- **`NEEDS_REVIEW`**: Ambiguous third-party agency, unverified recruiter identity, or salary anomaly.
+- **`HIGH_RISK`**: Advance fee demand detected, personal webmail used for corporate hiring, or known fraud pattern.
+
+> **Note on Current MVP Version:** The current release is an initial production-grade MVP featuring clean architectural interfaces, SQLModel database models, responsive frontend UI, and mocked agent investigation responses. Live SerpApi and Gemini 2.5 Flash keys can be configured in `.env` to test live endpoints.
 
 ---
 
-## What This Project Is NOT
+## 4. Repository Structure
 
-- It is **not a job search tool** — it does not find jobs, it verifies offers the user already has.
-- It is **not a general fact-checker** — it focuses only on job and internship offers.
-- It does **not** give legal advice or recover lost money — it helps people avoid losing it in the first place and points them to official reporting channels.
+```
+aslioffer/
+├── backend/
+│   ├── app/
+│   │   ├── api/
+│   │   │   └── v1/
+│   │   │       └── routers/
+│   │   │           ├── analysis.py        # POST /analysis/run
+│   │   │           ├── offers.py          # POST /offers/upload, GET /offers/{id}, /report
+│   │   │           └── health.py          # GET /health
+│   │   ├── core/
+│   │   │   ├── config.py                  # Pydantic Settings & environment variables
+│   │   │   └── logging.py                 # Structured application logging
+│   │   ├── db/
+│   │   │   ├── session.py                 # Engine & Session generator (Postgres/SQLite)
+│   │   │   └── models/
+│   │   │       ├── offer.py               # Offer model
+│   │   │       ├── company.py             # Company model
+│   │   │       ├── recruiter.py           # Recruiter model
+│   │   │       └── evidence.py            # Evidence model
+│   │   ├── schemas/
+│   │   │   ├── offer.py                   # Request/response schemas
+│   │   │   └── analysis.py                # Agent findings & report schemas
+│   │   ├── services/
+│   │   │   ├── extractor/
+│   │   │   │   └── entity_extractor.py    # Regex & NLP entity extraction
+│   │   │   ├── agents/
+│   │   │   │   ├── company_agent.py       # Corporate & MCA verification
+│   │   │   │   ├── recruiter_agent.py     # Email domain & contact audit
+│   │   │   │   ├── salary_agent.py        # Compensation benchmark checks
+│   │   │   │   └── scam_agent.py          # Advance fee & fraud detection
+│   │   │   ├── search/
+│   │   │   │   └── serpapi_client.py      # SerpApi client contract & fallback
+│   │   │   ├── ai/
+│   │   │   │   └── gemini_client.py       # Gemini 2.5 Flash client contract
+│   │   │   ├── graph/
+│   │   │   │   └── graph_builder.py       # Graph entity linking & cluster stub
+│   │   │   ├── risk/
+│   │   │   │   └── risk_engine.py         # Evidence-weighted scoring engine
+│   │   │   └── report/
+│   │   │       └── report_generator.py    # Forensic report compilation
+│   │   └── main.py                        # FastAPI application entrypoint
+│   ├── requirements.txt
+│   └── .env.example
+├── frontend/
+│   ├── src/
+│   │   ├── components/
+│   │   │   ├── EvidenceCard.tsx           # Verifiable live source citations
+│   │   │   ├── FileUpload.tsx             # Drag-drop & text input with presets
+│   │   │   ├── EntityPanel.tsx            # Extracted claims & flag badges
+│   │   │   ├── RiskBadge.tsx              # VERIFIED / NEEDS_REVIEW / HIGH_RISK
+│   │   │   └── Navbar.tsx                 # Brand navigation & status
+│   │   ├── pages/
+│   │   │   ├── Dashboard.tsx              # Verification overview & case studies
+│   │   │   ├── Upload.tsx                 # Offer ingestion & agent pipeline
+│   │   │   └── OfferReport.tsx            # Comprehensive forensic report
+│   │   ├── services/
+│   │   │   └── api.ts                     # Typed API client with mock fallbacks
+│   │   ├── types/
+│   │   │   └── index.ts                   # TypeScript interfaces
+│   │   ├── App.tsx                        # Client routing
+│   │   ├── main.tsx                       # React DOM entrypoint
+│   │   └── index.css                      # Tailwind styling & glassmorphism
+│   ├── package.json
+│   ├── vite.config.ts
+│   └── tailwind.config.js
+├── docker/
+│   ├── Dockerfile.backend                 # Multi-stage Python 3.12 image
+│   └── Dockerfile.frontend                # Multi-stage Node 22 + Nginx image
+├── docs/
+│   └── architecture.md                    # In-depth architectural blueprint
+├── docker-compose.yml                     # Full orchestration (App, DB, Redis)
+├── .env.example
+├── .gitignore
+└── README.md
+```
 
 ---
 
-## One-Line Summary for the Team
+## 5. Local Setup Instructions
 
-> **Scammers borrow real company names; AsliOffer checks the company's real public footprint using live search data and tells freshers — with proof — whether an offer is genuine before they pay or share anything.**
+### Prerequisites
+- **Python 3.12+**
+- **Node.js 20+** and **npm**
+- (Optional) **Docker** & **Docker Compose**
+
+---
+
+### Option A: Running with Docker Compose (Recommended)
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/jaypatel345/aslioffer.git
+   cd aslioffer
+   ```
+
+2. Configure environment variables:
+   ```bash
+   cp .env.example .env
+   ```
+
+3. Launch all services:
+   ```bash
+   docker compose up --build
+   ```
+
+4. Access the application:
+   - **Frontend UI:** [http://localhost:3000](http://localhost:3000) (or `http://localhost:5173`)
+   - **Backend API Docs:** [http://localhost:8000/docs](http://localhost:8000/docs)
+   - **Health Check:** [http://localhost:8000/health](http://localhost:8000/health)
+
+---
+
+### Option B: Running Locally for Development
+
+#### 1. Backend Setup:
+```bash
+cd backend
+python -m venv venv
+# On Windows:
+.\venv\Scripts\activate
+# On Linux/macOS:
+source venv/bin/activate
+
+pip install -r requirements.txt
+cp .env.example .env
+
+# Run FastAPI dev server (default SQLite local storage requires zero DB setup)
+uvicorn app.main:app --reload --port 8000
+```
+
+#### 2. Frontend Setup:
+```bash
+cd frontend
+npm install
+npm run dev
+```
+Open [http://localhost:5173](http://localhost:5173) in your browser.
+
+---
+
+## 6. Environment Variables
+
+| Variable | Description | Default / Example |
+|---|---|---|
+| `SERPAPI_API_KEY` | SerpApi key for live Google web/jobs search | `""` (Uses mock engine when blank) |
+| `GEMINI_API_KEY` | Google Gemini API key for multimodal extraction | `""` (Uses mock engine when blank) |
+| `GEMINI_MODEL` | Gemini model version | `gemini-2.5-flash` |
+| `DATABASE_URL` | SQLModel database connection string | `sqlite:///./aslioffer.db` or PostgreSQL |
+| `REDIS_URL` | Redis instance for search caching | `redis://localhost:6379/0` |
+| `VITE_API_BASE_URL` | API base URL for frontend client | `http://localhost:8000` |
+
+---
+
+## 7. API Endpoints Specification
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/health` | System health check and service status |
+| `POST` | `/offers/upload` | Ingest offer document (PDF/screenshot) or text payload |
+| `POST` | `/analysis/run` | Execute multi-agent forensic verification |
+| `GET` | `/offers/{id}` | Fetch offer metadata by ID |
+| `GET` | `/offers/{id}/report` | Retrieve complete forensic evidence report |
+
+Interactive Swagger documentation is available at [http://localhost:8000/docs](http://localhost:8000/docs).
+
+---
+
+## 8. Future Roadmap
+
+- [ ] **Gmail Ingestion:** 1-click Chrome extension / OAuth integration to audit recruiter emails directly from inboxes.
+- [ ] **Neo4j Syndicate Graph:** Graph-based correlation of phone numbers, UPI handles, and domains across reported scam syndicates.
+- [ ] **Automated NCRP Filing:** 1-click generation of formatted incident complaint drafts for the National Cyber Crime Portal ([cybercrime.gov.in](https://cybercrime.gov.in)).
+- [ ] **Community Intelligence Hub:** Crowdsourced scam registry allowing freshers to verify burner numbers and Telegram handles.
+- [ ] **WhatsApp & Telegram Bot:** Direct forwarding of suspicious messages for instant mobile verification.
+
+---
+
+## 9. Acknowledgments
+
+Developed for the **SerpApi India Hackathon 2026** under the **AI Agents Track**.  
+National Cyber Crime Reporting Portal helpline: **1930** | [cybercrime.gov.in](https://cybercrime.gov.in).
