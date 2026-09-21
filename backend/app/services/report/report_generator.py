@@ -5,6 +5,7 @@ from app.schemas.analysis import (
     ExtractedEntities,
     AgentFinding,
     RiskLevel,
+    VerdictReason,
 )
 from app.core.logging import logger
 
@@ -28,8 +29,9 @@ class ReportGenerator:
         findings: List[AgentFinding],
         red_flags: List[str],
         green_flags: List[str],
+        reason_details: Optional[List[VerdictReason]] = None,
     ) -> VerificationReport:
-        logger.info("ReportGenerator compiling report for offer_id=%d", offer_id)
+        logger.info("ReportGenerator compiling report for offer_id=%d (risk_level=%s)", offer_id, risk_level.value)
 
         company_name = extracted_entities.company_name or "Company"
         clean_name = company_name.replace(" ", "").lower()
@@ -38,7 +40,7 @@ class ReportGenerator:
             "name": company_name,
             "website": f"https://www.{clean_name}.com",
             "careers_url": f"https://careers.{clean_name}.com",
-            "mca_status": "Active Corporate Entity",
+            "mca_status": "Active Corporate Entity" if risk_level != RiskLevel.CANNOT_VERIFY else "Unconfirmed in Public Footprint",
             "recruitment_policy": "Legitimate enterprise HR teams never demand fees or deposits for employment.",
         }
 
@@ -54,6 +56,19 @@ class ReportGenerator:
                 "Contact the official employer directly using their verified careers portal or corporate switchboard.",
                 "Report this incident immediately to the National Cyber Crime Reporting Portal at https://cybercrime.gov.in or call helpline 1930.",
                 "Block and report the sender's phone number and Telegram/WhatsApp accounts.",
+            ]
+        elif risk_level == RiskLevel.CANNOT_VERIFY:
+            summary = (
+                f"INCONCLUSIVE PUBLIC EVIDENCE: Could not independently verify this offer from available evidence. "
+                f"Public search records for {company_name} or the recruiter are sparse or below confidence thresholds. "
+                "While no overt scam demands were found, exercise independent verification before proceeding."
+            )
+            actions = [
+                "Could not independently verify this offer from available evidence.",
+                "Verify the employer independently through official business registries (such as MCA India).",
+                "Request the recruiter to send an official confirmation from a verifiable corporate domain.",
+                "Do NOT transfer any money, deposits, or share Aadhaar/PAN details until verified.",
+                "Independently look up the company's registered office phone number and call their main switchboard.",
             ]
         elif risk_level == RiskLevel.NEEDS_REVIEW:
             summary = (
@@ -89,5 +104,7 @@ class ReportGenerator:
             green_flags=green_flags,
             official_company_info=official_info,
             recommended_actions=actions,
+            reason_details=reason_details or [],
             generated_at=datetime.now(timezone.utc),
         )
+

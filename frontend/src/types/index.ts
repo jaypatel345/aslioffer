@@ -1,4 +1,9 @@
-export type RiskLevel = 'VERIFIED' | 'NEEDS_REVIEW' | 'HIGH_RISK';
+export type RiskLevel = 'VERIFIED' | 'NEEDS_REVIEW' | 'HIGH_RISK' | 'CANNOT_VERIFY';
+
+export interface VerdictReason {
+  code: string;
+  reason: string;
+}
 
 export interface ExtractedEntities {
   company_name?: string;
@@ -48,6 +53,7 @@ export interface VerificationReport {
     recruitment_policy?: string;
   };
   recommended_actions: string[];
+  reason_details?: VerdictReason[];
   generated_at: string;
 }
 

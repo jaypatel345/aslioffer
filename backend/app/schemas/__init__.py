@@ -8,6 +8,8 @@ from .analysis import (
     AgentFinding,
     AnalysisRequest,
     VerificationReport,
+    VerdictReason,
+    VerdictResult,
 )
 
 __all__ = [
@@ -22,4 +24,6 @@ __all__ = [
     "AgentFinding",
     "AnalysisRequest",
     "VerificationReport",
+    "VerdictReason",
+    "VerdictResult",
 ]

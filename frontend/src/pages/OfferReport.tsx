@@ -56,6 +56,7 @@ export const OfferReport: React.FC = () => {
 
   const isHighRisk = report.risk_level === 'HIGH_RISK';
   const isVerified = report.risk_level === 'VERIFIED';
+  const isCannotVerify = report.risk_level === 'CANNOT_VERIFY';
 
   return (
     <div className="max-w-5xl mx-auto py-8 space-y-8 pb-20">
@@ -92,6 +93,8 @@ export const OfferReport: React.FC = () => {
             ? 'border-l-rose-500 glow-rose'
             : isVerified
             ? 'border-l-emerald-500 glow-emerald'
+            : isCannotVerify
+            ? 'border-l-slate-400 bg-slate-900/40'
             : 'border-l-amber-500 glow-amber'
         }`}
       >
@@ -115,6 +118,19 @@ export const OfferReport: React.FC = () => {
         <p className="text-sm sm:text-base text-slate-200 leading-relaxed bg-slate-900/60 p-4 rounded-xl border border-slate-800">
           {report.summary}
         </p>
+
+        {report.reason_details && report.reason_details.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {report.reason_details.map((rd, i) => (
+              <span
+                key={i}
+                className="text-[11px] font-mono px-2.5 py-1 rounded-lg bg-slate-900/90 border border-slate-700 text-slate-300"
+              >
+                <strong className="text-emerald-400">{rd.code}</strong> — {rd.reason}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Flags Section (Red vs Green) */}

@@ -10,10 +10,10 @@
 - [x] Build extraction prompt/flow for screenshot input (OCR text → extraction)
 - [x] Build extraction prompt/flow for PDF offer letter input
 - [ ] Test extraction against mock SerpApi fixture data (don't wait on real search integration)
-- [ ] Define `AgentResult` input shape consumed from each agent: `{flag, reason, evidence_url, confidence}`
-- [ ] Build Risk Engine reasoning: combine 4 agent results → final verdict
-- [ ] Write verdict output format: `{verdict, confidence, reasons[], evidence[]}`
-- [ ] Handle "cannot verify" case honestly (no false confidence)
+- [x] Define `AgentResult` input shape consumed from each agent: `{flag, reason, evidence_url, confidence}`
+- [x] Build Risk Engine reasoning: combine 4 agent results → final verdict
+- [x] Write verdict output format: `{verdict, confidence, reasons[], evidence[]}`
+- [x] Handle "cannot verify" case honestly (no false confidence)
 - [ ] Integrate with real SerpApi Agent outputs (once ready)
 - [ ] Test against 5+ real scam examples + 5+ real genuine examples
 - [ ] Handoff to Backend Dev for API wiring

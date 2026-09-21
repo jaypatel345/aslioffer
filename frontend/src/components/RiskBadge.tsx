@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShieldCheck, AlertTriangle, AlertCircle } from 'lucide-react';
+import { ShieldCheck, AlertTriangle, AlertCircle, HelpCircle } from 'lucide-react';
 import { RiskLevel } from '../types';
 
 interface RiskBadgeProps {
@@ -26,6 +26,16 @@ export const RiskBadge: React.FC<RiskBadgeProps> = ({
           text: 'text-emerald-400',
           subtext: 'Matches verified corporate footprint',
           glow: 'shadow-[0_0_15px_rgba(16,185,129,0.2)]',
+        };
+      case 'CANNOT_VERIFY':
+        return {
+          label: 'CANNOT VERIFY',
+          icon: HelpCircle,
+          bg: 'bg-slate-900/80',
+          border: 'border-slate-600',
+          text: 'text-slate-300',
+          subtext: 'Could not independently verify this offer from available evidence',
+          glow: 'shadow-[0_0_15px_rgba(148,163,184,0.2)]',
         };
       case 'NEEDS_REVIEW':
         return {

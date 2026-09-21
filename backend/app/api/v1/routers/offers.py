@@ -12,6 +12,7 @@ from app.services.agents.recruiter_agent import RecruiterAgent
 from app.services.agents.salary_agent import SalaryAgent
 from app.services.agents.scam_agent import ScamAgent
 from app.services.risk.risk_engine import RiskEngine
+from app.services.risk.verdict_reasoner import VerdictReasoner
 from app.services.report.report_generator import ReportGenerator
 from app.core.logging import logger
 
@@ -23,6 +24,7 @@ recruiter_agent = RecruiterAgent()
 salary_agent = SalaryAgent()
 scam_agent = ScamAgent()
 risk_engine = RiskEngine()
+verdict_reasoner = VerdictReasoner()
 report_generator = ReportGenerator()
 
 
@@ -137,27 +139,39 @@ async def get_offer_report(id: int, session: Session = Depends(get_session)):
 
     findings = [finding_comp, finding_rec, finding_sal, finding_scam]
 
-    # Step 3: Risk Engine
-    risk_score, risk_level, red_flags, green_flags = risk_engine.compute_risk(findings)
+    # Step 3: Risk Engine (Deterministic score calculation)
+    risk_score, initial_risk_level, red_flags, green_flags = risk_engine.compute_risk(findings)
 
-    # Step 4: Update offer status in DB if exists
+    # Step 4: Verdict Reasoner (Evidence-aware verdict determination)
+    verdict_result = verdict_reasoner.evaluate(
+        company_result=finding_comp,
+        recruiter_result=finding_rec,
+        salary_result=finding_sal,
+        scam_result=finding_scam,
+        initial_risk_score=risk_score,
+        initial_risk_level=initial_risk_level,
+    )
+    final_verdict = verdict_result.verdict
+
+    # Step 5: Update offer status in DB if exists
     if offer:
         offer.risk_score = risk_score
-        offer.risk_level = risk_level.value
+        offer.risk_level = final_verdict.value
         offer.status = "COMPLETED"
         session.add(offer)
         session.commit()
 
-    # Step 5: Generate Report
+    # Step 6: Generate Report
     report = report_generator.generate(
         offer_id=id,
         title=offer_title,
         risk_score=risk_score,
-        risk_level=risk_level,
+        risk_level=final_verdict,
         extracted_entities=entities,
         findings=findings,
         red_flags=red_flags,
         green_flags=green_flags,
+        reason_details=verdict_result.reason_details,
     )
 
     return report

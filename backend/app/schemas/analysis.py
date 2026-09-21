@@ -8,6 +8,7 @@ class RiskLevel(str, Enum):
     VERIFIED = "VERIFIED"
     NEEDS_REVIEW = "NEEDS_REVIEW"
     HIGH_RISK = "HIGH_RISK"
+    CANNOT_VERIFY = "CANNOT_VERIFY"
 
 
 class ExtractedEntities(BaseModel):
@@ -84,6 +85,19 @@ class AnalysisRequest(BaseModel):
     force_refresh: bool = False
 
 
+class VerdictReason(BaseModel):
+    code: str = Field(..., description="Machine-readable reason code, e.g. COMPANY_NOT_VERIFIED")
+    reason: str = Field(..., description="Human-readable explanation")
+
+
+class VerdictResult(BaseModel):
+    verdict: RiskLevel
+    confidence: float = Field(..., description="Computed confidence score between 0.0 and 1.0")
+    reasons: List[str] = Field(default_factory=list)
+    reason_details: List[VerdictReason] = Field(default_factory=list)
+    evidence: List[EvidenceItem] = Field(default_factory=list)
+
+
 class VerificationReport(BaseModel):
     offer_id: int
     title: str
@@ -96,4 +110,5 @@ class VerificationReport(BaseModel):
     green_flags: List[str]
     official_company_info: Dict[str, Optional[str]]
     recommended_actions: List[str]
+    reason_details: List[VerdictReason] = Field(default_factory=list)
     generated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
