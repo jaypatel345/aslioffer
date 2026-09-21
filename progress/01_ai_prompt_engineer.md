@@ -5,10 +5,10 @@
 
 ## Tasks
 
-- [ ] Define `ExtractedData` JSON shape: `{company, recruiter_email, salary, address, raw_text}`
-- [ ] Build extraction prompt for pasted text input
-- [ ] Build extraction prompt/flow for screenshot input (OCR text → extraction)
-- [ ] Build extraction prompt/flow for PDF offer letter input
+- [x] Define `ExtractedData` JSON shape: `{company, recruiter_email, salary, address, raw_text}`
+- [x] Build extraction prompt for pasted text input
+- [x] Build extraction prompt/flow for screenshot input (OCR text → extraction)
+- [x] Build extraction prompt/flow for PDF offer letter input
 - [ ] Test extraction against mock SerpApi fixture data (don't wait on real search integration)
 - [ ] Define `AgentResult` input shape consumed from each agent: `{flag, reason, evidence_url, confidence}`
 - [ ] Build Risk Engine reasoning: combine 4 agent results → final verdict
@@ -19,10 +19,10 @@
 - [ ] Handoff to Backend Dev for API wiring
 
 ## Blockers
-_(list anything blocking you)_
+_(none)_
 
 ## Status
-Not started / In progress / Done
+In progress
 
 ## Last updated
-_(date)_
+2026-09-21

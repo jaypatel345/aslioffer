@@ -44,12 +44,14 @@ async def upload_offer(
     if file:
         file_bytes = await file.read()
         filename = file.filename or "uploaded_file"
+        mime = file.content_type or ("application/pdf" if filename.lower().endswith(".pdf") else "image/png")
         source_type = "pdf" if filename.lower().endswith(".pdf") else "screenshot"
         offer_title = title or f"Offer from {filename}"
-        # In MVP, convert bytes or extract text
         try:
-            content = file_bytes.decode("utf-8", errors="ignore")
-        except Exception:
+            doc_result = await extractor.extract_from_document(file_bytes, mime)
+            content = doc_result.get("ocr_text") or f"Extracted from {filename}"
+        except Exception as e:
+            logger.warning("Document extraction failed (%s), using raw text fallback", str(e))
             content = f"Binary content from {filename} ({len(file_bytes)} bytes)"
 
     if not content:
@@ -108,8 +110,9 @@ async def get_offer_report(id: int, session: Session = Depends(get_session)):
     )
     offer_title = offer.title if offer else "Offer Letter Verification"
 
-    # Step 1: Entity Extraction
-    entities = extractor.extract(raw_content)
+    # Step 1: Entity Extraction (Gemini structured extraction with regex fallback)
+    extracted_data = await extractor.extract_entities(raw_content)
+    entities = extracted_data.to_extracted_entities()
 
     # Step 2: Investigation Agents (Parallel contracts)
     finding_comp = await company_agent.investigate(entities.company_name or "Unknown Company")

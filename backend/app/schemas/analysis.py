@@ -23,6 +23,45 @@ class ExtractedEntities(BaseModel):
     flags: List[str] = Field(default_factory=list)
 
 
+class ExtractedData(BaseModel):
+    company: Optional[str] = None
+    recruiter_name: Optional[str] = None
+    recruiter_email: Optional[str] = None
+    recruiter_phone: Optional[str] = None
+    job_role: Optional[str] = None
+    salary: Optional[str] = None
+    salary_amount: Optional[float] = None
+    salary_period: Optional[str] = None
+    joining_date: Optional[str] = None
+    address: Optional[str] = None
+    website: Optional[str] = None
+    payment_request_detected: bool = False
+    payment_amount: Optional[str] = None
+    payment_method: Optional[str] = None
+    flags: List[str] = Field(default_factory=list)
+    raw_text: str = ""
+
+    def to_extracted_entities(self) -> ExtractedEntities:
+        """Adapter for backward compatibility with downstream agents and report generator."""
+        return ExtractedEntities(
+            company_name=self.company,
+            recruiter_name=self.recruiter_name,
+            recruiter_email=self.recruiter_email,
+            recruiter_phone=self.recruiter_phone,
+            role_title=self.job_role,
+            offered_salary=self.salary,
+            location=self.address or "Remote / India",
+            demanded_fee=self.payment_amount if self.payment_request_detected else None,
+            payment_method=self.payment_method,
+            flags=list(self.flags),
+        )
+
+
+class DocumentExtractionResult(BaseModel):
+    ocr_text: str
+    entities: ExtractedData
+
+
 class EvidenceItem(BaseModel):
     source_url: str
     title: str

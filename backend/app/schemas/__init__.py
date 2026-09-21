@@ -2,6 +2,8 @@ from .offer import OfferCreate, OfferRead, OfferUploadResponse
 from .analysis import (
     RiskLevel,
     ExtractedEntities,
+    ExtractedData,
+    DocumentExtractionResult,
     EvidenceItem,
     AgentFinding,
     AnalysisRequest,
@@ -14,6 +16,8 @@ __all__ = [
     "OfferUploadResponse",
     "RiskLevel",
     "ExtractedEntities",
+    "ExtractedData",
+    "DocumentExtractionResult",
     "EvidenceItem",
     "AgentFinding",
     "AnalysisRequest",
