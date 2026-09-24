@@ -1,3 +1,4 @@
+import asyncio
 from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, status
 from sqlmodel import Session, select
@@ -116,25 +117,29 @@ async def get_offer_report(id: int, session: Session = Depends(get_session)):
     extracted_data = await extractor.extract_entities(raw_content)
     entities = extracted_data.to_extracted_entities()
 
-    # Step 2: Investigation Agents (Parallel contracts)
-    finding_comp = await company_agent.investigate(entities.company_name or "Unknown Company")
-    finding_rec = await recruiter_agent.investigate(
-        company_name=entities.company_name or "Unknown Company",
-        recruiter_name=entities.recruiter_name,
-        recruiter_email=entities.recruiter_email,
-        recruiter_phone=entities.recruiter_phone,
-    )
-    finding_sal = await salary_agent.investigate(
-        company_name=entities.company_name or "Unknown Company",
-        role_title=entities.role_title,
-        offered_salary=entities.offered_salary,
-    )
-    finding_scam = await scam_agent.investigate(
-        company_name=entities.company_name or "Unknown Company",
-        demanded_fee=entities.demanded_fee,
-        payment_method=entities.payment_method,
-        flags=entities.flags,
-        raw_text=raw_content,
+    # Step 2: Investigation Agents — run concurrently; they share no state and
+    # each spends nearly all its time waiting on SerpApi.
+    company_name = entities.company_name or "Unknown Company"
+    finding_comp, finding_rec, finding_sal, finding_scam = await asyncio.gather(
+        company_agent.investigate(company_name),
+        recruiter_agent.investigate(
+            company_name=company_name,
+            recruiter_name=entities.recruiter_name,
+            recruiter_email=entities.recruiter_email,
+            recruiter_phone=entities.recruiter_phone,
+        ),
+        salary_agent.investigate(
+            company_name=company_name,
+            role_title=entities.role_title,
+            offered_salary=entities.offered_salary,
+        ),
+        scam_agent.investigate(
+            company_name=company_name,
+            demanded_fee=entities.demanded_fee,
+            payment_method=entities.payment_method,
+            flags=entities.flags,
+            raw_text=raw_content,
+        ),
     )
 
     findings = [finding_comp, finding_rec, finding_sal, finding_scam]

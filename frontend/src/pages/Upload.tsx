@@ -49,14 +49,12 @@ export const Upload: React.FC = () => {
         offerId = res.offer_id;
       }
 
-      // Wait for agent pipeline animation
-      setTimeout(() => {
-        clearInterval(stepInterval);
-        setIsProcessing(false);
-        // Unlocks the "Report" link in the navbar — only a real investigation does.
-        lastReport.set(offerId);
-        navigate(`/offers/${offerId}/report`);
-      }, 4200);
+      // The agents run on the report page, so don't pad the handoff to it.
+      clearInterval(stepInterval);
+      setIsProcessing(false);
+      // Unlocks the "Report" link in the navbar — only a real investigation does.
+      lastReport.set(offerId);
+      navigate(`/offers/${offerId}/report`);
     } catch (err) {
       clearInterval(stepInterval);
       setIsProcessing(false);
