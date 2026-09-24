@@ -21,9 +21,9 @@ export const RiskBadge: React.FC<RiskBadgeProps> = ({
         return {
           label: 'VERIFIED',
           icon: ShieldCheck,
-          bg: 'bg-emerald-950/70',
-          border: 'border-emerald-500/30',
-          text: 'text-emerald-400',
+          bg: 'bg-emerald-50',
+          border: 'border-emerald-300',
+          text: 'text-emerald-600',
           subtext: 'Matches verified corporate footprint',
           glow: 'shadow-[0_0_15px_rgba(16,185,129,0.2)]',
         };
@@ -31,9 +31,9 @@ export const RiskBadge: React.FC<RiskBadgeProps> = ({
         return {
           label: 'CANNOT VERIFY',
           icon: HelpCircle,
-          bg: 'bg-slate-900/80',
-          border: 'border-slate-600',
-          text: 'text-slate-300',
+          bg: 'bg-slate-50/80',
+          border: 'border-slate-400',
+          text: 'text-slate-600',
           subtext: 'Could not independently verify this offer from available evidence',
           glow: 'shadow-[0_0_15px_rgba(148,163,184,0.2)]',
         };
@@ -41,9 +41,9 @@ export const RiskBadge: React.FC<RiskBadgeProps> = ({
         return {
           label: 'NEEDS REVIEW',
           icon: AlertCircle,
-          bg: 'bg-amber-950/70',
-          border: 'border-amber-500/30',
-          text: 'text-amber-400',
+          bg: 'bg-amber-50',
+          border: 'border-amber-300',
+          text: 'text-amber-600',
           subtext: 'Ambiguous credentials - manual check required',
           glow: 'shadow-[0_0_15px_rgba(245,158,11,0.2)]',
         };
@@ -52,9 +52,9 @@ export const RiskBadge: React.FC<RiskBadgeProps> = ({
         return {
           label: 'HIGH RISK',
           icon: AlertTriangle,
-          bg: 'bg-rose-950/70',
-          border: 'border-rose-500/30',
-          text: 'text-rose-400',
+          bg: 'bg-rose-50',
+          border: 'border-rose-300',
+          text: 'text-rose-600',
           subtext: 'Severe scam indicators or advance fee detected',
           glow: 'shadow-[0_0_15px_rgba(244,63,94,0.25)]',
         };
@@ -78,7 +78,7 @@ export const RiskBadge: React.FC<RiskBadgeProps> = ({
       <Icon className={size === 'lg' ? 'w-5 h-5' : size === 'sm' ? 'w-3.5 h-3.5' : 'w-4 h-4'} />
       <span>{config.label}</span>
       {showScore && score !== undefined && (
-        <span className="ml-1 px-1.5 py-0.5 rounded bg-black/40 text-xs font-mono">
+        <span className="ml-1 px-1.5 py-0.5 rounded bg-white/70 text-xs font-mono">
           {(score * 100).toFixed(0)}% Risk
         </span>
       )}

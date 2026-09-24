@@ -91,18 +91,18 @@ For queries, contact your recruitment coordinator at pooja.kulkarni@infosys.com.
   return (
     <div className="glass-panel rounded-2xl p-6 sm:p-8">
       {/* Quick Presets */}
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3 pb-5 border-b border-slate-800">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3 pb-5 border-b border-slate-200">
         <div>
-          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">
+          <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider block">
             Quick Test Scenarios
           </span>
-          <p className="text-xs text-slate-400">Load test cases to see real-time agent verification</p>
+          <p className="text-xs text-slate-500">Load test cases to see real-time agent verification</p>
         </div>
         <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={handlePresetScam}
-            className="px-3 py-1.5 rounded-lg text-xs font-medium bg-rose-950/60 hover:bg-rose-900/80 text-rose-300 border border-rose-800/60 transition-colors flex items-center gap-1.5"
+            className="px-3 py-1.5 rounded-lg text-xs font-medium bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 transition-colors flex items-center gap-1.5"
           >
             <Sparkles className="w-3.5 h-3.5" />
             <span>Load Scam Pattern (TCS + UPI Fee)</span>
@@ -110,7 +110,7 @@ For queries, contact your recruitment coordinator at pooja.kulkarni@infosys.com.
           <button
             type="button"
             onClick={handlePresetLegit}
-            className="px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-950/60 hover:bg-emerald-900/80 text-emerald-300 border border-emerald-800/60 transition-colors flex items-center gap-1.5"
+            className="px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 transition-colors flex items-center gap-1.5"
           >
             <Check className="w-3.5 h-3.5" />
             <span>Load Verified Pattern (Infosys)</span>
@@ -119,14 +119,14 @@ For queries, contact your recruitment coordinator at pooja.kulkarni@infosys.com.
       </div>
 
       {/* Tabs */}
-      <div className="flex rounded-xl bg-slate-900/80 p-1 mb-6 border border-slate-800 max-w-md">
+      <div className="flex rounded-xl bg-slate-50/80 p-1 mb-6 border border-slate-200 max-w-md">
         <button
           type="button"
           onClick={() => setActiveTab('text')}
           className={`flex-1 py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${
             activeTab === 'text'
-              ? 'bg-slate-800 text-white shadow-sm'
-              : 'text-slate-400 hover:text-slate-200'
+              ? 'bg-slate-100 text-slate-900 shadow-sm'
+              : 'text-slate-500 hover:text-slate-700'
           }`}
         >
           Paste Message / Email Text
@@ -136,8 +136,8 @@ For queries, contact your recruitment coordinator at pooja.kulkarni@infosys.com.
           onClick={() => setActiveTab('file')}
           className={`flex-1 py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${
             activeTab === 'file'
-              ? 'bg-slate-800 text-white shadow-sm'
-              : 'text-slate-400 hover:text-slate-200'
+              ? 'bg-slate-100 text-slate-900 shadow-sm'
+              : 'text-slate-500 hover:text-slate-700'
           }`}
         >
           Upload PDF / Screenshot
@@ -146,7 +146,7 @@ For queries, contact your recruitment coordinator at pooja.kulkarni@infosys.com.
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+          <label className="block text-xs font-semibold text-slate-600 mb-1.5">
             Offer Title or Company Name
           </label>
           <input
@@ -154,14 +154,14 @@ For queries, contact your recruitment coordinator at pooja.kulkarni@infosys.com.
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="e.g. TCS Graduate Trainee Offer Letter"
-            className="w-full px-4 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition-colors"
+            className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm text-slate-900 placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition-colors"
           />
         </div>
 
         {activeTab === 'text' ? (
           <div>
             <div className="flex items-center justify-between mb-1.5">
-              <label className="block text-xs font-semibold text-slate-300">
+              <label className="block text-xs font-semibold text-slate-600">
                 Offer Letter or Recruiter Message Text
               </label>
               <span className="text-xs text-slate-500 font-mono">
@@ -169,11 +169,11 @@ For queries, contact your recruitment coordinator at pooja.kulkarni@infosys.com.
               </span>
             </div>
             <textarea
-              rows={8}
+              rows={14}
               value={content}
               onChange={(e) => setContent(e.target.value)}
               placeholder="Paste the full email, WhatsApp message, Telegram chat, or offer letter text here..."
-              className="w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-800 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 font-mono leading-relaxed transition-colors"
+              className="w-full px-4 py-4 rounded-xl bg-slate-50 border border-slate-200 text-sm text-slate-900 placeholder-slate-500 focus:outline-none focus:border-emerald-500 font-mono leading-relaxed transition-colors resize-y min-h-[16rem]"
               required
             />
           </div>
@@ -196,30 +196,30 @@ For queries, contact your recruitment coordinator at pooja.kulkarni@infosys.com.
               onClick={() => fileInputRef.current?.click()}
               className={`border-2 border-dashed rounded-2xl p-8 text-center cursor-pointer transition-all ${
                 dragOver
-                  ? 'border-emerald-500 bg-emerald-950/20'
-                  : 'border-slate-700 bg-slate-900/40 hover:border-slate-600 hover:bg-slate-900/60'
+                  ? 'border-emerald-500 bg-emerald-50'
+                  : 'border-slate-300 bg-slate-50/40 hover:border-slate-400 hover:bg-slate-50/60'
               }`}
             >
-              <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-slate-800 flex items-center justify-center text-slate-300">
+              <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-slate-100 flex items-center justify-center text-slate-600">
                 {selectedFile ? (
-                  <FileText className="w-6 h-6 text-emerald-400" />
+                  <FileText className="w-6 h-6 text-emerald-600" />
                 ) : (
                   <Upload className="w-6 h-6" />
                 )}
               </div>
               {selectedFile ? (
                 <div>
-                  <p className="text-sm font-semibold text-emerald-400">{selectedFile.name}</p>
-                  <p className="text-xs text-slate-400 mt-1">
+                  <p className="text-sm font-semibold text-emerald-600">{selectedFile.name}</p>
+                  <p className="text-xs text-slate-500 mt-1">
                     {(selectedFile.size / 1024).toFixed(1)} KB — Click to change file
                   </p>
                 </div>
               ) : (
                 <div>
-                  <p className="text-sm font-semibold text-slate-200">
+                  <p className="text-sm font-semibold text-slate-700">
                     Drop your offer letter PDF or screenshot here
                   </p>
-                  <p className="text-xs text-slate-400 mt-1">
+                  <p className="text-xs text-slate-500 mt-1">
                     Supports PDF, PNG, JPG, or screenshot images up to 10MB
                   </p>
                 </div>
@@ -229,8 +229,8 @@ For queries, contact your recruitment coordinator at pooja.kulkarni@infosys.com.
         )}
 
         {/* Informational callout */}
-        <div className="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 text-xs text-slate-400 flex items-start gap-2.5">
-          <AlertCircle className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+        <div className="p-3.5 rounded-xl bg-slate-50/90 border border-slate-200 text-xs text-slate-500 flex items-start gap-2.5">
+          <AlertCircle className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
           <p>
             AsliOffer extracts entities and queries public search data in real-time via SerpApi.
             We will never store private Aadhaar, PAN, or financial numbers.
@@ -241,11 +241,11 @@ For queries, contact your recruitment coordinator at pooja.kulkarni@infosys.com.
         <button
           type="submit"
           disabled={isLoading || (activeTab === 'text' && !content.trim()) || (activeTab === 'file' && !selectedFile)}
-          className="w-full py-3.5 px-6 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 disabled:opacity-50 disabled:cursor-not-allowed text-slate-950 font-bold text-sm tracking-wide shadow-lg shadow-emerald-950/50 transition-all flex items-center justify-center gap-2"
+          className="w-full py-3.5 px-6 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-sm tracking-wide shadow-lg shadow-emerald-200 transition-all flex items-center justify-center gap-2"
         >
           {isLoading ? (
             <>
-              <div className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
               <span>Running Live Public Footprint Investigation...</span>
             </>
           ) : (
