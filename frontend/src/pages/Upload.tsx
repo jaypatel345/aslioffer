@@ -2,12 +2,14 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FileUpload } from '../components/FileUpload';
 import { api } from '../services/api';
+import { lastReport } from '../services/lastReport';
 
 
 export const Upload: React.FC = () => {
   const navigate = useNavigate();
   const [isProcessing, setIsProcessing] = useState(false);
   const [currentStep, setCurrentStep] = useState<number>(0);
+  const [error, setError] = useState<string | null>(null);
 
   const steps = [
     { title: 'Entity Extraction', desc: 'Parsing company, recruiter, compensation & fees' },
@@ -21,6 +23,7 @@ export const Upload: React.FC = () => {
   const handleAnalyze = async (payload: { title: string; content: string; file?: File }) => {
     setIsProcessing(true);
     setCurrentStep(0);
+    setError(null);
 
     // Simulate multi-agent sequential pipeline progression
     const stepInterval = setInterval(() => {
@@ -34,7 +37,7 @@ export const Upload: React.FC = () => {
     }, 700);
 
     try {
-      let offerId = 101;
+      let offerId: number;
       if (payload.file) {
         const formData = new FormData();
         formData.append('title', payload.title);
@@ -44,49 +47,53 @@ export const Upload: React.FC = () => {
       } else {
         const res = await api.uploadOfferText(payload.title, payload.content);
         offerId = res.offer_id;
-        // Determine whether this was the verified example to route appropriately
-        if (payload.content.toLowerCase().includes('infosys') && !payload.content.toLowerCase().includes('deposit')) {
-          offerId = 102;
-        }
       }
 
       // Wait for agent pipeline animation
       setTimeout(() => {
         clearInterval(stepInterval);
         setIsProcessing(false);
+        // Unlocks the "Report" link in the navbar — only a real investigation does.
+        lastReport.set(offerId);
         navigate(`/offers/${offerId}/report`);
       }, 4200);
     } catch (err) {
       clearInterval(stepInterval);
       setIsProcessing(false);
-      navigate(`/offers/101/report`);
+      setError('Investigation could not be completed. Please check your connection and try again.');
     }
   };
 
   return (
     <div className="max-w-4xl mx-auto py-8">
       <div className="mb-8 text-center">
-        <h1 className="text-3xl font-extrabold text-white">
+        <h1 className="text-3xl font-extrabold text-slate-900">
           Verify Job or Internship Offer
         </h1>
-        <p className="text-sm text-slate-400 mt-2 max-w-xl mx-auto">
+        <p className="text-sm text-slate-500 mt-2 max-w-xl mx-auto">
           Upload an offer letter (PDF/image) or paste an email/WhatsApp message.
           Our multi-agent system verifies the employer's public footprint in real-time.
         </p>
       </div>
 
+      {error && (
+        <div className="mb-4 p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700">
+          {error}
+        </div>
+      )}
+
       <FileUpload onAnalyze={handleAnalyze} isLoading={isProcessing} />
 
       {/* Processing Animation Modal */}
       {isProcessing && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="glass-panel rounded-2xl p-6 sm:p-8 max-w-md w-full border border-emerald-500/30 shadow-2xl">
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-6 sm:p-8 max-w-md w-full border border-emerald-300 shadow-2xl">
             <div className="text-center mb-6">
-              <div className="w-12 h-12 rounded-full bg-emerald-950/90 border border-emerald-500/40 text-emerald-400 flex items-center justify-center mx-auto mb-3">
+              <div className="w-12 h-12 rounded-full bg-emerald-50 border border-emerald-300 text-emerald-600 flex items-center justify-center mx-auto mb-3">
                 <div className="w-6 h-6 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
               </div>
-              <h3 className="text-lg font-bold text-white">Investigating Live Public Footprint</h3>
-              <p className="text-xs text-slate-400 mt-1">
+              <h3 className="text-lg font-bold text-slate-900">Investigating Live Public Footprint</h3>
+              <p className="text-xs text-slate-500 mt-1">
                 Querying live search endpoints with specialized AI agents
               </p>
             </div>
@@ -100,21 +107,21 @@ export const Upload: React.FC = () => {
                     key={idx}
                     className={`flex items-start gap-3 p-2.5 rounded-xl text-xs transition-all ${
                       isCurrent
-                        ? 'bg-emerald-950/40 border border-emerald-500/40 text-emerald-200'
+                        ? 'bg-emerald-50 border border-emerald-300 text-emerald-800'
                         : isDone
-                        ? 'text-slate-400 opacity-80'
-                        : 'text-slate-600 opacity-40'
+                        ? 'text-slate-500 opacity-80'
+                        : 'text-slate-500 opacity-50'
                     }`}
                   >
                     <div className="mt-0.5">
                       {isDone ? (
-                        <div className="w-4 h-4 rounded-full bg-emerald-500 text-slate-950 flex items-center justify-center text-[10px] font-bold">
+                        <div className="w-4 h-4 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px] font-bold">
                           ✓
                         </div>
                       ) : isCurrent ? (
                         <div className="w-4 h-4 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
                       ) : (
-                        <div className="w-4 h-4 rounded-full border border-slate-700 flex items-center justify-center text-[10px]">
+                        <div className="w-4 h-4 rounded-full border border-slate-300 flex items-center justify-center text-[10px]">
                           {idx + 1}
                         </div>
                       )}
