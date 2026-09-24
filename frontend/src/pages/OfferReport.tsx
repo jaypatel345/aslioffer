@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, useLocation, Link } from 'react-router-dom';
 import {
   ArrowLeft,
   Building2,
@@ -21,11 +21,21 @@ import { EvidenceCard } from '../components/EvidenceCard';
 export const OfferReport: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const offerId = Number(id) || 101;
+  const location = useLocation();
+  // Handed over by the upload page, which already ran the agents.
+  const preloaded = (location.state as { report?: VerificationReport } | null)?.report;
   const [report, setReport] = useState<VerificationReport | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let isMounted = true;
+
+    if (preloaded && preloaded.offer_id === offerId) {
+      setReport(preloaded);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
 
     api

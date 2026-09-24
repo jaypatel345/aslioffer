@@ -49,12 +49,20 @@ export const Upload: React.FC = () => {
         offerId = res.offer_id;
       }
 
-      // The agents run on the report page, so don't pad the handoff to it.
+      // Run the pipeline here so the step list tracks the real investigation
+      // instead of a timer, and the report is already in hand when we navigate.
+      const report = await api.runAnalysis(offerId);
+
       clearInterval(stepInterval);
-      setIsProcessing(false);
+      setCurrentStep(steps.length); // every step ticks over to done
       // Unlocks the "Report" link in the navbar — only a real investigation does.
       lastReport.set(offerId);
-      navigate(`/offers/${offerId}/report`);
+
+      // Let the completed checklist land before handing over to the report.
+      window.setTimeout(() => {
+        setIsProcessing(false);
+        navigate(`/offers/${offerId}/report`, { state: { report } });
+      }, 650);
     } catch (err) {
       clearInterval(stepInterval);
       setIsProcessing(false);
