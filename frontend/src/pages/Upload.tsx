@@ -62,7 +62,7 @@ export const Upload: React.FC = () => {
       window.setTimeout(() => {
         setIsProcessing(false);
         navigate(`/offers/${offerId}/report`, { state: { report } });
-      }, 650);
+      }, 1000);
     } catch (err) {
       clearInterval(stepInterval);
       setIsProcessing(false);

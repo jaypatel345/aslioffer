@@ -30,6 +30,9 @@ export const OfferReport: React.FC = () => {
   useEffect(() => {
     let isMounted = true;
 
+    // Arriving from the upload form, which the user had scrolled down to submit.
+    window.scrollTo(0, 0);
+
     if (preloaded && preloaded.offer_id === offerId) {
       setReport(preloaded);
       setLoading(false);
