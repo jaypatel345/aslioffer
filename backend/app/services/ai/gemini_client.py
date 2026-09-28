@@ -1,3 +1,4 @@
+import asyncio
 import base64
 import json
 import re
@@ -41,14 +42,16 @@ class GeminiClient:
         "application/pdf",
     }
 
-    def __init__(self, api_key: Optional[str] = None, model_name: Optional[str] = None, timeout: float = 8.0):
+    # Vision calls on a multi-page document routinely exceed 8s, and a timeout
+    # here silently drops the upload to the unreadable-document path.
+    def __init__(self, api_key: Optional[str] = None, model_name: Optional[str] = None, timeout: float = 45.0):
         self.api_key = api_key or settings.GEMINI_API_KEY
         self.model_name = model_name or settings.GEMINI_MODEL
         self.timeout = timeout
         self.base_url = "https://generativelanguage.googleapis.com/v1beta/models"
 
-    def _get_api_url(self) -> str:
-        return f"{self.base_url}/{self.model_name}:generateContent?key={self.api_key}"
+    def _get_api_url(self, model_name: Optional[str] = None) -> str:
+        return f"{self.base_url}/{model_name or self.model_name}:generateContent?key={self.api_key}"
 
     def _clean_and_parse_json(self, raw_text: str) -> Dict[str, Any]:
         """
@@ -142,16 +145,15 @@ class GeminiClient:
         }
 
         try:
-            async with httpx.AsyncClient(timeout=self.timeout) as client:
-                response = await client.post(self._get_api_url(), json=payload)
+            response = await self._post_with_retry(payload, self.timeout)
 
-                if response.status_code == 429:
-                    raise GeminiRateLimitError("Gemini API rate limit exceeded (HTTP 429)")
+            if response.status_code == 429:
+                raise GeminiRateLimitError("Gemini API rate limit exceeded (HTTP 429)")
 
-                if response.status_code != 200:
-                    raise GeminiError(f"Gemini API returned status {response.status_code}: {response.text}")
+            if response.status_code != 200:
+                raise GeminiError(f"Gemini API returned status {response.status_code}: {response.text}")
 
-                res_json = response.json()
+            res_json = response.json()
         except httpx.TimeoutException as te:
             raise GeminiTimeoutError(f"Gemini request timed out after {self.timeout}s: {te}") from te
         except (GeminiError, GeminiRateLimitError):
@@ -174,6 +176,60 @@ class GeminiClient:
             return ExtractedData(**parsed_dict)
         except Exception as val_err:
             raise GeminiParseError(f"Extracted data validation failed: {val_err}") from val_err
+
+
+    # 503 "high demand" and 429 are common and usually clear within a second or
+    # two. Without a retry a transient spike drops the upload to the
+    # unreadable-document path, which looks identical to a broken key.
+    RETRY_STATUSES = (429, 503)
+    MAX_ATTEMPTS = 2
+
+    # Individual Gemini models go 503 "high demand" for minutes at a time, and a
+    # model can 404 outright once Google stops serving it to new keys. Walking a
+    # chain keeps document reading alive when one model is congested.
+    FALLBACK_MODELS = [
+        "gemini-3.8-flash",
+        "gemini-3.7-flash",
+        "gemini-3.6-flash",
+        "gemini-3.5-flash",
+        "gemini-flash-latest",
+    ]
+
+    def _candidate_models(self) -> List[str]:
+        seen, ordered = set(), []
+        for name in [self.model_name, *self.FALLBACK_MODELS]:
+            if name and name not in seen:
+                seen.add(name)
+                ordered.append(name)
+        return ordered
+
+    async def _post_with_retry(self, payload: dict, timeout: float) -> httpx.Response:
+        last: Optional[httpx.Response] = None
+        for model in self._candidate_models():
+            for attempt in range(self.MAX_ATTEMPTS):
+                async with httpx.AsyncClient(timeout=timeout) as client:
+                    response = await client.post(self._get_api_url(model), json=payload)
+
+                if response.status_code == 404:
+                    # Model not served to this key; retrying it is pointless.
+                    logger.warning("Gemini model %s unavailable (404); trying next.", model)
+                    last = response
+                    break
+
+                if response.status_code not in self.RETRY_STATUSES:
+                    if model != self.model_name:
+                        logger.warning("Gemini served by fallback model %s.", model)
+                    return response
+
+                last = response
+                if attempt < self.MAX_ATTEMPTS - 1:
+                    delay = 1.5 * (2 ** attempt)
+                    logger.warning(
+                        "Gemini %s returned %d (attempt %d/%d); retrying in %.1fs",
+                        model, response.status_code, attempt + 1, self.MAX_ATTEMPTS, delay,
+                    )
+                    await asyncio.sleep(delay)
+        return last
 
     async def extract_from_document(self, file_bytes: bytes, mime_type: str) -> Dict[str, Any]:
         """
@@ -267,16 +323,15 @@ class GeminiClient:
         }
 
         try:
-            async with httpx.AsyncClient(timeout=max(self.timeout * 2, 15.0)) as client:
-                response = await client.post(self._get_api_url(), json=payload)
+            response = await self._post_with_retry(payload, max(self.timeout * 2, 15.0))
 
-                if response.status_code == 429:
-                    raise GeminiRateLimitError("Gemini API rate limit exceeded (HTTP 429)")
+            if response.status_code == 429:
+                raise GeminiRateLimitError("Gemini API rate limit exceeded (HTTP 429)")
 
-                if response.status_code != 200:
-                    raise GeminiError(f"Gemini API returned status {response.status_code}: {response.text}")
+            if response.status_code != 200:
+                raise GeminiError(f"Gemini API returned status {response.status_code}: {response.text}")
 
-                res_json = response.json()
+            res_json = response.json()
         except httpx.TimeoutException as te:
             raise GeminiTimeoutError(f"Gemini document processing timed out: {te}") from te
         except (GeminiError, GeminiRateLimitError):
