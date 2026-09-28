@@ -18,6 +18,7 @@ class RiskEngine:
         base_score = 0.0
         red_flags: List[str] = []
         green_flags: List[str] = []
+        cautions: List[str] = []
 
         agent_map = {f.agent_name: f for f in findings}
 
@@ -39,6 +40,11 @@ class RiskEngine:
             elif recruiter_finding.verdict == "NEEDS_REVIEW":
                 base_score += 0.20
                 red_flags.append(recruiter_finding.summary)
+            elif recruiter_finding.verdict == "CANNOT_VERIFY":
+                # Unchecked is not the same as clean. Falling through to the green
+                # branch let a mail with no sender address earn a green flag.
+                base_score += 0.25
+                cautions.append(recruiter_finding.summary)
             else:
                 green_flags.append("Recruiter credentials consistent with corporate domain standards.")
 
@@ -48,6 +54,9 @@ class RiskEngine:
             if company_finding.verdict == "UNVERIFIED":
                 base_score += 0.25
                 red_flags.append(company_finding.summary)
+            elif company_finding.verdict == "CANNOT_VERIFY":
+                base_score += 0.30
+                cautions.append(company_finding.summary)
             else:
                 green_flags.append("Legitimate corporate registration and public web presence verified.")
 
@@ -57,8 +66,15 @@ class RiskEngine:
             if salary_finding.verdict == "NEEDS_REVIEW":
                 base_score += 0.15
                 red_flags.append(salary_finding.summary)
+            elif salary_finding.verdict == "CANNOT_VERIFY":
+                base_score += 0.05
+                cautions.append(salary_finding.summary)
             else:
                 green_flags.append("Compensation package falls within expected market baseline.")
+
+        # Unverifiable claims are surfaced alongside outright red flags: for a job
+        # seeker "we could not confirm this" needs to be as visible as a hard hit.
+        red_flags.extend(cautions)
 
         # Normalization (0.0 to 1.0)
         risk_score = min(max(round(base_score, 2), 0.05), 0.99)

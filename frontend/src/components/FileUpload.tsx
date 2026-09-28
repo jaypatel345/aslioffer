@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Upload, FileText, Sparkles, AlertCircle, Check } from 'lucide-react';
+import { Upload, FileText, Sparkles, AlertCircle, Check, HelpCircle } from 'lucide-react';
 
 interface FileUploadProps {
   onAnalyze: (payload: { title: string; content: string; file?: File; demoId?: number }) => void;
@@ -38,6 +38,53 @@ Please review the attached terms. Report to the Bangalore Development Center on 
 Infosys does not request any fees, deposits, or payments from candidates at any stage.
 For queries, contact your recruitment coordinator at pooja.kulkarni@infosys.com.`;
 
+  // A real internship mail received by a candidate in Sept 2026. No fee is asked
+  // for yet, which is exactly why it matters: the company has no public footprint
+  // and the sender gives no verifiable address.
+  const sampleUnverifiableText = `Subject: Coorix Internship Selection Process Round 1 Notification
+From: Coorix HR
+
+Dear Applicant,
+
+Thank you for showing interest in the Coorix Internship Drive.
+
+We're excited to inform you that the selection process for this batch begins today. Please read the details below carefully.
+
+Open Positions:
+1) Data Analyst Intern
+2) Business Analyst Intern
+3) Web Developer Intern
+4) AI/ML Intern
+5) Data Science Intern
+Stipend: stipend of upto Rs 15,000.
+
+Selection Process - 3 Rounds:
+
+1. Screening Round (Today) - A short live session covering the program structure, eligibility, and domain selection. Attendance here is mandatory to move forward.
+
+The details of the screening round are as follows:
+Date: 28/09/2026
+Time: 11:00 AM
+Mode: Online (Google Meet)
+Duration: Approximately 20-30 minutes.
+The screening round will be conducted online via Google Meet. The meeting link will be shared with you at least 1 hour before the start of the session.
+
+2. Domain Exam (Within 24 hours of screening) - A skill-based test in your chosen domain. Cutoff: 70%. One attempt only, so please ensure a stable environment before you begin.
+3. Technical Interview (By invitation only) - For candidates who clear the domain exam. This round focuses on your existing project work and how you approach real problems.
+
+What to Do Next:
+- Choose your domain in advance - this choice is locked once the shortlist is finalized.
+- Keep your calendar clear for the following 24-48 hours, as the exam and interview invites move quickly.
+
+Who This Is For:
+This program is built for candidates who already have working knowledge in their domain and can defend at least one project they've built. It is not a beginner training program - live client work starts from week one.
+
+We look forward to seeing you in the screening round.
+
+Best regards,
+Shraddha Rajput
+HR Manager`;
+
   const handlePresetScam = () => {
     setTitle('TCS Associate Software Engineer Offer Letter');
     setContent(sampleScamText);
@@ -48,6 +95,13 @@ For queries, contact your recruitment coordinator at pooja.kulkarni@infosys.com.
   const handlePresetLegit = () => {
     setTitle('Infosys Systems Engineer Specialist Offer');
     setContent(sampleLegitText);
+    setSelectedFile(null);
+    setActiveTab('text');
+  };
+
+  const handlePresetUnverifiable = () => {
+    setTitle('Coorix Internship Selection Process Round 1');
+    setContent(sampleUnverifiableText);
     setSelectedFile(null);
     setActiveTab('text');
   };
@@ -114,6 +168,14 @@ For queries, contact your recruitment coordinator at pooja.kulkarni@infosys.com.
           >
             <Check className="w-3.5 h-3.5" />
             <span>Load Verified Pattern (Infosys)</span>
+          </button>
+          <button
+            type="button"
+            onClick={handlePresetUnverifiable}
+            className="px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 transition-colors flex items-center gap-1.5"
+          >
+            <HelpCircle className="w-3.5 h-3.5" />
+            <span>Load Unverifiable Employer (Coorix)</span>
           </button>
         </div>
       </div>

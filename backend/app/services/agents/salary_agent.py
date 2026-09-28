@@ -1,3 +1,4 @@
+import re
 from typing import Optional, List, Dict, Any
 from app.schemas.analysis import AgentFinding, EvidenceItem
 from app.services.search.serpapi_client import SerpApiClient, SearchSource
@@ -12,6 +13,33 @@ class SalaryAgent:
 
     def __init__(self, search_client: Optional[SerpApiClient] = None):
         self.search_client = search_client or SerpApiClient()
+
+
+    # A figure like "Rs 15,000" is a monthly stipend, not an annual package.
+    # Benchmarking it against a "₹4 - ₹14 LPA" band was a 40x unit error that
+    # made the inflated-salary check pass on the exact offers it exists to catch.
+    @staticmethod
+    def _interpret(salary: Optional[str]):
+        """Returns (amount, unit) where unit is 'annual' | 'monthly' | None."""
+        if not salary:
+            return None, None
+        low = salary.lower()
+        match = re.search(r"([\d,]+(?:\.\d+)?)", low)
+        if not match:
+            return None, None
+        try:
+            amount = float(match.group(1).replace(",", ""))
+        except ValueError:
+            return None, None
+
+        if any(k in low for k in ("lpa", "lakh", "per annum", "p.a", "annually")):
+            return (amount * 100000 if amount < 1000 else amount), "annual"
+        if any(k in low for k in ("per month", "p.m", "monthly", "stipend", "/month")):
+            return amount, "monthly"
+        # A bare figure this small cannot be an annual tech salary in rupees.
+        if amount < 100000:
+            return amount, "monthly"
+        return amount, "annual"
 
     async def investigate(
         self,
@@ -89,6 +117,59 @@ class SalaryAgent:
                 details={
                     "offered_salary": salary,
                     "benchmark_range": "₹3.5 - ₹12 LPA",
+                    "anomaly": True,
+                    "search_source": search_source,
+                },
+            )
+
+        amount, unit = self._interpret(offered_salary)
+
+        if unit == "monthly":
+            return AgentFinding(
+                agent_name="SalaryAgent",
+                verdict="CANNOT_VERIFY",
+                confidence=0.60,
+                summary=(
+                    f"'{salary}' reads as a monthly stipend rather than an annual package, so it "
+                    f"cannot be checked against annual salary bands for {role}. Stipend figures are "
+                    "weak evidence either way — confirm the amount and payment terms in writing."
+                ),
+                evidence=evidence_list,
+                details={
+                    "offered_salary": salary,
+                    "interpreted_as": "monthly stipend",
+                    "benchmark_range": "not applicable to monthly stipends",
+                    "anomaly": None,
+                    "search_source": search_source,
+                },
+            )
+
+        if unit is None:
+            return AgentFinding(
+                agent_name="SalaryAgent",
+                verdict="CANNOT_VERIFY",
+                confidence=0.55,
+                summary=f"No usable compensation figure was found, so pay could not be benchmarked for {role}.",
+                evidence=evidence_list,
+                details={
+                    "offered_salary": salary,
+                    "benchmark_range": "₹4 - ₹14 LPA",
+                    "anomaly": None,
+                    "search_source": search_source,
+                },
+            )
+
+        # Annual figure well outside entry-level bands is classic bait.
+        if amount is not None and amount > 2500000:
+            return AgentFinding(
+                agent_name="SalaryAgent",
+                verdict="NEEDS_REVIEW",
+                confidence=0.85,
+                summary=f"The stated annual compensation '{salary}' is far above typical bands for {role}.",
+                evidence=evidence_list,
+                details={
+                    "offered_salary": salary,
+                    "benchmark_range": "₹4 - ₹14 LPA",
                     "anomaly": True,
                     "search_source": search_source,
                 },

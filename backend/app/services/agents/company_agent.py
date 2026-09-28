@@ -43,10 +43,14 @@ class CompanyAgent:
             )
 
         acronym = "".join(w[0] for w in company_name.split() if w).lower()
+        # "Infosys Limited" must still match infosys.com, so try the name with its
+        # legal suffix removed as well as the full string.
+        bare_name = self._strip_legal_suffix(company_name)
+        tokens = [t for t in {name_token, bare_name} if t]
 
         for result in organic_results:
             link = result.get("link", "")
-            matched = self._domain_matches(link, name_token) or (
+            matched = any(self._domain_matches(link, t) for t in tokens) or (
                 len(acronym) >= 2 and self._domain_matches(link, acronym)
             )
             if not matched:
@@ -65,6 +69,11 @@ class CompanyAgent:
                 careers = link
             if not domain:
                 domain = link
+
+        # Whether any result actually resolved to a domain bearing the company's
+        # name. Without this, the lenient fallback below "confirmed" a company
+        # whose top search hit was a post warning about fake internship offers.
+        strict_match = bool(domain)
 
         # Google already ranks results for "<company> official website careers" by relevance,
         # so if no strict domain/acronym match hit, fall back to the top result as evidence
@@ -103,6 +112,22 @@ class CompanyAgent:
                 details={"official_domain": None, "careers_url": None, "mca_status": "NOT_FOUND"},
             )
 
+        # Search returned something, but nothing that belongs to this company.
+        # That is precisely the footprint a fabricated employer leaves.
+        if not strict_match:
+            return AgentFinding(
+                agent_name="CompanyAgent",
+                verdict="CANNOT_VERIFY",
+                confidence=0.45,
+                summary=(
+                    f"No official website or careers page could be matched to '{company_name}'. "
+                    "Live search returned no domain bearing the company's name, so its corporate "
+                    "footprint could not be confirmed."
+                ),
+                evidence=evidence_list,
+                details={"official_domain": None, "careers_url": None, "mca_status": "NOT_FOUND"},
+            )
+
         return AgentFinding(
             agent_name="CompanyAgent",
             verdict="VERIFIED",
@@ -111,6 +136,20 @@ class CompanyAgent:
             evidence=evidence_list,
             details={"official_domain": domain, "careers_url": careers, "mca_status": "ACTIVE"},
         )
+
+    LEGAL_SUFFIXES = (
+        "private limited", "pvt ltd", "pvt. ltd.", "limited", "ltd", "llp",
+        "incorporated", "inc", "corporation", "corp", "company", "co",
+    )
+
+    @classmethod
+    def _strip_legal_suffix(cls, name: str) -> str:
+        low = name.lower().strip()
+        for suffix in cls.LEGAL_SUFFIXES:
+            if low.endswith(" " + suffix):
+                low = low[: -(len(suffix) + 1)].strip()
+                break
+        return re.sub(r"[^a-z0-9]", "", low)
 
     @staticmethod
     def _normalize(name: str) -> str:

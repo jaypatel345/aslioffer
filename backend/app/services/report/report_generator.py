@@ -34,21 +34,38 @@ class ReportGenerator:
         logger.info("ReportGenerator compiling report for offer_id=%d (risk_level=%s)", offer_id, risk_level.value)
 
         company_name = extracted_entities.company_name or "Company"
-        clean_name = company_name.replace(" ", "").lower()
+
+        # Report the domain the CompanyAgent actually matched. Guessing
+        # "https://www.<name>.com" printed an unvisited URL under the heading
+        # "Company Website" — an invented fact in an evidence report.
+        company_finding = next((f for f in findings if f.agent_name == "CompanyAgent"), None)
+        company_details = (company_finding.details or {}) if company_finding else {}
+        official_domain = company_details.get("official_domain")
+        careers_url = company_details.get("careers_url")
 
         official_info = {
             "name": company_name,
-            "website": f"https://www.{clean_name}.com",
-            "careers_url": f"https://careers.{clean_name}.com",
-            "mca_status": "Active Corporate Entity" if risk_level != RiskLevel.CANNOT_VERIFY else "Unconfirmed in Public Footprint",
+            "website": official_domain,
+            "careers_url": careers_url,
+            "mca_status": (
+                "Active Corporate Entity"
+                if official_domain
+                else "Unconfirmed in Public Footprint"
+            ),
             "recruitment_policy": "Legitimate enterprise HR teams never demand fees or deposits for employment.",
         }
 
         # Contextual summary & actions based on RiskLevel
         if risk_level == RiskLevel.HIGH_RISK:
+            # Describe what actually fired. The old fixed string asserted
+            # impersonation and advance-fee demands on every high-risk report,
+            # contradicting its own red-flag list when neither was present.
+            headline = red_flags[0] if red_flags else "multiple verification checks failed"
+            extra = f" ({len(red_flags) - 1} further concern(s) listed below.)" if len(red_flags) > 1 else ""
             summary = (
-                f"HIGH RISK DETECTED: This offer shows severe hallmarks of an employment scam impersonating {company_name}. "
-                "Immediate caution is advised. Critical indicators include unauthorized email communication or advance fee demands."
+                f"HIGH RISK: this offer did not pass verification. {headline}{extra} "
+                "Treat the offer as unsafe until you have confirmed it through the employer's "
+                "own published contact details."
             )
             actions = [
                 "DO NOT pay any registration fee, security deposit, or laptop charge under any circumstance.",

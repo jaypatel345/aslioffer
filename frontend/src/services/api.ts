@@ -246,16 +246,24 @@ export const api = {
         method: 'POST',
         body: formData,
       });
-      if (!res.ok) throw new Error("Upload failed");
+      if (!res.ok) {
+        // Surface the server's reason. Silently substituting demo offer 101 here
+        // meant an unreadable screenshot produced a confident report about a
+        // completely different offer.
+        let detail = `Upload failed (${res.status})`;
+        try {
+          const body = await res.json();
+          if (body?.detail) detail = String(body.detail);
+        } catch {
+          /* response had no JSON body */
+        }
+        throw new Error(detail);
+      }
       return await res.json();
-    } catch {
-      // Fallback mock response for standalone frontend testing
-      return {
-        offer_id: 101,
-        title: (formData.get('title') as string) || "Uploaded Offer Letter",
-        status: "PENDING",
-        message: "Offer received (mock fallback). Ready for forensic multi-agent audit.",
-      };
+    } catch (err) {
+      throw err instanceof Error
+        ? err
+        : new Error('Could not reach the verification service.');
     }
   },
 

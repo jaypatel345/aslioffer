@@ -170,8 +170,11 @@ class ScamAgent:
                             confidence=0.92 if search_res.get("source") == SearchSource.REAL.value else 0.85,
                         )
                     )
-                    if any(w in (title + (snippet or "")).lower() for w in ["scam", "fraud", "fake", "warning"]):
-                        is_scam = True
+                    # Deliberately does NOT set is_scam. The query itself contains
+                    # "scam fraud complaint", so every result matches those words for
+                    # every company — which flagged legitimate offers as fraud. These
+                    # results are background advisories, not evidence about THIS message;
+                    # only signals found in the document itself decide the verdict.
         except Exception as e:
             logger.warning("ScamAgent: general scam search failed (%s)", str(e))
 

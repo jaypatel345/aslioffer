@@ -66,7 +66,11 @@ export const Upload: React.FC = () => {
     } catch (err) {
       clearInterval(stepInterval);
       setIsProcessing(false);
-      setError('Investigation could not be completed. Please check your connection and try again.');
+      setError(
+        err instanceof Error && err.message
+          ? err.message
+          : 'Investigation could not be completed. Please check your connection and try again.'
+      );
     }
   };
 

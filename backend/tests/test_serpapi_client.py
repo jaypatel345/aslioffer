@@ -44,8 +44,13 @@ async def test_timeout_fallback():
 
         assert res["source"] == SearchSource.MOCK.value
         assert "organic_results" in res
-        assert len(res["organic_results"]) > 0
-        assert "knowledge_graph" in res
+        # A company-footprint query with no live data must return nothing rather
+        # than synthesising a domain from the query string. Agents cite these URLs
+        # as evidence, so a fabricated one becomes fabricated proof.
+        assert res["organic_results"] == []
+        assert "knowledge_graph" not in res
+        for result in res["organic_results"]:
+            assert "wipro" not in result.get("link", "").lower()
 
 
 @pytest.mark.asyncio

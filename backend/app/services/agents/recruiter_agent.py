@@ -138,13 +138,44 @@ class RecruiterAgent:
                 details={"domain_match": not domain_mismatch, "is_free_email": is_free_email, "phone_flagged": phone_flagged},
             )
 
+        # No contact details at all means nothing was checked. Returning VERIFIED
+        # here treated absence of evidence as evidence of legitimacy — a scam mail
+        # that simply omits an address scored a green flag.
+        if not recruiter_email and not recruiter_phone:
+            evidence_list.append(
+                EvidenceItem(
+                    source_url="https://cybercrime.gov.in/Webform/Crime_Autho_List.aspx",
+                    title="No Verifiable Recruiter Contact Provided",
+                    description=(
+                        f"This message claims to represent {company_name} but provides no sender "
+                        "email address or phone number that can be checked against the company's "
+                        "official domain. Genuine recruiters identify themselves on a corporate address."
+                    ),
+                    evidence_type="RECRUITER",
+                    confidence=0.80,
+                )
+            )
+            return AgentFinding(
+                agent_name="RecruiterAgent",
+                verdict="CANNOT_VERIFY",
+                confidence=0.80,
+                summary=(
+                    f"Recruiter identity could not be verified: no email address or phone number "
+                    f"was provided to check against {company_name}'s official domain."
+                ),
+                evidence=evidence_list,
+                details={"domain_match": None, "is_free_email": False, "phone_flagged": False,
+                         "contact_provided": False},
+            )
+
         return AgentFinding(
             agent_name="RecruiterAgent",
             verdict="VERIFIED",
             confidence=0.85,
             summary=f"Recruiter credentials appear consistent with corporate email standards for {company_name}.",
             evidence=evidence_list,
-            details={"domain_match": True, "is_free_email": False, "phone_flagged": False},
+            details={"domain_match": True, "is_free_email": False, "phone_flagged": False,
+                     "contact_provided": True},
         )
 
     @staticmethod

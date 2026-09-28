@@ -139,24 +139,13 @@ class SerpApiClient:
                 ],
             }
 
-        # Company knowledge scenario
+        # Company knowledge scenario.
+        # NOTE: never synthesise domains from the query. Doing so invented URLs
+        # like https://www."tata consultancy services"officialwebsitecareers.com
+        # and handed them to agents, which cited them as verified evidence.
+        # With no live data we have no footprint to report — say so.
         return {
             "source": source.value,
-            "knowledge_graph": {
-                "title": query,
-                "website": f"https://www.{query.lower().replace(' ', '')}.com",
-                "careers_url": f"https://careers.{query.lower().replace(' ', '')}.com",
-            },
-            "organic_results": [
-                {
-                    "title": f"Official Portal | {query}",
-                    "link": f"https://www.{query.lower().replace(' ', '')}.com",
-                    "snippet": f"Official home page of {query}. Verify registered offices and leadership.",
-                },
-                {
-                    "title": f"Careers at {query} - Official Job Board",
-                    "link": f"https://careers.{query.lower().replace(' ', '')}.com",
-                    "snippet": "Explore official vacancies. We never ask candidates for security deposits or training fees.",
-                },
-            ],
+            "organic_results": [],
+            "note": "No live search data available; company footprint could not be checked.",
         }

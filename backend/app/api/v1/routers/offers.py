@@ -52,10 +52,22 @@ async def upload_offer(
         offer_title = title or f"Offer from {filename}"
         try:
             doc_result = await extractor.extract_from_document(file_bytes, mime)
-            content = doc_result.get("ocr_text") or f"Extracted from {filename}"
+            content = (doc_result.get("ocr_text") or "").strip()
         except Exception as e:
-            logger.warning("Document extraction failed (%s), using raw text fallback", str(e))
-            content = f"Binary content from {filename} ({len(file_bytes)} bytes)"
+            logger.warning("Document extraction failed (%s)", str(e))
+            content = ""
+
+        # Refuse rather than analyse noise: a verdict derived from unreadable bytes
+        # is indistinguishable from a real one to the person reading the report.
+        if not content:
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    f"Could not read any text from '{filename}'. Reading PDFs and screenshots "
+                    "requires GEMINI_API_KEY to be set in backend/.env. Paste the message text "
+                    "instead, or configure the key and retry."
+                ),
+            )
 
     if not content:
         raise HTTPException(status_code=400, detail="Either file or raw_content must be provided.")

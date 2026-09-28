@@ -318,8 +318,12 @@ async def test_document_ocr_fallback_when_gemini_fails():
     mock_pdf_bytes = b"%PDF-1.4 Infosys Offer Letter for Software Engineer. Package INR 6.5 LPA. hr@infosys.com"
     result = await extractor.extract_from_document(mock_pdf_bytes, "application/pdf")
 
+    # Without Gemini vision a PDF cannot be read. Scraping printable fragments out
+    # of the binary produced confident nonsense (company "BQC", salary "$1"), so the
+    # extractor now returns nothing and the API surfaces a 422.
     assert "ocr_text" in result
     assert "entities" in result
     assert isinstance(result["entities"], ExtractedData)
-    assert result["entities"].company == "Infosys"
-    assert result["entities"].recruiter_email == "hr@infosys.com"
+    assert result["ocr_text"] == ""
+    assert result["entities"].company is None
+    assert result["entities"].recruiter_email is None

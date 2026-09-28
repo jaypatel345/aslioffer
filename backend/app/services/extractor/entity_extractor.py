@@ -141,7 +141,30 @@ class EntityExtractor:
             raw_text=text,
         )
 
+    # Brand mentions that are about the tooling, not the employer. "Google Meet"
+    # in a scam email made every agent investigate Google and return VERIFIED.
+    PLATFORM_CONTEXT = [
+        r"google\s+meet", r"google\s+form", r"google\s+doc", r"google\s+drive",
+        r"google\s+chat", r"google\s+calendar", r"microsoft\s+teams",
+        r"google\s+maps", r"amazon\s+web\s+services",
+    ]
+
+    def _strip_platform_mentions(self, text: str) -> str:
+        cleaned = text
+        for pattern in self.PLATFORM_CONTEXT:
+            cleaned = re.sub(pattern, " ", cleaned, flags=re.IGNORECASE)
+        return cleaned
+
+    # Generic words that show up capitalised in headings but name no employer.
+    STOPWORD_COMPANIES = {
+        "the", "dear", "subject", "open", "selection", "screening", "domain",
+        "technical", "stipend", "best", "date", "time", "mode", "duration",
+        "applicant", "candidate", "position", "positions", "round",
+    }
+
     def _detect_company(self, text: str) -> Optional[str]:
+        text = self._strip_platform_mentions(text)
+
         # Check known brands first
         for brand in [
             "Tata Consultancy Services",
@@ -159,17 +182,32 @@ class EntityExtractor:
             if re.search(rf"\b{re.escape(brand)}\b", text, re.IGNORECASE):
                 return brand
 
-        # Generic pattern: 'at XYZ' or 'offer from XYZ'
+        # A capitalised name sitting right before a corporate/hiring noun is the
+        # strongest generic signal: "Coorix Internship Drive", "Acme Pvt Ltd".
+        # Case-sensitive on purpose — see the note on the next pattern.
         match = re.search(
-            r"(?:at|offer from|welcome to|representing)\s+([A-Z][A-Za-z0-9\s&]{2,40})",
+            r"\b([A-Z][A-Za-z0-9&.\-]{1,30}(?:\s+[A-Z][A-Za-z0-9&.\-]{1,30}){0,2})\s+"
+            r"(?:Internship|Careers|HR\b|Recruitment|Technologies|Technology|Solutions|"
+            r"Softwares?|Systems|Labs|Pvt\.?|Private|Limited|Ltd\.?|Inc\.?|LLP)",
             text,
-            re.IGNORECASE,
+        )
+        if match:
+            cand = match.group(1).strip()
+            if cand.lower() not in self.STOPWORD_COMPANIES:
+                return cand
+
+        # Generic pattern: 'at XYZ' or 'offer from XYZ'.
+        # NOT case-insensitive: re.IGNORECASE makes [A-Z] match lowercase too, so
+        # this used to return things like "the selection process".
+        match = re.search(
+            r"(?:\bat|offer from|welcome to|representing)\s+([A-Z][A-Za-z0-9\s&]{2,40})",
+            text,
         )
         if match:
             cand = match.group(1).strip()
             cand = re.split(r"\s+\b(?:as|for|to|in|with|role|position)\b", cand, flags=re.IGNORECASE)[0].strip()
             cand = re.sub(r"[\.,;:\n].*$", "", cand).strip()
-            if len(cand) >= 2:
+            if len(cand) >= 2 and cand.lower() not in self.STOPWORD_COMPANIES:
                 return cand
 
         return None
@@ -198,7 +236,10 @@ class EntityExtractor:
         return None
 
     def _detect_recruiter(self, text: str) -> Optional[str]:
-        match = re.search(r"(?:Regards|Sincerely|HR Team|Recruiter|From):\s*([A-Za-z\s]{3,30})", text)
+        match = re.search(
+            r"(?:Regards|Sincerely|HR Team|Recruiter|From):?[ \t]*\n?[ \t]*([A-Za-z][A-Za-z .]{2,29})",
+            text,
+        )
         if match:
             name = match.group(1).strip()
             if name.lower() not in ["hr team", "hiring team", "human resources", "recruitment"]:
@@ -289,8 +330,26 @@ class EntityExtractor:
         match = re.search(r"(?:joining on|reporting date|report to the .* on|joining date:?)\s*([A-Za-z0-9,\s]{4,25})", text, re.IGNORECASE)
         return match.group(1).strip() if match else None
 
+    # Mime types whose bytes carry no readable text without a real parser or a
+    # vision model. Scraping printable fragments out of them used to yield things
+    # like company "BQC" and salary "$1" from PDF stream internals — a confident
+    # verdict computed from noise, which is worse than refusing to read the file.
+    OPAQUE_MIME_PREFIXES = ("image/", "application/pdf")
+
     def _fallback_text_extract(self, file_bytes: bytes, mime_type: str) -> str:
-        """Simple text extraction fallback for documents when Gemini is not active."""
+        """
+        Best-effort text extraction for documents when Gemini vision is unavailable.
+        Returns "" when the format cannot be read without it, so the caller can say
+        so plainly instead of analysing garbage.
+        """
+        normalized = (mime_type or "").lower().split(";")[0].strip()
+        if normalized.startswith(self.OPAQUE_MIME_PREFIXES):
+            logger.warning(
+                "Cannot read %s without Gemini vision (GEMINI_API_KEY unset or call failed).",
+                normalized,
+            )
+            return ""
+
         try:
             decoded = file_bytes.decode("utf-8", errors="ignore")
             printable = "".join(ch for ch in decoded if ch.isprintable() or ch in "\n\r\t")
@@ -299,8 +358,4 @@ class EntityExtractor:
         except Exception:
             pass
 
-        # For binary PDF files, extract printable string fragments
-        text_content = file_bytes.decode("latin-1", errors="ignore")
-        matches = re.findall(r"[A-Za-z0-9@_.\-:\s,₹$]{4,}", text_content)
-        extracted = " ".join(m.strip() for m in matches[:50] if len(m.strip()) > 3)
-        return extracted or f"Document upload ({mime_type}, {len(file_bytes)} bytes)"
+        return ""
