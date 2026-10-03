@@ -59,19 +59,58 @@ class EntityExtractor:
                 "entities": ExtractedData
             }
         """
+        failure: Optional[str] = None
+
         if self.gemini_client and self.gemini_client.api_key:
             try:
                 logger.info("Attempting Gemini document extraction (%s, %d bytes)", mime_type, len(file_bytes))
                 return await self.gemini_client.extract_from_document(file_bytes, mime_type)
             except Exception as e:
                 logger.warning("Gemini document extraction failed (%s). Falling back to local text parsing.", str(e))
+                failure = self._describe_failure(e)
+        else:
+            failure = (
+                "GEMINI_API_KEY is not set in backend/.env, so PDFs and screenshots "
+                "cannot be read."
+            )
 
         ocr_text = self._fallback_text_extract(file_bytes, mime_type)
         entities = self.extract_regex(ocr_text)
         return {
             "ocr_text": ocr_text,
             "entities": entities,
+            "error": failure,
         }
+
+    @staticmethod
+    def _describe_failure(exc: Exception) -> str:
+        """
+        Turn a Gemini failure into something the person uploading can act on.
+        Reporting "set GEMINI_API_KEY" for what is actually a quota error sends
+        people to re-check a key that was never the problem.
+        """
+        text = str(exc)
+        if "429" in text or "RESOURCE_EXHAUSTED" in text or "quota" in text.lower():
+            return (
+                "The Gemini free-tier rate limit is currently exhausted (HTTP 429), so the "
+                "image could not be read. Wait a minute and retry, or paste the message text."
+            )
+        if "503" in text or "UNAVAILABLE" in text:
+            return (
+                "Gemini is temporarily overloaded (HTTP 503) and every fallback model was busy. "
+                "Retry shortly, or paste the message text."
+            )
+        if "timed out" in text.lower() or "timeout" in text.lower():
+            return (
+                "Reading the document timed out. Try a smaller or clearer image, "
+                "or paste the message text."
+            )
+        if "401" in text or "403" in text or "API key" in text:
+            return (
+                "Gemini rejected the API key. Check GEMINI_API_KEY in backend/.env "
+                "and restart the backend."
+            )
+        return f"The document could not be read ({text[:160]})."
 
     def extract(self, text: str) -> ExtractedEntities:
         """
