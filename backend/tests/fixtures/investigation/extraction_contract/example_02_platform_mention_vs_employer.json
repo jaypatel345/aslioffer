@@ -1,5 +1,5 @@
 {
-  "contract_version": "1.0.0",
+  "contract_version": "1.0.1",
   "example_id": "EXTRACT-EX-02-PLATFORM-MENTION-VS-EMPLOYER",
   "title": "Employer differs from a Google Meet/Microsoft Teams mention",
   "description": "Distinguishes the claimed hiring organization (V-Guard Industries Ltd.) from online communication/meeting platforms (Google Meet).",
@@ -16,7 +16,9 @@
         "source_span": {
           "start_offset": 0,
           "end_offset": 23,
-          "target_text": "raw_text"
+          "target_text": "raw_text",
+          "page_number": null,
+          "bounding_box": null
         },
         "extraction_status": "extracted",
         "confidence_tier": "HIGH",
@@ -32,7 +34,9 @@
         "source_span": {
           "start_offset": 47,
           "end_offset": 73,
-          "target_text": "raw_text"
+          "target_text": "raw_text",
+          "page_number": null,
+          "bounding_box": null
         },
         "extraction_status": "extracted",
         "confidence_tier": "HIGH",
@@ -46,7 +50,9 @@
         "source_span": {
           "start_offset": 141,
           "end_offset": 152,
-          "target_text": "raw_text"
+          "target_text": "raw_text",
+          "page_number": null,
+          "bounding_box": null
         },
         "extraction_status": "extracted",
         "confidence_tier": "HIGH",
@@ -63,7 +69,9 @@
         "source_span": {
           "start_offset": 226,
           "end_offset": 266,
-          "target_text": "raw_text"
+          "target_text": "raw_text",
+          "page_number": null,
+          "bounding_box": null
         },
         "extraction_status": "extracted",
         "confidence_tier": "HIGH",
@@ -79,7 +87,9 @@
         "source_span": {
           "start_offset": 295,
           "end_offset": 317,
-          "target_text": "raw_text"
+          "target_text": "raw_text",
+          "page_number": null,
+          "bounding_box": null
         },
         "extraction_status": "extracted",
         "confidence_tier": "HIGH",
@@ -90,6 +100,7 @@
       }
     ],
     "unresolved_ambiguities": [],
-    "warnings": []
+    "warnings": [],
+    "extraction_method": "contract_example"
   }
 }

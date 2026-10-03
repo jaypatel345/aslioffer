@@ -1,0 +1,55 @@
+{
+  "contract_version": "1.0.1",
+  "example_id": "EXTRACT-EX-08",
+  "title": "OCR redacted buffer provenance",
+  "description": "Coordinates and page are unavailable; quote offsets refer only to sanitized OCR text.",
+  "synthetic": true,
+  "raw_text": "",
+  "ocr_text": "[CANDIDATE_EMAIL] received an invitation from Studio Example for Design Intern.",
+  "redacted_text": "[CANDIDATE_EMAIL] received an invitation from Studio Example for Design Intern.",
+  "extraction": {
+    "source_type": "screenshot",
+    "extraction_method": "contract_example",
+    "claims": [
+      {
+        "claim_id": "CLM-08-01",
+        "kind": "claimed_employer",
+        "value": "Studio Example",
+        "source_quote": "Studio Example",
+        "source_span": {
+          "start_offset": 46,
+          "end_offset": 60,
+          "target_text": "redacted_text",
+          "page_number": null,
+          "bounding_box": null
+        },
+        "extraction_status": "extracted",
+        "confidence_tier": "MEDIUM",
+        "attributes": {}
+      },
+      {
+        "claim_id": "CLM-08-02",
+        "kind": "job_role",
+        "value": "Design Intern",
+        "source_quote": "Design Intern",
+        "source_span": {
+          "start_offset": 65,
+          "end_offset": 78,
+          "target_text": "redacted_text",
+          "page_number": null,
+          "bounding_box": null
+        },
+        "extraction_status": "extracted",
+        "confidence_tier": "MEDIUM",
+        "attributes": {}
+      }
+    ],
+    "unresolved_ambiguities": [],
+    "warnings": [
+      {
+        "code": "OCR_COORDINATES_UNAVAILABLE",
+        "message": "No page or bounding coordinates were supplied."
+      }
+    ]
+  }
+}

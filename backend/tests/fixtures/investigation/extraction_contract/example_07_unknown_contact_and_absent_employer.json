@@ -1,0 +1,101 @@
+{
+  "contract_version": "1.0.1",
+  "example_id": "EXTRACT-EX-07",
+  "title": "Unknown contact role, retained fields and absent employer",
+  "description": "Neutral contact does not establish recruiter role; Unicode offsets use code points.",
+  "synthetic": true,
+  "raw_text": "📄 Hiring contact: desk@studio.example. Reference: JOB-2026-07. Work location: Pune. Joining date: 15 October 2026.",
+  "extraction": {
+    "source_type": "text",
+    "extraction_method": "contract_example",
+    "claims": [
+      {
+        "claim_id": "CLM-07-01",
+        "kind": "contact",
+        "value": "desk@studio.example",
+        "source_quote": "desk@studio.example",
+        "source_span": {
+          "start_offset": 18,
+          "end_offset": 37,
+          "target_text": "raw_text",
+          "page_number": null,
+          "bounding_box": null
+        },
+        "extraction_status": "ambiguous",
+        "confidence_tier": "MEDIUM",
+        "attributes": {
+          "channel": "email",
+          "semantic_role": "unknown"
+        }
+      },
+      {
+        "claim_id": "CLM-07-02",
+        "kind": "job_reference_id",
+        "value": "JOB-2026-07",
+        "source_quote": "JOB-2026-07",
+        "source_span": {
+          "start_offset": 50,
+          "end_offset": 61,
+          "target_text": "raw_text",
+          "page_number": null,
+          "bounding_box": null
+        },
+        "extraction_status": "extracted",
+        "confidence_tier": "MEDIUM",
+        "attributes": {}
+      },
+      {
+        "claim_id": "CLM-07-03",
+        "kind": "location",
+        "value": "Pune",
+        "source_quote": "Pune",
+        "source_span": {
+          "start_offset": 78,
+          "end_offset": 82,
+          "target_text": "raw_text",
+          "page_number": null,
+          "bounding_box": null
+        },
+        "extraction_status": "extracted",
+        "confidence_tier": "MEDIUM",
+        "attributes": {}
+      },
+      {
+        "claim_id": "CLM-07-04",
+        "kind": "joining_date",
+        "value": "15 October 2026",
+        "source_quote": "15 October 2026",
+        "source_span": {
+          "start_offset": 98,
+          "end_offset": 113,
+          "target_text": "raw_text",
+          "page_number": null,
+          "bounding_box": null
+        },
+        "extraction_status": "extracted",
+        "confidence_tier": "MEDIUM",
+        "attributes": {
+          "normalized_date": null
+        }
+      },
+      {
+        "claim_id": "CLM-07-05",
+        "kind": "claimed_employer",
+        "value": null,
+        "source_quote": null,
+        "source_span": null,
+        "extraction_status": "absent",
+        "confidence_tier": null,
+        "attributes": {}
+      }
+    ],
+    "unresolved_ambiguities": [
+      {
+        "claim_id": "CLM-07-01",
+        "field": "semantic_role",
+        "issue": "No sender/candidate attribution supplied."
+      }
+    ],
+    "warnings": []
+  }
+}

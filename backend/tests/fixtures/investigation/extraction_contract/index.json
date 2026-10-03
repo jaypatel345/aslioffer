@@ -1,7 +1,7 @@
 {
-  "contract_version": "1.0.0",
+  "contract_version": "1.0.1",
   "generated_date": "2026-10-03",
-  "total_examples": 6,
+  "total_examples": 8,
   "description": "Extraction contract reference examples demonstrating semantic role assignment, entity disambiguation, modality detection, credential theft isolation, and user correction handling.",
   "examples": [
     {
@@ -39,6 +39,18 @@
       "file": "example_06_ambiguous_compensation_unresolved_employer.json",
       "scenario": "Ambiguous stipend/salary period and an unresolved employer",
       "key_aspect": "Handling of unspecified compensation frequency and distinctly attributed user corrections"
+    },
+    {
+      "file": "example_07_unknown_contact_and_absent_employer.json",
+      "scenario": "Unknown contact role, retained fields and absent employer",
+      "key_aspect": "Neutral contact does not establish recruiter role; Unicode offsets use code points.",
+      "example_id": "EXTRACT-EX-07"
+    },
+    {
+      "file": "example_08_ocr_redacted_buffer.json",
+      "scenario": "OCR redacted buffer provenance",
+      "key_aspect": "Coordinates and page are unavailable; quote offsets refer only to sanitized OCR text.",
+      "example_id": "EXTRACT-EX-08"
     }
   ]
 }

@@ -1,5 +1,5 @@
 {
-  "contract_version": "1.0.0",
+  "contract_version": "1.0.1",
   "example_id": "EXTRACT-EX-03-NO-FEE-POLICY-AND-QUOTED-WARNING",
   "title": "No-fee policy plus quoted scam warning",
   "description": "Distinguishes active payment requests from negated policy disclaimers and quoted anti-scam advisories containing fee keywords.",
@@ -16,7 +16,9 @@
         "source_span": {
           "start_offset": 0,
           "end_offset": 28,
-          "target_text": "raw_text"
+          "target_text": "raw_text",
+          "page_number": null,
+          "bounding_box": null
         },
         "extraction_status": "extracted",
         "confidence_tier": "HIGH",
@@ -30,7 +32,9 @@
         "source_span": {
           "start_offset": 54,
           "end_offset": 71,
-          "target_text": "raw_text"
+          "target_text": "raw_text",
+          "page_number": null,
+          "bounding_box": null
         },
         "extraction_status": "extracted",
         "confidence_tier": "HIGH",
@@ -44,7 +48,9 @@
         "source_span": {
           "start_offset": 88,
           "end_offset": 191,
-          "target_text": "raw_text"
+          "target_text": "raw_text",
+          "page_number": null,
+          "bounding_box": null
         },
         "extraction_status": "extracted",
         "confidence_tier": "HIGH",
@@ -55,7 +61,14 @@
             "security deposit",
             "registration fee",
             "onboarding deposit"
-          ]
+          ],
+          "requested_action": null,
+          "actor": null,
+          "recipient": null,
+          "amount": null,
+          "currency": null,
+          "payment_method": null,
+          "purpose": null
         }
       },
       {
@@ -66,7 +79,9 @@
         "source_span": {
           "start_offset": 210,
           "end_offset": 286,
-          "target_text": "raw_text"
+          "target_text": "raw_text",
+          "page_number": null,
+          "bounding_box": null
         },
         "extraction_status": "extracted",
         "confidence_tier": "HIGH",
@@ -77,7 +92,14 @@
           "quoted_method": "UPI",
           "quoted_terms": [
             "registration fee"
-          ]
+          ],
+          "requested_action": null,
+          "actor": null,
+          "recipient": null,
+          "amount": null,
+          "currency": null,
+          "payment_method": null,
+          "purpose": null
         }
       },
       {
@@ -88,7 +110,9 @@
         "source_span": {
           "start_offset": 325,
           "end_offset": 341,
-          "target_text": "raw_text"
+          "target_text": "raw_text",
+          "page_number": null,
+          "bounding_box": null
         },
         "extraction_status": "extracted",
         "confidence_tier": "HIGH",
@@ -98,6 +122,7 @@
       }
     ],
     "unresolved_ambiguities": [],
-    "warnings": []
+    "warnings": [],
+    "extraction_method": "contract_example"
   }
 }
