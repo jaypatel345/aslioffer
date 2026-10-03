@@ -1,0 +1,115 @@
+{
+  "contract_version": "1.0.0",
+  "example_id": "EXTRACT-EX-06-AMBIGUOUS-COMPENSATION-UNRESOLVED-EMPLOYER",
+  "title": "Ambiguous stipend/salary period and an unresolved employer",
+  "description": "Demonstrates handling of ambiguous compensation frequency (no guessing monthly vs annual), unconfirmed employer status, and clearly attributed user corrections.",
+  "synthetic": true,
+  "raw_text": "Kaviya Design Studio LLP.\nOffer of Internship.\nPosition: Graphic Design Intern.\nStipend: INR 15,000.\nPlease review and reply with your signed confirmation to founder@kaviyastudio.example.",
+  "extraction": {
+    "source_type": "text",
+    "claims": [
+      {
+        "claim_id": "CLM-06-01",
+        "kind": "claimed_employer",
+        "value": "Kaviya Design Studio LLP.",
+        "source_quote": "Kaviya Design Studio LLP.",
+        "source_span": {
+          "start_offset": 0,
+          "end_offset": 25,
+          "target_text": "raw_text"
+        },
+        "extraction_status": "extracted",
+        "confidence_tier": "HIGH",
+        "attributes": {
+          "entity_resolution_status": "unresolved",
+          "independent_footprint": "sparse"
+        }
+      },
+      {
+        "claim_id": "CLM-06-02",
+        "kind": "job_role",
+        "value": "Graphic Design Intern",
+        "source_quote": "Graphic Design Intern",
+        "source_span": {
+          "start_offset": 57,
+          "end_offset": 78,
+          "target_text": "raw_text"
+        },
+        "extraction_status": "extracted",
+        "confidence_tier": "HIGH",
+        "attributes": {
+          "employment_type": "internship"
+        }
+      },
+      {
+        "claim_id": "CLM-06-03",
+        "kind": "compensation",
+        "value": "INR 15,000",
+        "source_quote": "INR 15,000",
+        "source_span": {
+          "start_offset": 89,
+          "end_offset": 99,
+          "target_text": "raw_text"
+        },
+        "extraction_status": "ambiguous",
+        "confidence_tier": "MEDIUM",
+        "attributes": {
+          "amount": 15000.0,
+          "currency": "INR",
+          "period": null,
+          "pay_type": "stipend",
+          "period_ambiguity": "UNSPECIFIED_FREQUENCY"
+        }
+      },
+      {
+        "claim_id": "CLM-06-04",
+        "kind": "sender_recruiter",
+        "value": "founder@kaviyastudio.example",
+        "source_quote": "founder@kaviyastudio.example",
+        "source_span": {
+          "start_offset": 158,
+          "end_offset": 186,
+          "target_text": "raw_text"
+        },
+        "extraction_status": "extracted",
+        "confidence_tier": "HIGH",
+        "attributes": {
+          "channel": "email",
+          "email_domain": "kaviyastudio.example"
+        }
+      },
+      {
+        "claim_id": "CLM-06-05",
+        "kind": "user_correction",
+        "value": "MONTHLY",
+        "source_quote": null,
+        "source_span": null,
+        "extraction_status": "user_corrected",
+        "confidence_tier": "HIGH",
+        "attributes": {
+          "target_claim_id": "CLM-06-03",
+          "corrected_field": "period",
+          "corrected_value": "MONTHLY",
+          "attribution": {
+            "source": "user_interactive_confirmation",
+            "user_id": "candidate_reviewer",
+            "timestamp": "2026-10-03T19:00:00Z"
+          }
+        }
+      }
+    ],
+    "unresolved_ambiguities": [
+      {
+        "claim_id": "CLM-06-03",
+        "field": "period",
+        "issue": "Document states 'INR 15,000' without specifying whether this is monthly stipend or total for internship."
+      },
+      {
+        "claim_id": "CLM-06-01",
+        "field": "claimed_employer",
+        "issue": "Corporate presence not yet resolved against external registries."
+      }
+    ],
+    "warnings": []
+  }
+}

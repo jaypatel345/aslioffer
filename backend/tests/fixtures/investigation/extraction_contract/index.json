@@ -1,0 +1,44 @@
+{
+  "contract_version": "1.0.0",
+  "generated_date": "2026-10-03",
+  "total_examples": 6,
+  "description": "Extraction contract reference examples demonstrating semantic role assignment, entity disambiguation, modality detection, credential theft isolation, and user correction handling.",
+  "examples": [
+    {
+      "example_id": "EXTRACT-EX-01-CANDIDATE-BEFORE-RECRUITER-EMAIL",
+      "file": "example_01_candidate_before_recruiter_email.json",
+      "scenario": "Candidate email appears before recruiter email",
+      "key_aspect": "Semantic role distinction between candidate destination and corporate sender"
+    },
+    {
+      "example_id": "EXTRACT-EX-02-PLATFORM-MENTION-VS-EMPLOYER",
+      "file": "example_02_platform_mention_vs_employer.json",
+      "scenario": "Employer differs from a Google Meet/Microsoft Teams mention",
+      "key_aspect": "Separation of claimed employer entity from interview software tooling"
+    },
+    {
+      "example_id": "EXTRACT-EX-03-NO-FEE-POLICY-AND-QUOTED-WARNING",
+      "file": "example_03_no_fee_policy_and_quoted_warning.json",
+      "scenario": "No-fee policy plus quoted scam warning",
+      "key_aspect": "Modality tagging distinguishing active demands from negated policies and quoted advisories"
+    },
+    {
+      "example_id": "EXTRACT-EX-04-EXPLICIT-FEE-DEMAND-WITH-RECIPIENT",
+      "file": "example_04_explicit_fee_demand_with_recipient.json",
+      "scenario": "Explicit fee demand with payment recipient",
+      "key_aspect": "Structured decomposition of payment demands with recipient identifiers and rails"
+    },
+    {
+      "example_id": "EXTRACT-EX-05-CREDENTIAL-DEMAND-SECRETS-OMITTED",
+      "file": "example_05_explicit_credential_demand_secrets_omitted.json",
+      "scenario": "Explicit credential demand with secret values omitted",
+      "key_aspect": "Omission of live secrets and explicit categorization of OTP / password solicitation"
+    },
+    {
+      "example_id": "EXTRACT-EX-06-AMBIGUOUS-COMPENSATION-UNRESOLVED-EMPLOYER",
+      "file": "example_06_ambiguous_compensation_unresolved_employer.json",
+      "scenario": "Ambiguous stipend/salary period and an unresolved employer",
+      "key_aspect": "Handling of unspecified compensation frequency and distinctly attributed user corrections"
+    }
+  ]
+}

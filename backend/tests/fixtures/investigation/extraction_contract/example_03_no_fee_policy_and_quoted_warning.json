@@ -1,0 +1,103 @@
+{
+  "contract_version": "1.0.0",
+  "example_id": "EXTRACT-EX-03-NO-FEE-POLICY-AND-QUOTED-WARNING",
+  "title": "No-fee policy plus quoted scam warning",
+  "description": "Distinguishes active payment requests from negated policy disclaimers and quoted anti-scam advisories containing fee keywords.",
+  "synthetic": true,
+  "raw_text": "Infosys BPO Services Limited. Offer of Employment for Systems Associate.\nPolicy Notice: We never charge a security deposit, registration fee, or onboarding deposit at any stage of recruitment.\nCampus Advisory: Beware of fraudulent emails stating 'Pay INR 2,500 registration fee via UPI'. All genuine communication comes from @infosys.example.",
+  "extraction": {
+    "source_type": "text",
+    "claims": [
+      {
+        "claim_id": "CLM-03-01",
+        "kind": "claimed_employer",
+        "value": "Infosys BPO Services Limited",
+        "source_quote": "Infosys BPO Services Limited",
+        "source_span": {
+          "start_offset": 0,
+          "end_offset": 28,
+          "target_text": "raw_text"
+        },
+        "extraction_status": "extracted",
+        "confidence_tier": "HIGH",
+        "attributes": {}
+      },
+      {
+        "claim_id": "CLM-03-02",
+        "kind": "job_role",
+        "value": "Systems Associate",
+        "source_quote": "Systems Associate",
+        "source_span": {
+          "start_offset": 54,
+          "end_offset": 71,
+          "target_text": "raw_text"
+        },
+        "extraction_status": "extracted",
+        "confidence_tier": "HIGH",
+        "attributes": {}
+      },
+      {
+        "claim_id": "CLM-03-03",
+        "kind": "payment_request",
+        "value": "We never charge a security deposit, registration fee, or onboarding deposit at any stage of recruitment",
+        "source_quote": "We never charge a security deposit, registration fee, or onboarding deposit at any stage of recruitment",
+        "source_span": {
+          "start_offset": 88,
+          "end_offset": 191,
+          "target_text": "raw_text"
+        },
+        "extraction_status": "extracted",
+        "confidence_tier": "HIGH",
+        "attributes": {
+          "modality": "negated_policy",
+          "is_active_demand": false,
+          "negated_terms": [
+            "security deposit",
+            "registration fee",
+            "onboarding deposit"
+          ]
+        }
+      },
+      {
+        "claim_id": "CLM-03-04",
+        "kind": "payment_request",
+        "value": "Beware of fraudulent emails stating 'Pay INR 2,500 registration fee via UPI'",
+        "source_quote": "Beware of fraudulent emails stating 'Pay INR 2,500 registration fee via UPI'",
+        "source_span": {
+          "start_offset": 210,
+          "end_offset": 286,
+          "target_text": "raw_text"
+        },
+        "extraction_status": "extracted",
+        "confidence_tier": "HIGH",
+        "attributes": {
+          "modality": "quoted_advisory",
+          "is_active_demand": false,
+          "quoted_amount": "INR 2,500",
+          "quoted_method": "UPI",
+          "quoted_terms": [
+            "registration fee"
+          ]
+        }
+      },
+      {
+        "claim_id": "CLM-03-05",
+        "kind": "official_domain_reference",
+        "value": "@infosys.example",
+        "source_quote": "@infosys.example",
+        "source_span": {
+          "start_offset": 325,
+          "end_offset": 341,
+          "target_text": "raw_text"
+        },
+        "extraction_status": "extracted",
+        "confidence_tier": "HIGH",
+        "attributes": {
+          "domain": "infosys.example"
+        }
+      }
+    ],
+    "unresolved_ambiguities": [],
+    "warnings": []
+  }
+}

@@ -1,0 +1,95 @@
+{
+  "contract_version": "1.0.0",
+  "example_id": "EXTRACT-EX-02-PLATFORM-MENTION-VS-EMPLOYER",
+  "title": "Employer differs from a Google Meet/Microsoft Teams mention",
+  "description": "Distinguishes the claimed hiring organization (V-Guard Industries Ltd.) from online communication/meeting platforms (Google Meet).",
+  "synthetic": true,
+  "raw_text": "V-Guard Industries Ltd.\nRecruitment Notice for Quality Assurance Engineer.\nDear Candidate, your final interview will be conducted online via Google Meet.\nPlease join the Google Meet link 5 minutes prior to the scheduled slot: https://meet.google.example/abc-defg-hij.\nOfficial HR communication: careers@vguard.example.",
+  "extraction": {
+    "source_type": "text",
+    "claims": [
+      {
+        "claim_id": "CLM-02-01",
+        "kind": "claimed_employer",
+        "value": "V-Guard Industries Ltd.",
+        "source_quote": "V-Guard Industries Ltd.",
+        "source_span": {
+          "start_offset": 0,
+          "end_offset": 23,
+          "target_text": "raw_text"
+        },
+        "extraction_status": "extracted",
+        "confidence_tier": "HIGH",
+        "attributes": {
+          "entity_type": "corporate_employer"
+        }
+      },
+      {
+        "claim_id": "CLM-02-02",
+        "kind": "job_role",
+        "value": "Quality Assurance Engineer",
+        "source_quote": "Quality Assurance Engineer",
+        "source_span": {
+          "start_offset": 47,
+          "end_offset": 73,
+          "target_text": "raw_text"
+        },
+        "extraction_status": "extracted",
+        "confidence_tier": "HIGH",
+        "attributes": {}
+      },
+      {
+        "claim_id": "CLM-02-03",
+        "kind": "meeting_platform",
+        "value": "Google Meet",
+        "source_quote": "Google Meet",
+        "source_span": {
+          "start_offset": 141,
+          "end_offset": 152,
+          "target_text": "raw_text"
+        },
+        "extraction_status": "extracted",
+        "confidence_tier": "HIGH",
+        "attributes": {
+          "is_claimed_employer": false,
+          "platform_category": "video_conferencing"
+        }
+      },
+      {
+        "claim_id": "CLM-02-04",
+        "kind": "interview_url",
+        "value": "https://meet.google.example/abc-defg-hij",
+        "source_quote": "https://meet.google.example/abc-defg-hij",
+        "source_span": {
+          "start_offset": 226,
+          "end_offset": 266,
+          "target_text": "raw_text"
+        },
+        "extraction_status": "extracted",
+        "confidence_tier": "HIGH",
+        "attributes": {
+          "destination_type": "meeting_room"
+        }
+      },
+      {
+        "claim_id": "CLM-02-05",
+        "kind": "sender_recruiter",
+        "value": "careers@vguard.example",
+        "source_quote": "careers@vguard.example",
+        "source_span": {
+          "start_offset": 295,
+          "end_offset": 317,
+          "target_text": "raw_text"
+        },
+        "extraction_status": "extracted",
+        "confidence_tier": "HIGH",
+        "attributes": {
+          "channel": "email",
+          "email_domain": "vguard.example"
+        }
+      }
+    ],
+    "unresolved_ambiguities": [],
+    "warnings": []
+  }
+}
