@@ -299,8 +299,12 @@ def test_unicode_and_idna_rejects_punycode_homoglyphs():
     # "tсs.com" where 'с' is Cyrillic small letter es (U+0441)
     cyrillic_tcs = "https://xn--ts-pmc.com"
     parsed = DomainResolver.normalize_and_parse_url(cyrillic_tcs)
-    assert parsed.is_valid is False
-    assert parsed.rejection_reason == "punycode_homoglyph_unsupported"
+    assert parsed.is_valid is True  # Syntax normalization is separate from identity trust.
+    result = DomainResolver.resolve("Tata Consultancy Services", SearchResult(
+        query="TCS", knowledge_graph={"title": "Tata Consultancy Services", "website": cyrillic_tcs},
+        results=[{"title": "Tata Consultancy Services", "link": cyrillic_tcs}]))
+    assert result.state == DomainResolutionState.UNRESOLVED
+    assert result.canonical_domain is None
 
 
 # =============================================================================
@@ -311,7 +315,8 @@ def test_genuine_subdomain_alignment_and_deceptive_suffixes():
     """Genuine subdomains align, while deceptive suffixes on third-party domains fail."""
     # Genuine subdomain
     assert DomainResolver.is_matching_domain("hr.wipro.com", "wipro.com") is True
-    assert DomainResolver.is_matching_domain("recruitment@careers.wipro.com", "wipro.com") is True
+    assert DomainResolver.is_matching_domain("careers.wipro.com", "wipro.com") is True
+    assert DomainResolver.is_matching_domain("recruitment@careers.wipro.com", "wipro.com") is False
 
     # Deceptive suffix
     assert DomainResolver.is_matching_domain("wipro.com.attacker.example", "wipro.com") is False
@@ -358,7 +363,7 @@ def test_unrelated_careers_results():
 # =============================================================================
 
 def test_explicitly_associated_hosted_careers_pages():
-    """Hosted ATS platforms (Greenhouse, Workday) associate as careers_url when tenant matches employer."""
+    """Hosted ATS platforms (Greenhouse, Workday) associate only when the company-aligned entity card links the exact tenant URL."""
     search_res = SearchResult(
         query='"Wipro Limited" official website careers',
         outcome=SearchOutcome.SUCCESS,
@@ -366,6 +371,7 @@ def test_explicitly_associated_hosted_careers_pages():
         knowledge_graph={
             "title": "Wipro Limited",
             "website": "https://www.wipro.com",
+            "careers_url": "https://wipro.wd3.myworkdayjobs.com/careers",
         },
         results=[
             {

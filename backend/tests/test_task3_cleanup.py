@@ -105,7 +105,8 @@ async def test_domain_mismatch_survives_phone_outage():
     class PartialSearch:
         async def search(self, query, **kwargs):
             if "official website" in query:
-                return SearchResult(query=query, knowledge_graph={"title": "Example Ltd", "website": "https://example.com"})
+                return SearchResult(query=query, knowledge_graph={"title": "Example Ltd", "website": "https://example.com"},
+                    results=[{"title": "Example Ltd", "link": "https://example.com", "snippet": "Company website"}])
             return SearchResult(query=query, outcome=SearchOutcome.TIMEOUT, error="Timed out")
     finding = await RecruiterAgent(PartialSearch()).investigate("Example Ltd", None, "hr@other.example", "9876543210")
     assert finding.verdict == "HIGH_RISK"

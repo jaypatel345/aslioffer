@@ -42,6 +42,7 @@ class CompanyAgent:
                     "error": search_res.error or "Live search evidence unavailable",
                     "search_status": search_res.outcome.value if search_res.get("source") == "FAILED" else "DEMO",
                     "official_domain_resolved": False,
+                    "resolution_state": DomainResolutionState.SEARCH_UNAVAILABLE.value,
                 },
             )
 
@@ -61,6 +62,7 @@ class CompanyAgent:
                     "provider_status": "SUCCESS",
                     "search_status": "SUCCESSFUL_EMPTY",
                     "official_domain_resolved": False,
+                    "resolution_state": DomainResolutionState.UNRESOLVED.value,
                 },
             )
 
@@ -110,6 +112,8 @@ class CompanyAgent:
                     "provider_status": "SUCCESS",
                     "search_status": "SUCCESS",
                     "resolution_basis": resolution.basis,
+                    "resolution_state": resolution.state.value,
+                    "resolution_diagnostics": resolution.diagnostics,
                     "rejected_candidates": resolution.rejected_candidates,
                 },
             )
@@ -141,6 +145,8 @@ class CompanyAgent:
                 "provider_status": "SUCCESS",
                 "search_status": "SUCCESS",
                 "resolution_basis": resolution.basis,
+                "resolution_state": resolution.state.value,
+                "resolution_diagnostics": resolution.diagnostics,
                 "rejected_candidates": resolution.rejected_candidates,
             },
         )

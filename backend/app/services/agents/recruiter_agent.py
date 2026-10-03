@@ -58,8 +58,15 @@ class RecruiterAgent:
                 query = f'"{company_name}" official website careers'
                 search_res = SearchResult.from_dict_or_result(await self.search_client.search(query), query=query)
                 record("company_domain", search_res)
+                resolution = DomainResolver.resolve(company_name, search_res)
+                checks["company_domain"].update({
+                    "resolution_state": resolution.state.value,
+                    "resolution_basis": resolution.basis,
+                    "resolution_diagnostics": resolution.diagnostics,
+                    "canonical_domain": resolution.canonical_domain,
+                    "rejected_candidates": resolution.rejected_candidates,
+                })
                 if search_res.is_live:
-                    resolution = DomainResolver.resolve(company_name, search_res)
                     if resolution.state == DomainResolutionState.RESOLVED and resolution.canonical_domain:
                         domain_match = DomainResolver.is_matching_domain(email_domain, resolution.canonical_domain)
                         evidence_list.append(EvidenceItem(

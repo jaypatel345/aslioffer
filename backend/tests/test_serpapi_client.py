@@ -290,7 +290,7 @@ async def test_partial_success_across_multiple_checks():
                     provider="serpapi",
                     outcome=SearchOutcome.SUCCESS,
                     results=[{"title": "Wipro", "link": "https://www.wipro.com", "snippet": "Official site"}],
-                    knowledge_graph={"website": "https://www.wipro.com"},
+                    knowledge_graph={"title": "Wipro Limited", "website": "https://www.wipro.com"},
                 )
             else:
                 return SearchResult(
