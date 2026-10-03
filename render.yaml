@@ -1,0 +1,51 @@
+# Render Blueprint for the AsliOffer backend.
+#
+# Deploy: Render dashboard -> New -> Blueprint -> pick the aslioffer repo.
+# Render reads this file and prompts for the three values marked `sync: false`.
+#
+# Redis is declared in config.py but never used by any code path, so no cache
+# service is provisioned here.
+services:
+  - type: web
+    name: aslioffer-backend
+    runtime: python
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    # $PORT is assigned by Render; binding to 0.0.0.0 is required or the health
+    # check cannot reach the process.
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.7"
+
+      - key: ENVIRONMENT
+        value: production
+      - key: DEBUG
+        value: "false"
+
+      # Secrets: `sync: false` keeps them out of the repo. Render asks for each
+      # one in the dashboard when the blueprint is first applied.
+      - key: SERPAPI_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+
+      # gemini-2.5-flash now 404s for newly issued API keys. The client falls
+      # back through a chain of flash models if this one is busy.
+      - key: GEMINI_MODEL
+        value: gemini-3.8-flash
+
+      # Comma-separated list of the exact frontend origins allowed to call this
+      # API, e.g. "https://aslioffer.vercel.app". Scheme and host must match the
+      # browser's address bar exactly, with no trailing slash, or the browser
+      # blocks every request. Left unset, only localhost is permitted and a
+      # deployed frontend will appear to hang.
+      - key: BACKEND_CORS_ORIGINS
+        sync: false
+
+      # Default is sqlite:///./aslioffer.db. Render's free disk is ephemeral, so
+      # stored offers are wiped on every deploy and restart. Reports are
+      # recomputed on demand, so the demo still works; attach a Postgres
+      # instance and set its URL here if offers need to survive.

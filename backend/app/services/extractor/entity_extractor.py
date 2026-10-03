@@ -23,12 +23,31 @@ class EntityExtractor:
         if self.gemini_client and self.gemini_client.api_key:
             try:
                 logger.info("Attempting Gemini entity extraction (%d chars)", len(text))
-                return await self.gemini_client.extract_entities(text)
+                data = await self.gemini_client.extract_entities(text)
+                return self._backfill_salary_fields(data)
             except Exception as e:
                 logger.warning("Gemini extraction failed (%s). Falling back to regex extractor.", str(e))
 
         logger.info("Using regex extraction pipeline")
         return self.extract_regex(text)
+
+    def _backfill_salary_fields(self, data: ExtractedData) -> ExtractedData:
+        """
+        Make the local parser authoritative for salary_amount / salary_period.
+
+        Gemini is inconsistent about these: for "₹8 LPA" it returns None on one
+        call and 800000.0 (absolute rupees) on the next, while the regex path
+        yields 8.0 with period "LPA". Two conventions for one field means nothing
+        downstream can read it safely, so derive both locally whenever the string
+        parses, and keep whatever Gemini gave only when it does not.
+        """
+        if data.salary:
+            _, amount, period = self._detect_salary(data.salary)
+            if amount is not None:
+                data.salary_amount = amount
+            if period:
+                data.salary_period = period
+        return data
 
     async def extract_from_document(self, file_bytes: bytes, mime_type: str) -> Dict[str, Any]:
         """

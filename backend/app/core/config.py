@@ -2,6 +2,40 @@ import os
 from typing import List, Union
 from pydantic import AnyHttpUrl, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings.sources import DotEnvSettingsSource, EnvSettingsSource
+
+
+
+# pydantic-settings JSON-decodes complex field types (List[str]) straight from
+# the environment, BEFORE any field_validator runs. So the comma-separated form
+# the validator below advertises never reached it: setting
+# BACKEND_CORS_ORIGINS=https://app.example.com raised SettingsError and the
+# process refused to start — the exact variable you must set to deploy.
+_LIST_FIELDS = {"BACKEND_CORS_ORIGINS"}
+
+
+def _coerce_csv(field_name, value):
+    if field_name in _LIST_FIELDS and isinstance(value, str):
+        raw = value.strip()
+        if raw and not raw.startswith("["):
+            return [item.strip() for item in raw.split(",") if item.strip()]
+    return None
+
+
+class _CsvTolerantEnvSource(EnvSettingsSource):
+    def prepare_field_value(self, field_name, field, value, value_is_complex):
+        coerced = _coerce_csv(field_name, value)
+        if coerced is not None:
+            return coerced
+        return super().prepare_field_value(field_name, field, value, value_is_complex)
+
+
+class _CsvTolerantDotEnvSource(DotEnvSettingsSource):
+    def prepare_field_value(self, field_name, field, value, value_is_complex):
+        coerced = _coerce_csv(field_name, value)
+        if coerced is not None:
+            return coerced
+        return super().prepare_field_value(field_name, field, value, value_is_complex)
 
 
 class Settings(BaseSettings):
@@ -47,6 +81,18 @@ class Settings(BaseSettings):
         case_sensitive=True,
         extra="ignore",
     )
+
+    @classmethod
+    def settings_customise_sources(
+        cls, settings_cls, init_settings, env_settings, dotenv_settings, file_secret_settings
+    ):
+        """Accept both JSON and comma-separated list values from env and .env."""
+        return (
+            init_settings,
+            _CsvTolerantEnvSource(settings_cls),
+            _CsvTolerantDotEnvSource(settings_cls),
+            file_secret_settings,
+        )
 
 
 settings = Settings()
