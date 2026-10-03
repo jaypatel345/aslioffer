@@ -1,0 +1,74 @@
+{
+  "case_id": "CASE-PHONE-ONLY-NO-MATCH-03",
+  "category": "phone_only_recruiter",
+  "title": "Phone-only recruiter with no public search matches",
+  "description": "Recruiter initiates contact solely via phone number (+919876543210) without email or domain evidence. Search returns zero public scam complaints.",
+  "synthetic": true,
+  "unresolved_facts": [
+    "Recruiter identity and company affiliation cannot be verified from a phone number alone",
+    "Absence of online scam complaints does not confirm authorization or identity"
+  ],
+  "labels": {
+    "data_type": "synthetic",
+    "threat_category": "unverified_contact",
+    "expected_verdict": "CANNOT_VERIFY",
+    "required_case_index": 3
+  },
+  "raw_text": "Hello, regarding your resume shortlisted on Naukri for Operations Executive at Zen Vertex Logistics. Call or message HR desk directly at +919876543210 to schedule your interview slot.",
+  "structured_input": {
+    "company_name": "Zen Vertex Logistics",
+    "recruiter_name": "HR Desk",
+    "recruiter_email": null,
+    "recruiter_phone": "+919876543210",
+    "job_role": "Operations Executive",
+    "salary": null,
+    "demanded_fee": null,
+    "payment_method": null,
+    "application_url": null,
+    "flags": []
+  },
+  "provider_status": "successful",
+  "search_mock": {
+    "query_responses": {
+      "\"Zen Vertex Logistics\" official website careers": {
+        "status": "successful",
+        "source": "mock",
+        "knowledge_graph": {},
+        "organic_results": []
+      },
+      "\"+919876543210\" scam fraud complaint": {
+        "status": "successful",
+        "source": "mock",
+        "organic_results": []
+      }
+    },
+    "default_response": {
+      "status": "successful",
+      "source": "mock",
+      "organic_results": []
+    }
+  },
+  "expected_observations": {
+    "company_assessment": {
+      "official_domain_resolved": false,
+      "canonical_domain": null,
+      "verdict": "CANNOT_VERIFY"
+    },
+    "recruiter_assessment": {
+      "domain_match": null,
+      "recruiter_phone": "+919876543210",
+      "phone_scam_hit": false,
+      "verdict": "CANNOT_VERIFY",
+      "summary": "No public scam complaints found, but a phone number alone without domain credentials cannot confirm recruiter legitimacy."
+    },
+    "scam_assessment": {
+      "fee_detected": false,
+      "otp_requested": false,
+      "verdict": "VERIFIED"
+    },
+    "overall_outcome": "CANNOT_VERIFY",
+    "authenticity_status": "UNCONFIRMED",
+    "risk_level": "NEEDS_REVIEW"
+  },
+  "rationale": "Absence of search hits on a phone number is an absence of evidence, not evidence of authorization. No search matches must not verify a recruiter."
+}

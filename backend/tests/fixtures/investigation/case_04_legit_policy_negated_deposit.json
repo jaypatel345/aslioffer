@@ -1,0 +1,74 @@
+{
+  "case_id": "CASE-LEGIT-POLICY-NEGATED-FEE-04",
+  "category": "negated_fee_policy",
+  "title": "Legitimate policy saying 'We never charge a security deposit'",
+  "description": "Legitimate company offer letter includes a standard anti-fraud disclaimer stating that the company never charges any security deposit or recruitment fee.",
+  "synthetic": true,
+  "unresolved_facts": [],
+  "labels": {
+    "data_type": "synthetic",
+    "threat_category": "benign_policy_negation",
+    "expected_verdict": "VERIFIED",
+    "required_case_index": 4
+  },
+  "raw_text": "Infosys BPO Services Limited. Offer of Employment for Systems Associate.\nDear Candidate, we are pleased to offer you the role with an annual CTC of INR 3,60,000.\nPlease review the terms. Policy Notice: We never charge a security deposit, registration fee, or onboarding deposit at any stage of recruitment. All genuine communication comes from @infosys.example.",
+  "structured_input": {
+    "company_name": "Infosys BPO Services Limited",
+    "recruiter_name": "Talent Team",
+    "recruiter_email": "careers@infosys.example",
+    "recruiter_phone": null,
+    "job_role": "Systems Associate",
+    "salary": "INR 3.6 LPA",
+    "demanded_fee": null,
+    "payment_method": null,
+    "application_url": null,
+    "flags": []
+  },
+  "provider_status": "successful",
+  "search_mock": {
+    "query_responses": {
+      "\"Infosys BPO Services Limited\" official website careers": {
+        "status": "successful",
+        "source": "mock",
+        "knowledge_graph": {
+          "title": "Infosys BPM",
+          "website": "https://www.infosys.example"
+        },
+        "organic_results": [
+          {
+            "title": "Infosys BPM - Careers and Opportunities",
+            "link": "https://www.infosys.example/careers",
+            "snippet": "Official careers portal for Infosys BPM. We never charge any recruitment fees."
+          }
+        ]
+      }
+    },
+    "default_response": {
+      "status": "successful",
+      "source": "mock",
+      "organic_results": []
+    }
+  },
+  "expected_observations": {
+    "company_assessment": {
+      "official_domain_resolved": true,
+      "canonical_domain": "https://www.infosys.example",
+      "verdict": "VERIFIED"
+    },
+    "recruiter_assessment": {
+      "domain_match": true,
+      "email_domain": "infosys.example",
+      "verdict": "VERIFIED"
+    },
+    "scam_assessment": {
+      "fee_detected": false,
+      "negated_fee_found": true,
+      "verdict": "VERIFIED",
+      "summary": "Disclaimer stating company never charges security deposits recognized as anti-fraud policy, not a payment demand."
+    },
+    "overall_outcome": "NO_STRONG_RISK_SIGNALS",
+    "authenticity_status": "UNCONFIRMED",
+    "risk_level": "VERIFIED"
+  },
+  "rationale": "A negated fee statement ('We never charge a security deposit') is an anti-fraud reassurance. Parsing negated fee phrases as affirmative demands is a critical false-positive defect."
+}

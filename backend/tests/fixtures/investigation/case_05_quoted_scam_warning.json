@@ -1,0 +1,74 @@
+{
+  "case_id": "CASE-QUOTED-SCAM-WARNING-05",
+  "category": "quoted_scam_warning",
+  "title": "Quoted scam warning containing fee-demand language",
+  "description": "Legitimate company communications quote a third-party scam warning to alert students about scammers asking for registration fees.",
+  "synthetic": true,
+  "unresolved_facts": [],
+  "labels": {
+    "data_type": "synthetic",
+    "threat_category": "benign_quoted_advisory",
+    "expected_verdict": "VERIFIED",
+    "required_case_index": 5
+  },
+  "raw_text": "Wipro Talent Acquisition Team - Campus Advisory.\nSecurity Advisory for Freshers: Fraudsters are circulating fake letters stating 'Pay INR 2,500 registration fee and laptop fee via UPI to confirm your seat'. Wipro does not solicit payments or training fees. Do not transfer funds to anyone claiming to represent Wipro.\nContact verified support at campus.queries@wipro.example.",
+  "structured_input": {
+    "company_name": "Wipro",
+    "recruiter_name": "Campus Team",
+    "recruiter_email": "campus.queries@wipro.example",
+    "recruiter_phone": null,
+    "job_role": null,
+    "salary": null,
+    "demanded_fee": null,
+    "payment_method": null,
+    "application_url": null,
+    "flags": []
+  },
+  "provider_status": "successful",
+  "search_mock": {
+    "query_responses": {
+      "\"Wipro\" official website careers": {
+        "status": "successful",
+        "source": "mock",
+        "knowledge_graph": {
+          "title": "Wipro",
+          "website": "https://www.wipro.example"
+        },
+        "organic_results": [
+          {
+            "title": "Wipro Careers - Official Portal",
+            "link": "https://www.wipro.example/careers",
+            "snippet": "Official careers portal of Wipro."
+          }
+        ]
+      }
+    },
+    "default_response": {
+      "status": "successful",
+      "source": "mock",
+      "organic_results": []
+    }
+  },
+  "expected_observations": {
+    "company_assessment": {
+      "official_domain_resolved": true,
+      "canonical_domain": "https://www.wipro.example",
+      "verdict": "VERIFIED"
+    },
+    "recruiter_assessment": {
+      "domain_match": true,
+      "email_domain": "wipro.example",
+      "verdict": "VERIFIED"
+    },
+    "scam_assessment": {
+      "fee_detected": false,
+      "quoted_warning_detected": true,
+      "verdict": "VERIFIED",
+      "summary": "Mention of fee language is inside an anti-scam advisory cautioning against third-party fraud, not an offer demand."
+    },
+    "overall_outcome": "NO_STRONG_RISK_SIGNALS",
+    "authenticity_status": "UNCONFIRMED",
+    "risk_level": "VERIFIED"
+  },
+  "rationale": "Quoted scam warnings contain scam vocabulary as examples of what to avoid. Keyword matchers without attribution context generate false accusations against benign security advisories."
+}

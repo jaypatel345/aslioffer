@@ -1,0 +1,170 @@
+{
+  "corpus_version": "1.0.0",
+  "generated_date": "2026-10-03",
+  "total_cases": 16,
+  "description": "Reproducible investigation fixture corpus capturing real-world failure modes, lookalike domains, contextual fee semantics, credential demands, and uncertainty states for AsliOffer.",
+  "required_scenarios_covered": [
+    "real_company_lookalike_domain",
+    "unknown_recruiter_unresolved_domain",
+    "phone_only_recruiter_no_matches",
+    "legitimate_policy_negated_deposit",
+    "quoted_scam_warning_fee_language",
+    "ordinary_telegram_mention",
+    "explicit_upfront_fee_demand",
+    "explicit_bank_otp_password_demand",
+    "payment_to_unlock_job_demand",
+    "small_employer_sparse_footprint",
+    "successful_search_empty_results",
+    "provider_timeout_or_failure",
+    "realistic_impersonation_plausible_details",
+    "legitimate_agency_recruitment",
+    "candidate_and_recruiter_emails",
+    "company_extraction_trap_platform"
+  ],
+  "cases": [
+    {
+      "case_id": "CASE-LOOKALIKE-DOMAIN-01",
+      "required_index": 1,
+      "file": "case_01_lookalike_domain.json",
+      "scenario": "A real company name with a lookalike application domain",
+      "category": "lookalike_domain",
+      "threat_category": "domain_impersonation",
+      "expected_outcome": "HIGH_RISK"
+    },
+    {
+      "case_id": "CASE-UNKNOWN-CORP-RECRUITER-02",
+      "required_index": 2,
+      "file": "case_02_unknown_recruiter_no_company_domain.json",
+      "scenario": "An unknown corporate-looking recruiter email with no independently resolved employer domain",
+      "category": "unknown_recruiter_unresolved_domain",
+      "threat_category": "unverified_identity",
+      "expected_outcome": "CANNOT_VERIFY"
+    },
+    {
+      "case_id": "CASE-PHONE-ONLY-NO-MATCH-03",
+      "required_index": 3,
+      "file": "case_03_phone_only_recruiter_no_matches.json",
+      "scenario": "A phone-only recruiter with no public search matches",
+      "category": "phone_only_recruiter",
+      "threat_category": "unverified_contact",
+      "expected_outcome": "CANNOT_VERIFY"
+    },
+    {
+      "case_id": "CASE-LEGIT-POLICY-NEGATED-FEE-04",
+      "required_index": 4,
+      "file": "case_04_legit_policy_negated_deposit.json",
+      "scenario": "A legitimate policy saying 'We never charge a security deposit.'",
+      "category": "negated_fee_policy",
+      "threat_category": "benign_policy_negation",
+      "expected_outcome": "NO_STRONG_RISK_SIGNALS"
+    },
+    {
+      "case_id": "CASE-QUOTED-SCAM-WARNING-05",
+      "required_index": 5,
+      "file": "case_05_quoted_scam_warning.json",
+      "scenario": "A quoted scam warning containing fee-demand language",
+      "category": "quoted_scam_warning",
+      "threat_category": "benign_quoted_advisory",
+      "expected_outcome": "NO_STRONG_RISK_SIGNALS"
+    },
+    {
+      "case_id": "CASE-ORDINARY-TELEGRAM-06",
+      "required_index": 6,
+      "file": "case_06_ordinary_telegram_mention.json",
+      "scenario": "An ordinary Telegram mention without a payment or credential demand",
+      "category": "benign_telegram_mention",
+      "threat_category": "informational_channel",
+      "expected_outcome": "NEEDS_REVIEW"
+    },
+    {
+      "case_id": "CASE-EXPLICIT-UPFRONT-FEE-07",
+      "required_index": 7,
+      "file": "case_07_explicit_upfront_fee_demand.json",
+      "scenario": "An explicit upfront recruitment fee demand",
+      "category": "upfront_fee_demand",
+      "threat_category": "advance_fee_fraud",
+      "expected_outcome": "HIGH_RISK"
+    },
+    {
+      "case_id": "CASE-EXPLICIT-BANK-OTP-DEMAND-08",
+      "required_index": 8,
+      "file": "case_08_explicit_bank_otp_password_demand.json",
+      "scenario": "An explicit bank OTP or password demand",
+      "category": "credential_otp_theft",
+      "threat_category": "credential_theft",
+      "expected_outcome": "HIGH_RISK"
+    },
+    {
+      "case_id": "CASE-PAYMENT-TO-UNLOCK-JOB-09",
+      "required_index": 9,
+      "file": "case_09_payment_to_unlock_job_demand.json",
+      "scenario": "A payment-to-unlock-job or earnings demand",
+      "category": "payment_to_unlock_earnings",
+      "threat_category": "task_scam_extortion",
+      "expected_outcome": "HIGH_RISK"
+    },
+    {
+      "case_id": "CASE-SMALL-EMPLOYER-SPARSE-10",
+      "required_index": 10,
+      "file": "case_10_small_employer_sparse_footprint.json",
+      "scenario": "A small employer with sparse public information and no adverse signals",
+      "category": "sparse_footprint_startup",
+      "threat_category": "sparse_evidence",
+      "expected_outcome": "CANNOT_VERIFY"
+    },
+    {
+      "case_id": "CASE-SUCCESSFUL-SEARCH-EMPTY-11",
+      "required_index": 11,
+      "file": "case_11_successful_search_empty_results.json",
+      "scenario": "A successful search with empty results",
+      "category": "empty_search_results",
+      "threat_category": "unresolved_coverage",
+      "expected_outcome": "CANNOT_VERIFY"
+    },
+    {
+      "case_id": "CASE-PROVIDER-OUTAGE-TIMEOUT-12",
+      "required_index": 12,
+      "file": "case_12_provider_timeout_or_failure.json",
+      "scenario": "A provider timeout, authentication failure, or rate limit",
+      "category": "provider_failure_or_rate_limit",
+      "threat_category": "provider_outage",
+      "expected_outcome": "CANNOT_VERIFY"
+    },
+    {
+      "case_id": "CASE-REALISTIC-IMPERSONATION-13",
+      "required_index": 13,
+      "file": "case_13_realistic_impersonation_plausible_details.json",
+      "scenario": "A realistic impersonation using plausible salary and copied corporate details",
+      "category": "realistic_impersonation",
+      "threat_category": "corporate_impersonation",
+      "expected_outcome": "HIGH_RISK"
+    },
+    {
+      "case_id": "CASE-LEGIT-AGENCY-RECRUITMENT-14",
+      "required_index": 14,
+      "file": "case_14_legit_agency_recruitment.json",
+      "scenario": "A legitimate recruitment-agency scenario requiring further verification",
+      "category": "agency_recruitment",
+      "threat_category": "third_party_recruitment",
+      "expected_outcome": "NEEDS_REVIEW"
+    },
+    {
+      "case_id": "CASE-CANDIDATE-AND-RECRUITER-EMAILS-15",
+      "required_index": 15,
+      "file": "case_15_candidate_and_recruiter_emails.json",
+      "scenario": "A message containing both candidate and recruiter email addresses",
+      "category": "contact_role_separation",
+      "threat_category": "extraction_ambiguity",
+      "expected_outcome": "NO_STRONG_RISK_SIGNALS"
+    },
+    {
+      "case_id": "CASE-EXTRACTION-TRAP-PLATFORM-16",
+      "required_index": 16,
+      "file": "case_16_extraction_trap_platform_mention.json",
+      "scenario": "A company extraction trap mentioning Google Meet or another platform",
+      "category": "company_extraction_platform_trap",
+      "threat_category": "entity_extraction_trap",
+      "expected_outcome": "NO_STRONG_RISK_SIGNALS"
+    }
+  ]
+}

@@ -1,0 +1,91 @@
+{
+  "case_id": "CASE-LEGIT-AGENCY-RECRUITMENT-14",
+  "category": "agency_recruitment",
+  "title": "Legitimate recruitment-agency scenario requiring further verification",
+  "description": "Legitimate external staffing agency hires on behalf of client employer Wipro Limited. Recruiter email domain belongs to the agency, not the client.",
+  "synthetic": true,
+  "unresolved_facts": [
+    "Direct client hiring mandate between Apex Staffing Solutions and Wipro Limited requires secondary confirmation"
+  ],
+  "labels": {
+    "data_type": "synthetic",
+    "threat_category": "third_party_recruitment",
+    "expected_verdict": "NEEDS_REVIEW",
+    "required_case_index": 14
+  },
+  "raw_text": "Apex Staffing Solutions Pvt Ltd.\nRecruitment Mandate for Wipro Limited.\nDear Candidate, Apex Staffing Solutions is the authorized recruitment partner for Wipro Limited. We are pleased to invite you for an interview for Cloud Support Associate.\nPlease send your updated CV to priya.sharma@apexstaffing.example. No placement fee is charged by our agency.",
+  "structured_input": {
+    "company_name": "Wipro Limited",
+    "agency_name": "Apex Staffing Solutions Pvt Ltd",
+    "recruiter_name": "Priya Sharma",
+    "recruiter_email": "priya.sharma@apexstaffing.example",
+    "recruiter_phone": null,
+    "job_role": "Cloud Support Associate",
+    "salary": null,
+    "demanded_fee": null,
+    "payment_method": null,
+    "application_url": null,
+    "flags": []
+  },
+  "provider_status": "successful",
+  "search_mock": {
+    "query_responses": {
+      "\"Wipro Limited\" official website careers": {
+        "status": "successful",
+        "source": "mock",
+        "knowledge_graph": {
+          "title": "Wipro Limited",
+          "website": "https://www.wipro.example"
+        },
+        "organic_results": [
+          {
+            "title": "Wipro Careers - Opportunities",
+            "link": "https://www.wipro.example/careers",
+            "snippet": "Official careers portal of Wipro Limited."
+          }
+        ]
+      },
+      "\"Apex Staffing Solutions Pvt Ltd\" official website": {
+        "status": "successful",
+        "source": "mock",
+        "knowledge_graph": {
+          "title": "Apex Staffing Solutions",
+          "website": "https://www.apexstaffing.example"
+        },
+        "organic_results": [
+          {
+            "title": "Apex Staffing Solutions - Recruitment & Placement Agency",
+            "link": "https://www.apexstaffing.example",
+            "snippet": "Licensed staffing agency providing IT workforce solutions across India."
+          }
+        ]
+      }
+    },
+    "default_response": {
+      "status": "successful",
+      "source": "mock",
+      "organic_results": []
+    }
+  },
+  "expected_observations": {
+    "company_assessment": {
+      "official_domain_resolved": true,
+      "canonical_domain": "https://www.wipro.example",
+      "verdict": "VERIFIED"
+    },
+    "recruiter_assessment": {
+      "is_agency": true,
+      "agency_domain": "apexstaffing.example",
+      "verdict": "NEEDS_REVIEW",
+      "summary": "Recruiter operates under third-party staffing agency 'Apex Staffing Solutions'. Agency footprint verified, but client representation mandate requires confirmation."
+    },
+    "scam_assessment": {
+      "fee_detected": false,
+      "verdict": "VERIFIED"
+    },
+    "overall_outcome": "NEEDS_REVIEW",
+    "authenticity_status": "UNCONFIRMED",
+    "risk_level": "NEEDS_REVIEW"
+  },
+  "rationale": "Third-party recruitment agencies frequently use their own corporate domain when hiring for a client. This domain difference requires mandate verification (NEEDS_REVIEW), not automatic condemnation as an impersonation scam (HIGH_RISK)."
+}

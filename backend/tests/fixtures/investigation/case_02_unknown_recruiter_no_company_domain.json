@@ -1,0 +1,73 @@
+{
+  "case_id": "CASE-UNKNOWN-CORP-RECRUITER-02",
+  "category": "unknown_recruiter_unresolved_domain",
+  "title": "Unknown corporate-looking recruiter email with no independently resolved employer domain",
+  "description": "Recruiter uses a plausible custom corporate domain (apexhorizon-holdings.example), but web search finds no official presence for claimed employer Apex Horizon Tech.",
+  "synthetic": true,
+  "unresolved_facts": [
+    "No official corporate domain or registration found for Apex Horizon Tech",
+    "Domain apexhorizon-holdings.example cannot be verified as authentic employer infrastructure"
+  ],
+  "labels": {
+    "data_type": "synthetic",
+    "threat_category": "unverified_identity",
+    "expected_verdict": "CANNOT_VERIFY",
+    "required_case_index": 2
+  },
+  "raw_text": "Greetings from Apex Horizon Tech.\nWe were impressed with your portfolio and would like to extend an offer for the position of Junior DevOps Engineer.\nSalary: INR 5,00,000 CTC.\nPlease reply to recruiter.v@apexhorizon-holdings.example to confirm your availability for joining on 1st November.",
+  "structured_input": {
+    "company_name": "Apex Horizon Tech",
+    "recruiter_name": "Recruiter V",
+    "recruiter_email": "recruiter.v@apexhorizon-holdings.example",
+    "recruiter_phone": null,
+    "job_role": "Junior DevOps Engineer",
+    "salary": "INR 5 LPA",
+    "demanded_fee": null,
+    "payment_method": null,
+    "application_url": null,
+    "flags": []
+  },
+  "provider_status": "successful",
+  "search_mock": {
+    "query_responses": {
+      "\"Apex Horizon Tech\" official website careers": {
+        "status": "successful",
+        "source": "mock",
+        "knowledge_graph": {},
+        "organic_results": []
+      },
+      "\"recruiter.v@apexhorizon-holdings.example\" scam fraud complaint": {
+        "status": "successful",
+        "source": "mock",
+        "organic_results": []
+      }
+    },
+    "default_response": {
+      "status": "successful",
+      "source": "mock",
+      "organic_results": []
+    }
+  },
+  "expected_observations": {
+    "company_assessment": {
+      "official_domain_resolved": false,
+      "canonical_domain": null,
+      "verdict": "CANNOT_VERIFY"
+    },
+    "recruiter_assessment": {
+      "domain_match": null,
+      "email_domain": "apexhorizon-holdings.example",
+      "verdict": "CANNOT_VERIFY",
+      "summary": "Recruiter domain cannot be verified because employer official domain is unresolved."
+    },
+    "scam_assessment": {
+      "fee_detected": false,
+      "otp_requested": false,
+      "verdict": "VERIFIED"
+    },
+    "overall_outcome": "CANNOT_VERIFY",
+    "authenticity_status": "UNCONFIRMED",
+    "risk_level": "NEEDS_REVIEW"
+  },
+  "rationale": "An unknown corporate email domain cannot be certified as genuine without an independently resolved official employer domain. Unresolved identity must result in CANNOT_VERIFY, not VERIFIED."
+}

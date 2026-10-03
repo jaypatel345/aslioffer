@@ -1,0 +1,67 @@
+{
+  "case_id": "CASE-SUCCESSFUL-SEARCH-EMPTY-11",
+  "category": "empty_search_results",
+  "title": "A successful search with empty results",
+  "description": "Search API executes cleanly (HTTP 200, valid credentials), but returns 0 organic results. The system must record provider status as empty/zero_results, not error or fraud.",
+  "synthetic": true,
+  "unresolved_facts": [
+    "Search index contains zero entries for claimed organization Prathamesh Robotics Enterprise"
+  ],
+  "labels": {
+    "data_type": "synthetic",
+    "threat_category": "unresolved_coverage",
+    "expected_verdict": "CANNOT_VERIFY",
+    "required_case_index": 11
+  },
+  "raw_text": "Prathamesh Robotics Enterprise.\nLetter of Intent for Mechatronics Intern.\nStipend: INR 12,000/month.\nContact: hr@prathamesh-robotics.example.\nPlease report to our laboratory on Monday.",
+  "structured_input": {
+    "company_name": "Prathamesh Robotics Enterprise",
+    "recruiter_name": "HR",
+    "recruiter_email": "hr@prathamesh-robotics.example",
+    "recruiter_phone": null,
+    "job_role": "Mechatronics Intern",
+    "salary": "INR 12,000 per month",
+    "demanded_fee": null,
+    "payment_method": null,
+    "application_url": null,
+    "flags": []
+  },
+  "provider_status": "empty",
+  "search_mock": {
+    "query_responses": {
+      "\"Prathamesh Robotics Enterprise\" official website careers": {
+        "status": "successful",
+        "source": "live",
+        "search_metadata": {
+          "status": "Success",
+          "total_results": 0
+        },
+        "knowledge_graph": {},
+        "organic_results": []
+      }
+    },
+    "default_response": {
+      "status": "successful",
+      "source": "live",
+      "organic_results": []
+    }
+  },
+  "expected_observations": {
+    "company_assessment": {
+      "search_status": "SUCCESSFUL_EMPTY",
+      "official_domain_resolved": false,
+      "verdict": "CANNOT_VERIFY",
+      "summary": "Search completed successfully but returned no indexed public footprint."
+    },
+    "recruiter_assessment": {
+      "verdict": "CANNOT_VERIFY"
+    },
+    "scam_assessment": {
+      "verdict": "VERIFIED"
+    },
+    "overall_outcome": "CANNOT_VERIFY",
+    "authenticity_status": "UNCONFIRMED",
+    "risk_level": "NEEDS_REVIEW"
+  },
+  "rationale": "A successful search that yields empty results indicates absence of web footprint, not an API breakdown or fraud. This must remain an unresolved coverage gap."
+}

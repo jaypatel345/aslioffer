@@ -1,0 +1,63 @@
+{
+  "case_id": "CASE-PAYMENT-TO-UNLOCK-JOB-09",
+  "category": "payment_to_unlock_earnings",
+  "title": "Payment-to-unlock-job or earnings demand",
+  "description": "Task/freelance offer informs the user that earnings have accumulated, but requires a payment to unlock the balance or activate payout.",
+  "synthetic": true,
+  "unresolved_facts": [],
+  "labels": {
+    "data_type": "synthetic",
+    "threat_category": "task_scam_extortion",
+    "expected_verdict": "HIGH_RISK",
+    "required_case_index": 9
+  },
+  "raw_text": "TaskMatrix Media Work-From-Home Portal.\nCongratulations! You have completed 15 digital product review tasks and earned an accumulated balance of INR 18,500.\nTo unlock your earnings and initiate bank transfer to your account, you must pay INR 2,200 wallet release charge to our clearing agent.\nOnce unlocked, your total earnings plus release fee will be credited within 10 minutes.",
+  "structured_input": {
+    "company_name": "TaskMatrix Media",
+    "recruiter_name": "Task Supervisor",
+    "recruiter_email": null,
+    "recruiter_phone": "+919876599999",
+    "job_role": "Digital Reviewer",
+    "salary": "INR 18,500 accumulated",
+    "demanded_fee": null,
+    "payment_method": "Bank Transfer",
+    "application_url": null,
+    "flags": []
+  },
+  "provider_status": "successful",
+  "search_mock": {
+    "query_responses": {
+      "\"TaskMatrix Media\" official website careers": {
+        "status": "successful",
+        "source": "mock",
+        "knowledge_graph": {},
+        "organic_results": []
+      }
+    },
+    "default_response": {
+      "status": "successful",
+      "source": "mock",
+      "organic_results": []
+    }
+  },
+  "expected_observations": {
+    "company_assessment": {
+      "official_domain_resolved": false,
+      "verdict": "CANNOT_VERIFY"
+    },
+    "recruiter_assessment": {
+      "phone_scam_hit": false,
+      "verdict": "CANNOT_VERIFY"
+    },
+    "scam_assessment": {
+      "fee_detected": true,
+      "unlock_earnings_detected": true,
+      "verdict": "HIGH_RISK",
+      "summary": "Advance payment required to release earned funds or unlock job tasks is a classic task-scam extortion pattern."
+    },
+    "overall_outcome": "HIGH_RISK",
+    "authenticity_status": "UNCONFIRMED",
+    "risk_level": "HIGH_RISK"
+  },
+  "rationale": "Payment-to-unlock-job or earnings demands are predatory task scams. Requiring payment to withdraw alleged salary is fraudulent and must result in HIGH_RISK."
+}

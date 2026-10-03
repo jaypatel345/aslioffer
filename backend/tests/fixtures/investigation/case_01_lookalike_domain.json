@@ -1,0 +1,73 @@
+{
+  "case_id": "CASE-LOOKALIKE-DOMAIN-01",
+  "category": "lookalike_domain",
+  "title": "Real company name with a lookalike application domain",
+  "description": "Offer uses legitimate corporate identity (Tata Consultancy Services) but directs applicant to a lookalike domain tcs-careers-portal.example.",
+  "synthetic": true,
+  "unresolved_facts": [
+    "Ownership of tcs-careers-portal.example is unverified and not linked to Tata Consultancy Services"
+  ],
+  "labels": {
+    "data_type": "synthetic",
+    "threat_category": "domain_impersonation",
+    "expected_verdict": "SUSPECTED_LOOKALIKE",
+    "required_case_index": 1
+  },
+  "raw_text": "Tata Consultancy Services Ltd. Reference: TCS/OFFER/2026/0912.\nDear Candidate, we are pleased to offer you the role of Systems Analyst at Tata Consultancy Services.\nPackage: INR 6,50,000 per annum.\nPlease confirm your acceptance and submit all onboarding documents exclusively through our official recruitment portal at https://tcs-careers-portal.example/apply within 5 days.\nRecruiter: r.verma@tcs-careers-portal.example.",
+  "structured_input": {
+    "company_name": "Tata Consultancy Services",
+    "recruiter_name": "Rahul Verma",
+    "recruiter_email": "r.verma@tcs-careers-portal.example",
+    "recruiter_phone": null,
+    "job_role": "Systems Analyst",
+    "salary": "INR 6.5 LPA",
+    "demanded_fee": null,
+    "payment_method": null,
+    "application_url": "https://tcs-careers-portal.example/apply",
+    "flags": []
+  },
+  "provider_status": "successful",
+  "search_mock": {
+    "query_responses": {
+      "\"Tata Consultancy Services\" official website careers": {
+        "status": "successful",
+        "source": "mock",
+        "knowledge_graph": {},
+        "organic_results": [
+          {
+            "title": "TCS Careers Portal - Latest Openings",
+            "link": "https://tcs-careers-portal.example/apply",
+            "snippet": "Submit your job applications for TCS vacancies."
+          }
+        ]
+      }
+    },
+    "default_response": {
+      "status": "successful",
+      "source": "mock",
+      "organic_results": []
+    }
+  },
+  "expected_observations": {
+    "company_assessment": {
+      "official_domain_resolved": true,
+      "canonical_domain": "https://www.tcs.com",
+      "lookalike_detected": true
+    },
+    "recruiter_assessment": {
+      "domain_match": false,
+      "email_domain": "tcs-careers-portal.example",
+      "verdict": "NEEDS_REVIEW",
+      "is_lookalike": true
+    },
+    "scam_assessment": {
+      "fee_detected": false,
+      "otp_requested": false,
+      "verdict": "VERIFIED"
+    },
+    "overall_outcome": "HIGH_RISK",
+    "authenticity_status": "UNCONFIRMED",
+    "risk_level": "HIGH_RISK"
+  },
+  "rationale": "A brand name embedded in a third-party hostname (tcs-careers-portal.example) does not prove official ownership. Independent authoritative evidence resolves TCS to tcs.com."
+}

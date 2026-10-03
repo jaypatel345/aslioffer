@@ -1,0 +1,80 @@
+{
+  "case_id": "CASE-CANDIDATE-AND-RECRUITER-EMAILS-15",
+  "category": "contact_role_separation",
+  "title": "Message containing both candidate and recruiter email addresses",
+  "description": "Email header or text contains both candidate destination (sneha.student@gmail.com) and recruiter sender (talent.acquisition@tata-elxsi.example). System must separate semantic roles.",
+  "synthetic": true,
+  "unresolved_facts": [],
+  "labels": {
+    "data_type": "synthetic",
+    "threat_category": "extraction_ambiguity",
+    "expected_verdict": "VERIFIED",
+    "required_case_index": 15
+  },
+  "raw_text": "From: talent.acquisition@tata-elxsi.example\nTo: sneha.student@gmail.com\nDate: 03 Oct 2026 10:15 IST\nSubject: Offer of Employment - Embedded Systems Engineer\nDear Sneha, Tata Elxsi is pleased to offer you the role of Embedded Systems Engineer. CTC: INR 7.2 LPA.\nPlease confirm your acceptance by replying to this email.",
+  "structured_input": {
+    "company_name": "Tata Elxsi",
+    "candidate_name": "Sneha",
+    "candidate_email": "sneha.student@gmail.com",
+    "recruiter_name": "Talent Acquisition",
+    "recruiter_email": "talent.acquisition@tata-elxsi.example",
+    "recruiter_phone": null,
+    "job_role": "Embedded Systems Engineer",
+    "salary": "INR 7.2 LPA",
+    "demanded_fee": null,
+    "payment_method": null,
+    "application_url": null,
+    "flags": []
+  },
+  "provider_status": "successful",
+  "search_mock": {
+    "query_responses": {
+      "\"Tata Elxsi\" official website careers": {
+        "status": "successful",
+        "source": "mock",
+        "knowledge_graph": {
+          "title": "Tata Elxsi",
+          "website": "https://www.tata-elxsi.example"
+        },
+        "organic_results": [
+          {
+            "title": "Tata Elxsi Official Careers",
+            "link": "https://www.tata-elxsi.example/careers",
+            "snippet": "Join Tata Elxsi design and technology team."
+          }
+        ]
+      }
+    },
+    "default_response": {
+      "status": "successful",
+      "source": "mock",
+      "organic_results": []
+    }
+  },
+  "expected_observations": {
+    "extraction_assessment": {
+      "candidate_email": "sneha.student@gmail.com",
+      "recruiter_email": "talent.acquisition@tata-elxsi.example",
+      "recruiter_email_misattributed_to_candidate": false
+    },
+    "company_assessment": {
+      "official_domain_resolved": true,
+      "canonical_domain": "https://www.tata-elxsi.example",
+      "verdict": "VERIFIED"
+    },
+    "recruiter_assessment": {
+      "domain_match": true,
+      "is_free_email": false,
+      "verdict": "VERIFIED",
+      "summary": "Recruiter corporate email verified against Tata Elxsi official domain. Candidate email accurately recognized as recipient."
+    },
+    "scam_assessment": {
+      "fee_detected": false,
+      "verdict": "VERIFIED"
+    },
+    "overall_outcome": "NO_STRONG_RISK_SIGNALS",
+    "authenticity_status": "UNCONFIRMED",
+    "risk_level": "VERIFIED"
+  },
+  "rationale": "Extracting the first email found often misidentifies the candidate's webmail address as the recruiter's address, incorrectly triggering a PUBLIC_EMAIL_DOMAIN_USED scam flag. Semantic role extraction is required."
+}

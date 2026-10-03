@@ -1,0 +1,69 @@
+{
+  "case_id": "CASE-PROVIDER-OUTAGE-TIMEOUT-12",
+  "category": "provider_failure_or_rate_limit",
+  "title": "Provider timeout, authentication failure, or rate limit",
+  "description": "Upstream search provider returns HTTP 429 Rate Limit / 401 Unauthorized / ReadTimeout. System must record provider failure and surface partial results without fabricating evidence.",
+  "synthetic": true,
+  "unresolved_facts": [
+    "External search queries could not be completed due to upstream provider rate limiting / timeout"
+  ],
+  "labels": {
+    "data_type": "synthetic",
+    "threat_category": "provider_outage",
+    "expected_verdict": "CANNOT_VERIFY",
+    "required_case_index": 12
+  },
+  "raw_text": "Stellar Dynamics India Pvt Ltd.\nOffer of Employment: Trainee Embedded Engineer.\nCTC: INR 8,00,000 per annum.\nRecruiter: recruitment@stellardynamics.example.\nPlease submit signed acceptance within 3 business days.",
+  "structured_input": {
+    "company_name": "Stellar Dynamics India Pvt Ltd",
+    "recruiter_name": "Talent Operations",
+    "recruiter_email": "recruitment@stellardynamics.example",
+    "recruiter_phone": null,
+    "job_role": "Trainee Embedded Engineer",
+    "salary": "INR 8 LPA",
+    "demanded_fee": null,
+    "payment_method": null,
+    "application_url": null,
+    "flags": []
+  },
+  "provider_status": "failed",
+  "search_mock": {
+    "query_responses": {
+      "\"Stellar Dynamics India Pvt Ltd\" official website careers": {
+        "status": "failed",
+        "error_type": "RateLimitError",
+        "status_code": 429,
+        "message": "SerpApi credit limit reached or upstream rate limited (429)",
+        "source": "error"
+      }
+    },
+    "default_response": {
+      "status": "failed",
+      "error_type": "RateLimitError",
+      "status_code": 429,
+      "message": "SerpApi credit limit reached or upstream rate limited (429)",
+      "source": "error"
+    }
+  },
+  "expected_observations": {
+    "company_assessment": {
+      "provider_status": "FAILED",
+      "error_recorded": true,
+      "verdict": "CANNOT_VERIFY",
+      "mock_evidence_injected": false,
+      "summary": "External investigation aborted due to upstream search provider outage / rate limit. No external claims verified."
+    },
+    "recruiter_assessment": {
+      "provider_status": "FAILED",
+      "verdict": "CANNOT_VERIFY"
+    },
+    "scam_assessment": {
+      "provider_status": "FAILED",
+      "verdict": "VERIFIED"
+    },
+    "overall_outcome": "CANNOT_VERIFY",
+    "authenticity_status": "UNCONFIRMED",
+    "risk_level": "NEEDS_REVIEW"
+  },
+  "rationale": "Provider failures must never be masked with canned mock evidence or interpreted as proof of fraud. The system must report partial or failed search status honestly."
+}

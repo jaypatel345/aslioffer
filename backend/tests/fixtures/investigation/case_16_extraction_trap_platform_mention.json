@@ -1,0 +1,78 @@
+{
+  "case_id": "CASE-EXTRACTION-TRAP-PLATFORM-16",
+  "category": "company_extraction_platform_trap",
+  "title": "Company extraction trap mentioning Google Meet or another platform",
+  "description": "Recruiter message mentions third-party software platforms (Google Meet, Microsoft Teams) for technical interviews, which can trick extractors into investigating Google instead of actual employer V-Guard Industries.",
+  "synthetic": true,
+  "unresolved_facts": [],
+  "labels": {
+    "data_type": "synthetic",
+    "threat_category": "entity_extraction_trap",
+    "expected_verdict": "VERIFIED",
+    "required_case_index": 16
+  },
+  "raw_text": "V-Guard Industries Ltd.\nRecruitment Notice for Quality Assurance Engineer.\nDear Candidate, your final interview will be conducted online via Google Meet.\nPlease join the Google Meet link 5 minutes prior to the scheduled slot: https://meet.google.example/abc-defg-hij.\nOfficial HR communication: careers@vguard.example.",
+  "structured_input": {
+    "company_name": "V-Guard Industries Ltd",
+    "platform_context": "Google Meet",
+    "recruiter_name": "HR Team",
+    "recruiter_email": "careers@vguard.example",
+    "recruiter_phone": null,
+    "job_role": "Quality Assurance Engineer",
+    "salary": null,
+    "demanded_fee": null,
+    "payment_method": null,
+    "application_url": null,
+    "flags": []
+  },
+  "provider_status": "successful",
+  "search_mock": {
+    "query_responses": {
+      "\"V-Guard Industries Ltd\" official website careers": {
+        "status": "successful",
+        "source": "mock",
+        "knowledge_graph": {
+          "title": "V-Guard Industries Ltd",
+          "website": "https://www.vguard.example"
+        },
+        "organic_results": [
+          {
+            "title": "V-Guard Careers: Opportunities",
+            "link": "https://www.vguard.example/careers",
+            "snippet": "Official careers portal for V-Guard Industries."
+          }
+        ]
+      }
+    },
+    "default_response": {
+      "status": "successful",
+      "source": "mock",
+      "organic_results": []
+    }
+  },
+  "expected_observations": {
+    "extraction_assessment": {
+      "company_extracted": "V-Guard Industries Ltd",
+      "tooling_platform_ignored_as_employer": true
+    },
+    "company_assessment": {
+      "company_investigated": "V-Guard Industries Ltd",
+      "official_domain_resolved": true,
+      "canonical_domain": "https://www.vguard.example",
+      "verdict": "VERIFIED"
+    },
+    "recruiter_assessment": {
+      "domain_match": true,
+      "email_domain": "vguard.example",
+      "verdict": "VERIFIED"
+    },
+    "scam_assessment": {
+      "fee_detected": false,
+      "verdict": "VERIFIED"
+    },
+    "overall_outcome": "NO_STRONG_RISK_SIGNALS",
+    "authenticity_status": "UNCONFIRMED",
+    "risk_level": "VERIFIED"
+  },
+  "rationale": "Tooling and meeting platform names ('Google Meet', 'Microsoft Teams', 'Zoom') often lead extractors to investigate Google or Microsoft, creating false company verification for unrelated scam offers."
+}

@@ -1,0 +1,82 @@
+{
+  "case_id": "CASE-REALISTIC-IMPERSONATION-13",
+  "category": "realistic_impersonation",
+  "title": "Realistic impersonation using plausible salary and copied corporate details",
+  "description": "Scam offer mimics real multinational employer (Infosys BPM), uses genuine corporate address and realistic fresher salary, but directs communication to a suspicious third-party mailbox.",
+  "synthetic": true,
+  "unresolved_facts": [
+    "Recruiter email domain recruitment-desk.example has no affiliation with Infosys BPM Limited",
+    "Plausible corporate details copied from public web cannot authenticate offer issuance"
+  ],
+  "labels": {
+    "data_type": "synthetic",
+    "threat_category": "corporate_impersonation",
+    "expected_verdict": "HIGH_RISK",
+    "required_case_index": 13
+  },
+  "raw_text": "Infosys BPM Limited.\nRegistered Office: Electronics City, Hosur Road, Bengaluru 560100, Karnataka, India.\nCIN: U72200KA2002PLC030310.\nAppointment Letter: Process Specialist - Technical Support.\nWe are pleased to offer you employment with an annual compensation of INR 3,85,000 per annum.\nPlease confirm your joining by submitting your verified identity documents to our onboarding coordinator at infosys-onboarding@recruitment-desk.example.",
+  "structured_input": {
+    "company_name": "Infosys BPM Limited",
+    "recruiter_name": "Onboarding Coordinator",
+    "recruiter_email": "infosys-onboarding@recruitment-desk.example",
+    "recruiter_phone": null,
+    "job_role": "Process Specialist - Technical Support",
+    "salary": "INR 3.85 LPA",
+    "demanded_fee": null,
+    "payment_method": null,
+    "application_url": null,
+    "flags": []
+  },
+  "provider_status": "successful",
+  "search_mock": {
+    "query_responses": {
+      "\"Infosys BPM Limited\" official website careers": {
+        "status": "successful",
+        "source": "mock",
+        "knowledge_graph": {
+          "title": "Infosys BPM Limited",
+          "website": "https://www.infosysbpm.com",
+          "careers_url": "https://www.infosysbpm.com/careers"
+        },
+        "organic_results": [
+          {
+            "title": "Infosys BPM: Business Process Management Services",
+            "link": "https://www.infosysbpm.com",
+            "snippet": "Infosys BPM is the business process management subsidiary of Infosys."
+          }
+        ]
+      },
+      "\"infosys-onboarding@recruitment-desk.example\" scam fraud complaint": {
+        "status": "successful",
+        "source": "mock",
+        "organic_results": []
+      }
+    },
+    "default_response": {
+      "status": "successful",
+      "source": "mock",
+      "organic_results": []
+    }
+  },
+  "expected_observations": {
+    "company_assessment": {
+      "official_domain_resolved": true,
+      "canonical_domain": "https://www.infosysbpm.com",
+      "verdict": "VERIFIED"
+    },
+    "recruiter_assessment": {
+      "domain_match": false,
+      "email_domain": "recruitment-desk.example",
+      "official_domain": "infosysbpm.com",
+      "verdict": "HIGH_RISK",
+      "summary": "Sender domain '@recruitment-desk.example' does not match Infosys BPM's official domain 'infosysbpm.com'."
+    },
+    "scam_assessment": {
+      "verdict": "VERIFIED"
+    },
+    "overall_outcome": "HIGH_RISK",
+    "authenticity_status": "UNCONFIRMED",
+    "risk_level": "HIGH_RISK"
+  },
+  "rationale": "Plausible company details and market-standard salary do NOT authenticate an offer. If the recruiter contact channel fails canonical domain alignment, the offer must be flagged as suspected impersonation."
+}

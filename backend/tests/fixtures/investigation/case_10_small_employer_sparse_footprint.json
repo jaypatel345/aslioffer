@@ -1,0 +1,77 @@
+{
+  "case_id": "CASE-SMALL-EMPLOYER-SPARSE-10",
+  "category": "sparse_footprint_startup",
+  "title": "Small employer with sparse public information and no adverse signals",
+  "description": "Legitimate early-stage design studio with clean founder email and minimal search presence. No complaints, no fees, no scam indicators.",
+  "synthetic": true,
+  "unresolved_facts": [
+    "Corporate registration and official domain cannot be verified through major search indexes due to sparse web footprint"
+  ],
+  "labels": {
+    "data_type": "synthetic",
+    "threat_category": "sparse_evidence",
+    "expected_verdict": "CANNOT_VERIFY",
+    "required_case_index": 10
+  },
+  "raw_text": "Kaviya Design Studio LLP.\nOffer of Graphic Design Internship.\nDear Candidate, we would like to offer you a 3-month paid internship with a monthly stipend of INR 15,000.\nWork location: Remote / Pune.\nPlease review and reply with your signed confirmation to founder@kaviyastudio.example.",
+  "structured_input": {
+    "company_name": "Kaviya Design Studio LLP",
+    "recruiter_name": "Studio Founder",
+    "recruiter_email": "founder@kaviyastudio.example",
+    "recruiter_phone": null,
+    "job_role": "Graphic Design Intern",
+    "salary": "INR 15,000 per month",
+    "demanded_fee": null,
+    "payment_method": null,
+    "application_url": null,
+    "flags": []
+  },
+  "provider_status": "successful",
+  "search_mock": {
+    "query_responses": {
+      "\"Kaviya Design Studio LLP\" official website careers": {
+        "status": "successful",
+        "source": "mock",
+        "knowledge_graph": {},
+        "organic_results": []
+      },
+      "\"Kaviya Design Studio LLP\" job scam fraud complaint telegram": {
+        "status": "successful",
+        "source": "mock",
+        "organic_results": []
+      },
+      "\"founder@kaviyastudio.example\" scam fraud complaint": {
+        "status": "successful",
+        "source": "mock",
+        "organic_results": []
+      }
+    },
+    "default_response": {
+      "status": "successful",
+      "source": "mock",
+      "organic_results": []
+    }
+  },
+  "expected_observations": {
+    "company_assessment": {
+      "official_domain_resolved": false,
+      "verdict": "CANNOT_VERIFY",
+      "summary": "Sparse web presence: no established corporate domain or careers portal found in search index."
+    },
+    "recruiter_assessment": {
+      "domain_match": null,
+      "email_domain": "kaviyastudio.example",
+      "verdict": "CANNOT_VERIFY",
+      "summary": "Email domain cannot be verified against official records due to sparse employer footprint."
+    },
+    "scam_assessment": {
+      "fee_detected": false,
+      "adverse_signals_found": false,
+      "verdict": "VERIFIED"
+    },
+    "overall_outcome": "CANNOT_VERIFY",
+    "authenticity_status": "UNCONFIRMED",
+    "risk_level": "NEEDS_REVIEW"
+  },
+  "rationale": "Missing public records for a small business or startup is an evidence gap (uncertainty), NOT proof of fraudulent intent. The system must abstain with CANNOT_VERIFY rather than falsely convicting the startup as HIGH_RISK."
+}

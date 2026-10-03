@@ -1,0 +1,80 @@
+{
+  "case_id": "CASE-EXPLICIT-UPFRONT-FEE-07",
+  "category": "upfront_fee_demand",
+  "title": "Explicit upfront recruitment fee demand",
+  "description": "Offer requires the candidate to pay a mandatory refundable security deposit / laptop onboarding fee via UPI prior to receiving appointment letter.",
+  "synthetic": true,
+  "unresolved_facts": [],
+  "labels": {
+    "data_type": "synthetic",
+    "threat_category": "advance_fee_fraud",
+    "expected_verdict": "HIGH_RISK",
+    "required_case_index": 7
+  },
+  "raw_text": "Global Cloud Services India Pvt Ltd.\nCongratulations! You have been selected for Cloud Support Engineer with CTC INR 7,50,000.\nTo finalize your onboarding and courier your company laptop, you must transfer a 100% refundable security deposit of INR 4,500 via UPI to hr-deposit@okaxis within 24 hours.\nFailure to deposit the fee will result in cancellation of your offer.",
+  "structured_input": {
+    "company_name": "Global Cloud Services India Pvt Ltd",
+    "recruiter_name": "HR Department",
+    "recruiter_email": "onboarding@gmail.com",
+    "recruiter_phone": "+919876500000",
+    "job_role": "Cloud Support Engineer",
+    "salary": "INR 7.5 LPA",
+    "demanded_fee": "INR 4,500",
+    "payment_method": "UPI",
+    "application_url": null,
+    "flags": [
+      "DEMANDS_UPFRONT_FEE",
+      "UPI_PAYMENT_REQUESTED",
+      "PUBLIC_EMAIL_DOMAIN_USED"
+    ]
+  },
+  "provider_status": "successful",
+  "search_mock": {
+    "query_responses": {
+      "\"Global Cloud Services India Pvt Ltd\" official website careers": {
+        "status": "successful",
+        "source": "mock",
+        "knowledge_graph": {},
+        "organic_results": []
+      },
+      "\"Global Cloud Services India Pvt Ltd\" job scam fraud complaint telegram": {
+        "status": "successful",
+        "source": "mock",
+        "organic_results": [
+          {
+            "title": "Warning: Fake job offers under Global Cloud Services name",
+            "link": "https://consumer-forum.example/thread/123",
+            "snippet": "Victims report fraudsters demanding 4500 security deposit via UPI."
+          }
+        ]
+      }
+    },
+    "default_response": {
+      "status": "successful",
+      "source": "mock",
+      "organic_results": []
+    }
+  },
+  "expected_observations": {
+    "company_assessment": {
+      "official_domain_resolved": false,
+      "verdict": "CANNOT_VERIFY"
+    },
+    "recruiter_assessment": {
+      "domain_match": false,
+      "is_free_email": true,
+      "verdict": "HIGH_RISK"
+    },
+    "scam_assessment": {
+      "fee_detected": true,
+      "fee_amount": "INR 4,500",
+      "payment_method": "UPI",
+      "verdict": "HIGH_RISK",
+      "summary": "Direct demand for advance security deposit via UPI violates Ministry of Labour guidelines and constitutes advance fee fraud."
+    },
+    "overall_outcome": "HIGH_RISK",
+    "authenticity_status": "UNCONFIRMED",
+    "risk_level": "HIGH_RISK"
+  },
+  "rationale": "An explicit demand for upfront money (security deposit, onboarding fee, training charge) to receive employment is a critical grounded scam signal that must trigger HIGH_RISK."
+}
