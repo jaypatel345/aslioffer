@@ -53,6 +53,10 @@ class Settings(BaseSettings):
 
     # SerpApi Configuration
     SERPAPI_API_KEY: str = ""
+    SEARCH_TIMEOUT_SECONDS: float = 8.0
+    SEARCH_MAX_RETRIES: int = 2
+    SEARCH_RETRY_BACKOFF_SECONDS: float = 0.5
+    SEARCH_DEMO_MODE: bool = False
 
     # Gemini AI Configuration
     GEMINI_API_KEY: str = ""

@@ -54,6 +54,9 @@ def test_upload_and_report_scam_flow(client):
 
 
 def test_upload_and_report_verified_flow(client):
+    from unittest.mock import patch
+    from app.services.search.serpapi_client import SearchResult, SearchOutcome
+
     legit_payload = {
         "title": "Infosys Specialist Offer",
         "source_type": "text",
@@ -62,17 +65,37 @@ def test_upload_and_report_verified_flow(client):
             "CTC: INR 6,25,000 per annum. Contact pooja.kulkarni@infosys.com. Infosys never demands any fees."
         ),
     }
-    upload_res = client.post("/offers/upload", data=legit_payload)
-    assert upload_res.status_code == 201
-    offer_id = upload_res.json()["offer_id"]
 
-    report_res = client.get(f"/offers/{offer_id}/report")
-    assert report_res.status_code == 200
-    report = report_res.json()
-    assert report["offer_id"] == offer_id
-    assert report["risk_level"] == "VERIFIED"
-    assert report["risk_score"] < 0.25
-    assert len(report["green_flags"]) > 0
+    mock_search_res = SearchResult(
+        query="Infosys",
+        provider="serpapi",
+        outcome=SearchOutcome.SUCCESS,
+        results=[
+            {
+                "title": "Infosys - Official Careers",
+                "link": "https://www.infosys.com/careers",
+                "snippet": "Infosys official careers page. We never demand fees from candidates.",
+            }
+        ],
+        knowledge_graph={
+            "title": "Infosys Limited",
+            "website": "https://www.infosys.com",
+            "careers_url": "https://www.infosys.com/careers",
+        },
+    )
+
+    with patch("app.services.search.serpapi_client.SerpApiClient.search", return_value=mock_search_res):
+        upload_res = client.post("/offers/upload", data=legit_payload)
+        assert upload_res.status_code == 201
+        offer_id = upload_res.json()["offer_id"]
+
+        report_res = client.get(f"/offers/{offer_id}/report")
+        assert report_res.status_code == 200
+        report = report_res.json()
+        assert report["offer_id"] == offer_id
+        assert report["risk_level"] == "VERIFIED"
+        assert report["risk_score"] < 0.25
+        assert len(report["green_flags"]) > 0
 
 
 def test_analysis_run_endpoint(client):

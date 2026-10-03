@@ -1,6 +1,6 @@
 from typing import Optional, List, Dict, Any
 from app.schemas.analysis import AgentFinding, EvidenceItem
-from app.services.search.serpapi_client import SerpApiClient, SearchSource
+from app.services.search.serpapi_client import SerpApiClient, SearchSource, SearchResult
 from app.core.logging import logger
 
 FREE_EMAIL_DOMAINS = {"gmail.com", "yahoo.com", "outlook.com", "hotmail.com", "rediffmail.com", "icloud.com"}
@@ -143,8 +143,8 @@ class ScamAgent:
             )
 
         is_scam = len(detected_signals) > 0
+        provider_failed = False
         search_sources: List[str] = []
-
         # 2. SerpApi Scam Intelligence Searches
 
         # General company scam query
@@ -154,28 +154,28 @@ class ScamAgent:
             else 'job scam fraud complaint telegram recruitment'
         )
         try:
-            search_res = await self.search_client.search(query=scam_query)
-            search_sources.append(search_res.get("source", SearchSource.MOCK.value))
-            for res in (search_res.get("organic_results") or [])[:2]:
-                link = res.get("link")
-                title = res.get("title")
-                snippet = res.get("snippet")
-                if link and title:
-                    evidence_list.append(
-                        EvidenceItem(
-                            source_url=link,
-                            title=title,
-                            description=snippet or f"Scam advisory result for {company_name}.",
-                            evidence_type="SCAM_REPORT",
-                            confidence=0.92 if search_res.get("source") == SearchSource.REAL.value else 0.85,
+            raw_res = await self.search_client.search(query=scam_query)
+            search_res = SearchResult.from_dict_or_result(raw_res, query=scam_query)
+            search_sources.append(search_res.get("source", SearchSource.FAILED.value))
+            if not search_res.is_available:
+                provider_failed = True
+            else:
+                for res in (search_res.organic_results or [])[:2]:
+                    link = res.get("link")
+                    title = res.get("title")
+                    snippet = res.get("snippet")
+                    if link and title:
+                        evidence_list.append(
+                            EvidenceItem(
+                                source_url=link,
+                                title=title,
+                                description=snippet or f"Scam advisory result for {company_name}.",
+                                evidence_type="SCAM_REPORT",
+                                confidence=0.92 if search_res.get("source") == SearchSource.REAL.value else 0.85,
+                            )
                         )
-                    )
-                    # Deliberately does NOT set is_scam. The query itself contains
-                    # "scam fraud complaint", so every result matches those words for
-                    # every company — which flagged legitimate offers as fraud. These
-                    # results are background advisories, not evidence about THIS message;
-                    # only signals found in the document itself decide the verdict.
         except Exception as e:
+            provider_failed = True
             logger.warning("ScamAgent: general scam search failed (%s)", str(e))
 
         # Payment-specific search
@@ -187,26 +187,31 @@ class ScamAgent:
                 else f'"{payment_term}" recruitment scam'
             )
             try:
-                pay_res = await self.search_client.search(query=pay_query)
-                search_sources.append(pay_res.get("source", SearchSource.MOCK.value))
-                for res in (pay_res.get("organic_results") or [])[:2]:
-                    link = res.get("link")
-                    title = res.get("title")
-                    snippet = res.get("snippet")
-                    if link and title:
-                        evidence_list.append(
-                            EvidenceItem(
-                                source_url=link,
-                                title=title,
-                                description=snippet or f"Payment scam advisory for {company_name}.",
-                                evidence_type="SCAM_REPORT",
-                                confidence=0.92 if pay_res.get("source") == SearchSource.REAL.value else 0.85,
+                raw_pay = await self.search_client.search(query=pay_query)
+                pay_res = SearchResult.from_dict_or_result(raw_pay, query=pay_query)
+                search_sources.append(pay_res.get("source", SearchSource.FAILED.value))
+                if not pay_res.is_available:
+                    provider_failed = True
+                else:
+                    for res in (pay_res.organic_results or [])[:2]:
+                        link = res.get("link")
+                        title = res.get("title")
+                        snippet = res.get("snippet")
+                        if link and title:
+                            evidence_list.append(
+                                EvidenceItem(
+                                    source_url=link,
+                                    title=title,
+                                    description=snippet or f"Payment scam advisory for {company_name}.",
+                                    evidence_type="SCAM_REPORT",
+                                    confidence=0.92 if pay_res.get("source") == SearchSource.REAL.value else 0.85,
+                                )
                             )
-                        )
             except Exception as e:
+                provider_failed = True
                 logger.warning("ScamAgent: payment scam search failed (%s)", str(e))
 
-        primary_source = search_sources[0] if search_sources else SearchSource.MOCK.value
+        primary_source = search_sources[0] if search_sources else (SearchSource.FAILED.value if provider_failed else SearchSource.REAL.value)
 
         # Deduplicate evidence items by (source_url, title)
         seen_keys = set()
@@ -217,6 +222,7 @@ class ScamAgent:
                 seen_keys.add(key)
                 unique_evidence.append(ev)
 
+        # Never erase explicit scam indicators present in the submitted offer just because external searches fail
         if is_scam:
             signal_text = ", ".join(detected_signals) if detected_signals else "known scam pattern"
             return AgentFinding(
@@ -231,6 +237,7 @@ class ScamAgent:
                     "scam_flagged": True,
                     "risk_signals": detected_signals,
                     "search_source": primary_source,
+                    "provider_status": "FAILED" if provider_failed else "SUCCESS",
                 },
             )
 
@@ -256,5 +263,6 @@ class ScamAgent:
                 "scam_flagged": False,
                 "risk_signals": [],
                 "search_source": primary_source,
+                "provider_status": "FAILED" if provider_failed else "SUCCESS",
             },
         )

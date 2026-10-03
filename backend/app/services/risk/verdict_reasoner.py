@@ -121,7 +121,7 @@ class VerdictReasoner:
                     )
                 )
 
-            if comp.verdict == "UNVERIFIED":
+            if comp.verdict in ("UNVERIFIED", "CANNOT_VERIFY"):
                 comp_msg = f"No established public corporate footprint verified for company."
                 reasons.append(comp_msg)
                 reason_details.append(
@@ -131,7 +131,7 @@ class VerdictReasoner:
                     )
                 )
 
-            if rec.verdict == "UNVERIFIED":
+            if rec.verdict in ("UNVERIFIED", "CANNOT_VERIFY"):
                 rec_msg = "Recruiter identity could not be independently confirmed."
                 reasons.append(rec_msg)
                 reason_details.append(

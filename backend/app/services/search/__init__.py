@@ -1,3 +1,3 @@
-from .serpapi_client import SerpApiClient, SearchSource
+from .serpapi_client import SerpApiClient, SearchSource, SearchOutcome, SearchResult
 
-__all__ = ["SerpApiClient", "SearchSource"]
+__all__ = ["SerpApiClient", "SearchSource", "SearchOutcome", "SearchResult"]

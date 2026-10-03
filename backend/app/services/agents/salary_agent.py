@@ -1,7 +1,7 @@
 import re
 from typing import Optional, List, Dict, Any
 from app.schemas.analysis import AgentFinding, EvidenceItem
-from app.services.search.serpapi_client import SerpApiClient, SearchSource
+from app.services.search.serpapi_client import SerpApiClient, SearchSource, SearchResult
 from app.core.logging import logger
 
 
@@ -14,10 +14,7 @@ class SalaryAgent:
     def __init__(self, search_client: Optional[SerpApiClient] = None):
         self.search_client = search_client or SerpApiClient()
 
-
     # A figure like "Rs 15,000" is a monthly stipend, not an annual package.
-    # Benchmarking it against a "₹4 - ₹14 LPA" band was a 40x unit error that
-    # made the inflated-salary check pass on the exact offers it exists to catch.
     @staticmethod
     def _interpret(salary: Optional[str]):
         """Returns (amount, unit) where unit is 'annual' | 'monthly' | None."""
@@ -36,7 +33,6 @@ class SalaryAgent:
             return (amount * 100000 if amount < 1000 else amount), "annual"
         if any(k in low for k in ("per month", "p.m", "monthly", "stipend", "/month")):
             return amount, "monthly"
-        # A bare figure this small cannot be an annual tech salary in rupees.
         if amount < 100000:
             return amount, "monthly"
         return amount, "annual"
@@ -65,13 +61,47 @@ class SalaryAgent:
 
         # Execute market baseline search via SerpApi
         query = f'"{role}" salary "{company_name}" AmbitionBox Glassdoor'
-        search_res = await self.search_client.search(query=query)
+        raw_res = await self.search_client.search(query=query)
+        search_res = SearchResult.from_dict_or_result(raw_res, query=query)
 
-        search_source = search_res.get("source", SearchSource.MOCK.value)
-        organic_results = search_res.get("organic_results") or []
+        search_source = search_res.get("source", SearchSource.FAILED.value)
+
+        # 1. Handle provider outage / rate limit / failure
+        if not search_res.is_available:
+            logger.warning("SalaryAgent: salary search unavailable (%s)", search_res.error)
+            if is_suspiciously_high:
+                return AgentFinding(
+                    agent_name="SalaryAgent",
+                    verdict="NEEDS_REVIEW",
+                    confidence=0.85,
+                    summary=f"The stated compensation of '{salary}' is unusually high for {role} and may be used as bait.",
+                    evidence=[],
+                    details={
+                        "offered_salary": salary,
+                        "anomaly": True,
+                        "provider_status": "FAILED",
+                        "error": search_res.error,
+                        "search_status": search_res.outcome.value,
+                        "search_source": search_source,
+                    },
+                )
+            return AgentFinding(
+                agent_name="SalaryAgent",
+                verdict="CANNOT_VERIFY",
+                confidence=0.0,
+                summary=f"Salary baseline search unavailable due to search provider failure ({company_name}).",
+                evidence=[],
+                details={
+                    "offered_salary": salary,
+                    "provider_status": "FAILED",
+                    "error": search_res.error,
+                    "search_status": search_res.outcome.value,
+                    "search_source": search_source,
+                },
+            )
 
         evidence_list: List[EvidenceItem] = []
-        for result in organic_results[:3]:
+        for result in (search_res.organic_results or [])[:3]:
             link = result.get("link")
             title = result.get("title")
             snippet = result.get("snippet")
@@ -86,7 +116,7 @@ class SalaryAgent:
                     )
                 )
 
-        # Fallback if no organic results were parsed from search
+        # Fallback to market salary baseline for the role if no company-specific search hits
         if not evidence_list:
             evidence_list.append(
                 EvidenceItem(
@@ -119,6 +149,7 @@ class SalaryAgent:
                     "benchmark_range": "₹3.5 - ₹12 LPA",
                     "anomaly": True,
                     "search_source": search_source,
+                    "provider_status": "SUCCESS",
                 },
             )
 
@@ -141,6 +172,7 @@ class SalaryAgent:
                     "benchmark_range": "not applicable to monthly stipends",
                     "anomaly": None,
                     "search_source": search_source,
+                    "provider_status": "SUCCESS",
                 },
             )
 
@@ -156,10 +188,11 @@ class SalaryAgent:
                     "benchmark_range": "₹4 - ₹14 LPA",
                     "anomaly": None,
                     "search_source": search_source,
+                    "provider_status": "SUCCESS",
                 },
             )
 
-        # Annual figure well outside entry-level bands is classic bait.
+        # Annual figure well outside entry-level bands is classic bait
         if amount is not None and amount > 2500000:
             return AgentFinding(
                 agent_name="SalaryAgent",
@@ -172,6 +205,7 @@ class SalaryAgent:
                     "benchmark_range": "₹4 - ₹14 LPA",
                     "anomaly": True,
                     "search_source": search_source,
+                    "provider_status": "SUCCESS",
                 },
             )
 
@@ -186,5 +220,6 @@ class SalaryAgent:
                 "benchmark_range": "₹4 - ₹14 LPA",
                 "anomaly": False,
                 "search_source": search_source,
+                "provider_status": "SUCCESS",
             },
         )

@@ -372,8 +372,6 @@ def test_case_16_company_extraction_trap_platform_mention():
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(strict=True, raises=AssertionError,
-                   reason="CompanyAgent treats successful empty footprint as UNVERIFIED instead of CANNOT_VERIFY")
 async def test_case_11_empty_search_is_uncertainty():
     fixture = load_fixture_by_id("CASE-SUCCESSFUL-SEARCH-EMPTY-11")
     mock = MockSearchClient(**fixture["search_mock"])
@@ -384,8 +382,6 @@ async def test_case_11_empty_search_is_uncertainty():
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("variant_name", ["rate_limit", "authentication", "timeout"])
-@pytest.mark.xfail(strict=True, raises=AssertionError,
-                   reason="CompanyAgent does not preserve provider failure as uncertainty with structured error")
 async def test_case_12_provider_failure_is_not_evidence(variant_name):
     fixture = load_fixture_by_id("CASE-PROVIDER-OUTAGE-TIMEOUT-12")
     variant = next(v for v in fixture["search_mock"]["variants"] if v["name"] == variant_name)

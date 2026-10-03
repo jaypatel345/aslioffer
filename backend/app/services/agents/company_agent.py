@@ -2,7 +2,7 @@ import re
 from typing import Optional, Dict, Any, List
 from urllib.parse import urlparse
 from app.schemas.analysis import AgentFinding, EvidenceItem
-from app.services.search.serpapi_client import SerpApiClient
+from app.services.search.serpapi_client import SerpApiClient, SearchResult, SearchOutcome
 from app.core.logging import logger
 
 
@@ -21,11 +21,56 @@ class CompanyAgent:
         """
         logger.info("CompanyAgent investigating company: %s", company_name)
 
-        search_res = await self.search_client.search(f'"{company_name}" official website careers')
+        query = f'"{company_name}" official website careers'
+        raw_res = await self.search_client.search(query)
+        search_res = SearchResult.from_dict_or_result(raw_res, query=query)
+
+        # 1. Handle provider outage, rate limits, timeouts, auth failures
+        if not search_res.is_available:
+            logger.warning(
+                "CompanyAgent: search unavailable (outcome=%s, error=%s) for '%s'",
+                search_res.outcome.value,
+                search_res.error,
+                company_name,
+            )
+            return AgentFinding(
+                agent_name="CompanyAgent",
+                verdict="CANNOT_VERIFY",
+                confidence=0.0,
+                summary="External investigation aborted due to upstream search provider outage / rate limit. No external claims verified.",
+                evidence=[],
+                details={
+                    "official_domain": None,
+                    "careers_url": None,
+                    "mca_status": "NOT_FOUND",
+                    "provider_status": "FAILED",
+                    "error": search_res.error or "Search provider failure",
+                    "search_status": search_res.outcome.value,
+                },
+            )
+
+        # 2. Handle successful search with zero results
+        if search_res.is_empty:
+            logger.info("CompanyAgent: search yielded zero results for '%s'", company_name)
+            return AgentFinding(
+                agent_name="CompanyAgent",
+                verdict="CANNOT_VERIFY",
+                confidence=0.30,
+                summary=f"Search completed successfully but returned no indexed public footprint for '{company_name}'.",
+                evidence=[],
+                details={
+                    "official_domain": None,
+                    "careers_url": None,
+                    "mca_status": "NOT_FOUND",
+                    "provider_status": "SUCCESS",
+                    "search_status": "SUCCESSFUL_EMPTY",
+                    "official_domain_resolved": False,
+                },
+            )
 
         name_token = self._normalize(company_name)
-        knowledge_graph = search_res.get("knowledge_graph") or {}
-        organic_results = search_res.get("organic_results") or []
+        knowledge_graph = search_res.knowledge_graph or {}
+        organic_results = search_res.organic_results or []
 
         domain = knowledge_graph.get("website")
         careers = knowledge_graph.get("careers_url")
@@ -43,8 +88,6 @@ class CompanyAgent:
             )
 
         acronym = "".join(w[0] for w in company_name.split() if w).lower()
-        # "Infosys Limited" must still match infosys.com, so try the name with its
-        # legal suffix removed as well as the full string.
         bare_name = self._strip_legal_suffix(company_name)
         tokens = [t for t in {name_token, bare_name} if t]
 
@@ -70,14 +113,8 @@ class CompanyAgent:
             if not domain:
                 domain = link
 
-        # Whether any result actually resolved to a domain bearing the company's
-        # name. Without this, the lenient fallback below "confirmed" a company
-        # whose top search hit was a post warning about fake internship offers.
         strict_match = bool(domain)
 
-        # Google already ranks results for "<company> official website careers" by relevance,
-        # so if no strict domain/acronym match hit, fall back to the top result as evidence
-        # rather than reporting a false UNVERIFIED for legitimately-abbreviated domains.
         if not domain and not evidence_list and organic_results:
             top = organic_results[0]
             link = top.get("link", "")
@@ -92,28 +129,7 @@ class CompanyAgent:
             )
             domain = link
 
-        is_known = bool(domain) or bool(evidence_list)
-
-        if not is_known:
-            return AgentFinding(
-                agent_name="CompanyAgent",
-                verdict="UNVERIFIED",
-                confidence=0.3,
-                summary=f"Unable to find established corporate registration or official domain for '{company_name}'.",
-                evidence=[
-                    EvidenceItem(
-                        source_url="https://www.mca.gov.in/content/mca/global/en/home.html",
-                        title="No matching public footprint found",
-                        description=f"Live search returned no official domain or careers presence for '{company_name}'.",
-                        evidence_type="COMPANY",
-                        confidence=0.10,
-                    )
-                ],
-                details={"official_domain": None, "careers_url": None, "mca_status": "NOT_FOUND"},
-            )
-
         # Search returned something, but nothing that belongs to this company.
-        # That is precisely the footprint a fabricated employer leaves.
         if not strict_match:
             return AgentFinding(
                 agent_name="CompanyAgent",
@@ -125,7 +141,13 @@ class CompanyAgent:
                     "footprint could not be confirmed."
                 ),
                 evidence=evidence_list,
-                details={"official_domain": None, "careers_url": None, "mca_status": "NOT_FOUND"},
+                details={
+                    "official_domain": None,
+                    "careers_url": None,
+                    "mca_status": "NOT_FOUND",
+                    "provider_status": "SUCCESS",
+                    "search_status": "SUCCESS",
+                },
             )
 
         return AgentFinding(
@@ -134,7 +156,13 @@ class CompanyAgent:
             confidence=0.92 if careers else 0.75,
             summary=f"Legitimate corporate footprint{' and official careers presence' if careers else ''} confirmed for '{company_name}'.",
             evidence=evidence_list,
-            details={"official_domain": domain, "careers_url": careers, "mca_status": "ACTIVE"},
+            details={
+                "official_domain": domain,
+                "careers_url": careers,
+                "mca_status": "ACTIVE",
+                "provider_status": "SUCCESS",
+                "search_status": "SUCCESS",
+            },
         )
 
     LEGAL_SUFFIXES = (

@@ -2,7 +2,7 @@ import re
 from typing import Optional, List
 from urllib.parse import urlparse
 from app.schemas.analysis import AgentFinding, EvidenceItem
-from app.services.search.serpapi_client import SerpApiClient
+from app.services.search.serpapi_client import SerpApiClient, SearchResult
 from app.core.logging import logger
 
 FREE_EMAIL_DOMAINS = {
@@ -46,6 +46,7 @@ class RecruiterAgent:
         is_free_email = False
         domain_mismatch = False
         phone_flagged = False
+        provider_failed = False
 
         if recruiter_email and "@" in recruiter_email:
             email_domain = recruiter_email.split("@")[-1].lower()
@@ -62,16 +63,63 @@ class RecruiterAgent:
                     )
                 )
             else:
-                search_res = await self.search_client.search(f'"{company_name}" official website careers')
-                official_domains = self._extract_domains(search_res, company_name)
+                query = f'"{company_name}" official website careers'
+                raw_res = await self.search_client.search(query)
+                search_res = SearchResult.from_dict_or_result(raw_res, query=query)
 
-                if official_domains and not any(self._same_domain(email_domain, d) for d in official_domains):
-                    domain_mismatch = True
+                if not search_res.is_available:
+                    provider_failed = True
+                    logger.warning("RecruiterAgent: company search failed (%s)", search_res.error)
+                else:
+                    official_domains = self._extract_domains(search_res, company_name)
+                    if official_domains and not any(self._same_domain(email_domain, d) for d in official_domains):
+                        domain_mismatch = True
+                        evidence_list.append(
+                            EvidenceItem(
+                                source_url=f"https://{email_domain}",
+                                title="Recruiter Email Domain Does Not Match Official Company Domain",
+                                description=f"Recruiter emailed from '@{email_domain}', but {company_name}'s verified official domain is '{official_domains[0]}'.",
+                                evidence_type="RECRUITER",
+                                confidence=0.90,
+                            )
+                        )
+                    else:
+                        evidence_list.append(
+                            EvidenceItem(
+                                source_url=f"https://{email_domain}",
+                                title="Corporate Email Domain Verified",
+                                description=f"Recruiter email domain '@{email_domain}' matches {company_name}'s official public domain."
+                                if official_domains
+                                else f"Recruiter email domain '@{email_domain}' is not a free webmail provider, but no official domain could be independently confirmed for {company_name}.",
+                                evidence_type="RECRUITER",
+                                confidence=0.88 if official_domains else 0.55,
+                            )
+                        )
+
+        if recruiter_phone:
+            phone_query = f'"{recruiter_phone}" scam fraud complaint'
+            raw_phone = await self.search_client.search(phone_query)
+            phone_search = SearchResult.from_dict_or_result(raw_phone, query=phone_query)
+
+            if not phone_search.is_available:
+                provider_failed = True
+                logger.warning("RecruiterAgent: phone search failed (%s)", phone_search.error)
+            else:
+                digits = re.sub(r"\D", "", recruiter_phone)[-10:]
+                scam_hit = next(
+                    (
+                        r for r in phone_search.organic_results
+                        if digits and digits in re.sub(r"\D", "", f"{r.get('title', '')} {r.get('snippet', '')}")
+                    ),
+                    None,
+                )
+                if scam_hit:
+                    phone_flagged = True
                     evidence_list.append(
                         EvidenceItem(
-                            source_url=f"https://{email_domain}",
-                            title="Recruiter Email Domain Does Not Match Official Company Domain",
-                            description=f"Recruiter emailed from '@{email_domain}', but {company_name}'s verified official domain is '{official_domains[0]}'.",
+                            source_url=scam_hit.get("link", ""),
+                            title=scam_hit.get("title", "Scam Report Found"),
+                            description=scam_hit.get("snippet", f"Public report found flagging {recruiter_phone} as a suspected scam number."),
                             evidence_type="RECRUITER",
                             confidence=0.90,
                         )
@@ -79,47 +127,30 @@ class RecruiterAgent:
                 else:
                     evidence_list.append(
                         EvidenceItem(
-                            source_url=f"https://{email_domain}",
-                            title="Corporate Email Domain Verified",
-                            description=f"Recruiter email domain '@{email_domain}' matches {company_name}'s official public domain."
-                            if official_domains
-                            else f"Recruiter email domain '@{email_domain}' is not a free webmail provider, but no official domain could be independently confirmed for {company_name}.",
+                            source_url="https://cybercrime.gov.in/Webform/Crime_Autho_List.aspx",
+                            title="No Public Scam Reports Found",
+                            description=f"No public scam or fraud reports found for {recruiter_phone} at time of check.",
                             evidence_type="RECRUITER",
-                            confidence=0.88 if official_domains else 0.55,
+                            confidence=0.55,
                         )
                     )
 
-        if recruiter_phone:
-            phone_search = await self.search_client.search(f'"{recruiter_phone}" scam fraud complaint')
-            digits = re.sub(r"\D", "", recruiter_phone)[-10:]
-            scam_hit = next(
-                (
-                    r for r in phone_search.get("organic_results", [])
-                    if digits and digits in re.sub(r"\D", "", f"{r.get('title', '')} {r.get('snippet', '')}")
-                ),
-                None,
+        # Provider failed upstream
+        if provider_failed:
+            return AgentFinding(
+                agent_name="RecruiterAgent",
+                verdict="CANNOT_VERIFY",
+                confidence=0.0,
+                summary=f"External recruiter verification aborted due to upstream search provider outage / failure for {company_name}.",
+                evidence=evidence_list,
+                details={
+                    "provider_status": "FAILED",
+                    "domain_match": None,
+                    "is_free_email": False,
+                    "phone_flagged": False,
+                    "contact_provided": bool(recruiter_email or recruiter_phone),
+                },
             )
-            if scam_hit:
-                phone_flagged = True
-                evidence_list.append(
-                    EvidenceItem(
-                        source_url=scam_hit.get("link", ""),
-                        title=scam_hit.get("title", "Scam Report Found"),
-                        description=scam_hit.get("snippet", f"Public report found flagging {recruiter_phone} as a suspected scam number."),
-                        evidence_type="RECRUITER",
-                        confidence=0.90,
-                    )
-                )
-            else:
-                evidence_list.append(
-                    EvidenceItem(
-                        source_url="https://cybercrime.gov.in/Webform/Crime_Autho_List.aspx",
-                        title="No Public Scam Reports Found",
-                        description=f"No public scam or fraud reports found for {recruiter_phone} at time of check.",
-                        evidence_type="RECRUITER",
-                        confidence=0.55,
-                    )
-                )
 
         if is_free_email or domain_mismatch or phone_flagged:
             reasons = []
@@ -135,12 +166,15 @@ class RecruiterAgent:
                 confidence=0.95,
                 summary=f"Red flag: Recruiter claims to represent {company_name} but {', and '.join(reasons)}.",
                 evidence=evidence_list,
-                details={"domain_match": not domain_mismatch, "is_free_email": is_free_email, "phone_flagged": phone_flagged},
+                details={
+                    "domain_match": not domain_mismatch,
+                    "is_free_email": is_free_email,
+                    "phone_flagged": phone_flagged,
+                    "provider_status": "SUCCESS",
+                },
             )
 
-        # No contact details at all means nothing was checked. Returning VERIFIED
-        # here treated absence of evidence as evidence of legitimacy — a scam mail
-        # that simply omits an address scored a green flag.
+        # No contact details provided
         if not recruiter_email and not recruiter_phone:
             evidence_list.append(
                 EvidenceItem(
@@ -164,8 +198,13 @@ class RecruiterAgent:
                     f"was provided to check against {company_name}'s official domain."
                 ),
                 evidence=evidence_list,
-                details={"domain_match": None, "is_free_email": False, "phone_flagged": False,
-                         "contact_provided": False},
+                details={
+                    "domain_match": None,
+                    "is_free_email": False,
+                    "phone_flagged": False,
+                    "contact_provided": False,
+                    "provider_status": "SUCCESS",
+                },
             )
 
         return AgentFinding(
@@ -174,12 +213,17 @@ class RecruiterAgent:
             confidence=0.85,
             summary=f"Recruiter credentials appear consistent with corporate email standards for {company_name}.",
             evidence=evidence_list,
-            details={"domain_match": True, "is_free_email": False, "phone_flagged": False,
-                     "contact_provided": True},
+            details={
+                "domain_match": True,
+                "is_free_email": False,
+                "phone_flagged": False,
+                "contact_provided": True,
+                "provider_status": "SUCCESS",
+            },
         )
 
     @staticmethod
-    def _extract_domains(search_res: dict, company_name: str) -> List[str]:
+    def _extract_domains(search_res: SearchResult, company_name: str) -> List[str]:
         name_token = re.sub(r"[^a-z0-9]", "", company_name.lower())
         acronym = "".join(w[0] for w in company_name.split() if w).lower()
 
@@ -190,10 +234,10 @@ class RecruiterAgent:
             return name_token in bare or (len(acronym) >= 2 and acronym in bare)
 
         domains = []
-        kg_website = (search_res.get("knowledge_graph") or {}).get("website")
+        kg_website = (search_res.knowledge_graph or {}).get("website")
         if kg_website:
             domains.append(urlparse(kg_website).netloc.lower())
-        for result in search_res.get("organic_results", [])[:5]:
+        for result in (search_res.organic_results or [])[:5]:
             netloc = urlparse(result.get("link", "")).netloc.lower()
             if is_official(netloc) and netloc not in domains:
                 domains.append(netloc)
