@@ -2,18 +2,26 @@ import re
 from typing import Optional, Dict, Any, List
 from app.schemas.analysis import ExtractedEntities, ExtractedData
 from app.services.ai.gemini_client import GeminiClient
+from app.services.ai.groq_client import GroqClient
 from app.core.logging import logger
 
 
 class EntityExtractor:
     """
     Extracts key entities from offer letters, screenshots, recruiter messages, or emails.
-    Primary pipeline: Gemini 2.5 Flash structured entity extraction & multimodal OCR.
-    Fallback pipeline: Robust deterministic regex/heuristic extraction.
+    Document reading tries Groq vision first, then Gemini. Groq's free tier is
+    far more forgiving, and Gemini's rate limit was exhausting the whole model
+    chain on a single screenshot.
+    Entity extraction from plain text uses Gemini, then deterministic regex.
     """
 
-    def __init__(self, gemini_client: Optional[GeminiClient] = None):
+    def __init__(
+        self,
+        gemini_client: Optional[GeminiClient] = None,
+        groq_client: Optional[GroqClient] = None,
+    ):
         self.gemini_client = gemini_client or GeminiClient()
+        self.groq_client = groq_client or GroqClient()
 
     async def extract_entities(self, text: str) -> ExtractedData:
         """
@@ -59,7 +67,20 @@ class EntityExtractor:
                 "entities": ExtractedData
             }
         """
-        failure: Optional[str] = None
+        failures: List[str] = []
+
+        # Groq first: higher free-tier limits, and fast. It only accepts raster
+        # images, so PDFs fall straight through to Gemini.
+        if self.groq_client and self.groq_client.api_key:
+            try:
+                logger.info("Attempting Groq document extraction (%s, %d bytes)", mime_type, len(file_bytes))
+                return await self.groq_client.extract_from_document(file_bytes, mime_type)
+            except ValueError as e:
+                # Unsupported format or oversized image: Gemini may still manage it.
+                logger.info("Groq cannot handle this document (%s); trying Gemini.", str(e))
+            except Exception as e:
+                logger.warning("Groq document extraction failed (%s). Trying Gemini.", str(e))
+                failures.append(f"Groq: {self._describe_failure(e)}")
 
         if self.gemini_client and self.gemini_client.api_key:
             try:
@@ -67,12 +88,15 @@ class EntityExtractor:
                 return await self.gemini_client.extract_from_document(file_bytes, mime_type)
             except Exception as e:
                 logger.warning("Gemini document extraction failed (%s). Falling back to local text parsing.", str(e))
-                failure = self._describe_failure(e)
-        else:
-            failure = (
-                "GEMINI_API_KEY is not set in backend/.env, so PDFs and screenshots "
-                "cannot be read."
+                failures.append(f"Gemini: {self._describe_failure(e)}")
+
+        if not failures:
+            failures.append(
+                "No document-reading provider is configured. Set GROQ_API_KEY or "
+                "GEMINI_API_KEY in backend/.env."
             )
+
+        failure = " ".join(failures)
 
         ocr_text = self._fallback_text_extract(file_bytes, mime_type)
         entities = self.extract_regex(ocr_text)
@@ -403,7 +427,7 @@ class EntityExtractor:
         normalized = (mime_type or "").lower().split(";")[0].strip()
         if normalized.startswith(self.OPAQUE_MIME_PREFIXES):
             logger.warning(
-                "Cannot read %s without Gemini vision (GEMINI_API_KEY unset or call failed).",
+                "Cannot read %s: no vision provider succeeded (Groq and Gemini unset or failed).",
                 normalized,
             )
             return ""

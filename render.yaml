@@ -29,6 +29,10 @@ services:
       # one in the dashboard when the blueprint is first applied.
       - key: SERPAPI_API_KEY
         sync: false
+      # Document reading tries Groq first, then Gemini. Either alone is enough;
+      # with both, a rate limit on one does not stop a screenshot being read.
+      - key: GROQ_API_KEY
+        sync: false
       - key: GEMINI_API_KEY
         sync: false
 
@@ -36,6 +40,8 @@ services:
       # back through a chain of flash models if this one is busy.
       - key: GEMINI_MODEL
         value: gemini-3.8-flash
+      - key: GROQ_MODEL
+        value: qwen/qwen3.8-27b
 
       # Comma-separated list of the exact frontend origins allowed to call this
       # API, e.g. "https://aslioffer.vercel.app". Scheme and host must match the

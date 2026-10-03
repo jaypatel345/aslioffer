@@ -59,6 +59,12 @@ class Settings(BaseSettings):
     SEARCH_DEMO_MODE: bool = False
 
     # Gemini AI Configuration
+    # Groq is tried before Gemini for document reading: its free tier allows
+    # 30 requests/minute and 1000/day, where Gemini's exhausted every model in
+    # the fallback chain on a single screenshot.
+    GROQ_API_KEY: str = ""
+    GROQ_MODEL: str = "qwen/qwen3.8-27b"
+
     GEMINI_API_KEY: str = ""
     GEMINI_MODEL: str = "gemini-3.8-flash"
 
