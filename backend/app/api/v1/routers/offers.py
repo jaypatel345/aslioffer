@@ -50,23 +50,23 @@ async def upload_offer(
         mime = file.content_type or ("application/pdf" if filename.lower().endswith(".pdf") else "image/png")
         source_type = "pdf" if filename.lower().endswith(".pdf") else "screenshot"
         offer_title = title or f"Offer from {filename}"
+        reason = None
         try:
             doc_result = await extractor.extract_from_document(file_bytes, mime)
             content = (doc_result.get("ocr_text") or "").strip()
+            reason = doc_result.get("error")
         except Exception as e:
             logger.warning("Document extraction failed (%s)", str(e))
             content = ""
+            reason = extractor._describe_failure(e)
 
         # Refuse rather than analyse noise: a verdict derived from unreadable bytes
         # is indistinguishable from a real one to the person reading the report.
         if not content:
             raise HTTPException(
                 status_code=422,
-                detail=(
-                    f"Could not read any text from '{filename}'. Reading PDFs and screenshots "
-                    "requires GEMINI_API_KEY to be set in backend/.env. Paste the message text "
-                    "instead, or configure the key and retry."
-                ),
+                detail=f"Could not read any text from '{filename}'. "
+                + (reason or "The file format could not be parsed. Paste the message text instead."),
             )
 
     if not content:
