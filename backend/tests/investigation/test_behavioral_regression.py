@@ -39,11 +39,6 @@ async def test_case_01_lookalike_domain_must_not_be_verified():
 # ===========================================================================
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(
-    strict=True,
-    raises=AssertionError,
-    reason="Defect: RecruiterAgent falls through to VERIFIED and domain_match=True when official company domain is unresolved",
-)
 async def test_case_02_unknown_recruiter_unresolved_domain_must_not_pass():
     """Case 2: An unknown corporate-looking email cannot be certified as matching without an independently resolved company domain."""
     fixture = load_fixture_by_id("CASE-UNKNOWN-CORP-RECRUITER-02")
@@ -68,11 +63,6 @@ async def test_case_02_unknown_recruiter_unresolved_domain_must_not_pass():
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(
-    strict=True,
-    raises=AssertionError,
-    reason="Defect: RecruiterAgent treats absence of public scam complaints for a phone number as VERIFIED",
-)
 async def test_case_03_phone_only_no_hits_must_not_verify():
     """Case 3: Clean search results on a phone number alone must remain inconclusive, not proof of legitimacy."""
     fixture = load_fixture_by_id("CASE-PHONE-ONLY-NO-MATCH-03")
@@ -305,11 +295,6 @@ async def test_case_09_payment_to_unlock_earnings_must_trigger_high_risk():
 # 4. Risk Synthesis and Evidence Conflation Regressions
 # ===========================================================================
 
-@pytest.mark.xfail(
-    strict=True,
-    raises=AssertionError,
-    reason="Defect: RiskEngine conflates lack of evidence (CANNOT_VERIFY) with fraud, producing risk_score 0.60 and HIGH_RISK",
-)
 def test_case_10_sparse_employer_must_not_be_condemned_as_high_risk():
     """Case 10: Early-stage startup with sparse web footprint and no adverse signals must remain inconclusive, NOT HIGH_RISK."""
     engine = RiskEngine()

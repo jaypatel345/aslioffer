@@ -19,20 +19,15 @@ class CompanyAgent:
         """
         Investigate company public footprint using live SerpApi search results.
         """
-        logger.info("CompanyAgent investigating company: %s", company_name)
+        logger.info("CompanyAgent investigation started")
 
         query = f'"{company_name}" official website careers'
         raw_res = await self.search_client.search(query)
         search_res = SearchResult.from_dict_or_result(raw_res, query=query)
 
         # 1. Handle provider outage, rate limits, timeouts, auth failures
-        if not search_res.is_available:
-            logger.warning(
-                "CompanyAgent: search unavailable (outcome=%s, error=%s) for '%s'",
-                search_res.outcome.value,
-                search_res.error,
-                company_name,
-            )
+        if not search_res.is_live:
+            logger.warning("CompanyAgent search unavailable (outcome=%s)", search_res.outcome.value)
             return AgentFinding(
                 agent_name="CompanyAgent",
                 verdict="CANNOT_VERIFY",
@@ -42,16 +37,16 @@ class CompanyAgent:
                 details={
                     "official_domain": None,
                     "careers_url": None,
-                    "mca_status": "NOT_FOUND",
+                    "mca_status": "NOT_CHECKED",
                     "provider_status": "FAILED",
-                    "error": search_res.error or "Search provider failure",
-                    "search_status": search_res.outcome.value,
+                    "error": search_res.error or "Live search evidence unavailable",
+                    "search_status": search_res.outcome.value if search_res.get("source") == "FAILED" else "DEMO",
                 },
             )
 
         # 2. Handle successful search with zero results
         if search_res.is_empty:
-            logger.info("CompanyAgent: search yielded zero results for '%s'", company_name)
+            logger.info("CompanyAgent: search yielded zero results")
             return AgentFinding(
                 agent_name="CompanyAgent",
                 verdict="CANNOT_VERIFY",
@@ -61,7 +56,7 @@ class CompanyAgent:
                 details={
                     "official_domain": None,
                     "careers_url": None,
-                    "mca_status": "NOT_FOUND",
+                    "mca_status": "NOT_CHECKED",
                     "provider_status": "SUCCESS",
                     "search_status": "SUCCESSFUL_EMPTY",
                     "official_domain_resolved": False,
@@ -144,7 +139,7 @@ class CompanyAgent:
                 details={
                     "official_domain": None,
                     "careers_url": None,
-                    "mca_status": "NOT_FOUND",
+                    "mca_status": "NOT_CHECKED",
                     "provider_status": "SUCCESS",
                     "search_status": "SUCCESS",
                 },
@@ -159,7 +154,7 @@ class CompanyAgent:
             details={
                 "official_domain": domain,
                 "careers_url": careers,
-                "mca_status": "ACTIVE",
+                "mca_status": "NOT_CHECKED",
                 "provider_status": "SUCCESS",
                 "search_status": "SUCCESS",
             },

@@ -40,12 +40,7 @@ class ScamAgent:
         """
         Investigate scam markers, fee demands, suspicious payment channels, and live public warnings.
         """
-        logger.info(
-            "ScamAgent checking for scam patterns: company=%s, fee=%s, payment=%s",
-            company_name,
-            demanded_fee,
-            payment_method,
-        )
+        logger.info("ScamAgent investigation started")
 
         raw_lower = raw_text.lower()
         evidence_list: List[EvidenceItem] = []
@@ -64,9 +59,9 @@ class ScamAgent:
             fee_desc = demanded_fee or "mandatory upfront fee / security deposit"
             evidence_list.append(
                 EvidenceItem(
-                    source_url="https://cybercrime.gov.in/Webform/Crime_Autho_List.aspx",
+                    source_url="document://submitted-offer",
                     title="Advance Fee / Security Deposit Scam Warning",
-                    description=f"Demand for '{fee_desc}' violates Ministry of Labour regulations. Legitimate employers never charge candidates for equipment, screening, or onboarding.",
+                    description="The submitted document contains an upfront fee or deposit indicator; confirm the request independently.",
                     evidence_type="SCAM_REPORT",
                     confidence=0.99,
                 )
@@ -84,9 +79,9 @@ class ScamAgent:
             method_desc = payment_method or "UPI / Mobile Wallet"
             evidence_list.append(
                 EvidenceItem(
-                    source_url="https://cybercrime.gov.in",
+                    source_url="document://submitted-offer",
                     title="Direct UPI Payment Request Flag",
-                    description=f"Instructions to transfer recruitment funds via {method_desc} is a definitive characteristic of employment fraud in India.",
+                    description="The submitted document contains a recruitment payment-channel indicator.",
                     evidence_type="SCAM_REPORT",
                     confidence=0.98,
                 )
@@ -98,9 +93,9 @@ class ScamAgent:
             detected_signals.append("TELEGRAM_COMMUNICATION")
             evidence_list.append(
                 EvidenceItem(
-                    source_url="https://x.com/cyberdost",
+                    source_url="document://submitted-offer",
                     title="CyberDost Advisory: Telegram Recruitment Fraud",
-                    description="Official CyberDost advisory warns against employment communication conducted exclusively over Telegram channels.",
+                    description="Telegram communication is mentioned in the submitted document; context requires review.",
                     evidence_type="SCAM_REPORT",
                     confidence=0.90,
                 )
@@ -115,9 +110,9 @@ class ScamAgent:
             detected_signals.append("WHATSAPP_RECRUITMENT_CHANNEL")
             evidence_list.append(
                 EvidenceItem(
-                    source_url="https://cybercrime.gov.in",
+                    source_url="document://submitted-offer",
                     title="CyberDost Advisory: WhatsApp Task Scam",
-                    description="Official warnings highlight unsolicited recruitment and daily tasks conducted via WhatsApp as a common phishing vector.",
+                    description="The submitted document contains a WhatsApp recruitment-channel indicator.",
                     evidence_type="SCAM_REPORT",
                     confidence=0.90,
                 )
@@ -134,7 +129,7 @@ class ScamAgent:
             detected_signals.append("PERSONAL_EMAIL_ENTERPRISE")
             evidence_list.append(
                 EvidenceItem(
-                    source_url="https://cybercrime.gov.in/Webform/Crime_Autho_List.aspx",
+                    source_url="document://submitted-offer",
                     title="Free Webmail Used for Corporate Recruitment",
                     description=f"Recruitment for '{safe_company}' conducted using a public webmail domain rather than an official corporate email domain.",
                     evidence_type="SCAM_REPORT",
@@ -145,6 +140,19 @@ class ScamAgent:
         is_scam = len(detected_signals) > 0
         provider_failed = False
         search_sources: List[str] = []
+        checks = {}
+
+        def record(name, result):
+            nonlocal provider_failed
+            if not result.is_live:
+                provider_failed = True
+            checks[name] = {
+                "provider_status": "SUCCESS" if result.is_live else "FAILED",
+                "search_status": result.outcome.value if result.is_live or result.get("source") == "FAILED" else "DEMO",
+                "search_source": result.get("source"),
+                "error": result.error or ("Live search evidence unavailable" if not result.is_live else None),
+            }
+
         # 2. SerpApi Scam Intelligence Searches
 
         # General company scam query
@@ -157,7 +165,8 @@ class ScamAgent:
             raw_res = await self.search_client.search(query=scam_query)
             search_res = SearchResult.from_dict_or_result(raw_res, query=scam_query)
             search_sources.append(search_res.get("source", SearchSource.FAILED.value))
-            if not search_res.is_available:
+            record("company_reports", search_res)
+            if not search_res.is_live:
                 provider_failed = True
             else:
                 for res in (search_res.organic_results or [])[:2]:
@@ -174,9 +183,10 @@ class ScamAgent:
                                 confidence=0.92 if search_res.get("source") == SearchSource.REAL.value else 0.85,
                             )
                         )
-        except Exception as e:
+        except Exception:
             provider_failed = True
-            logger.warning("ScamAgent: general scam search failed (%s)", str(e))
+            checks["company_reports"] = {"provider_status": "FAILED", "search_status": "PROVIDER_FAILURE", "error": "Search integration failed"}
+            logger.warning("ScamAgent: general scam search failed")
 
         # Payment-specific search
         payment_term = payment_method or demanded_fee
@@ -190,7 +200,8 @@ class ScamAgent:
                 raw_pay = await self.search_client.search(query=pay_query)
                 pay_res = SearchResult.from_dict_or_result(raw_pay, query=pay_query)
                 search_sources.append(pay_res.get("source", SearchSource.FAILED.value))
-                if not pay_res.is_available:
+                record("payment_reports", pay_res)
+                if not pay_res.is_live:
                     provider_failed = True
                 else:
                     for res in (pay_res.organic_results or [])[:2]:
@@ -207,11 +218,17 @@ class ScamAgent:
                                     confidence=0.92 if pay_res.get("source") == SearchSource.REAL.value else 0.85,
                                 )
                             )
-            except Exception as e:
+            except Exception:
                 provider_failed = True
-                logger.warning("ScamAgent: payment scam search failed (%s)", str(e))
+                checks["payment_reports"] = {"provider_status": "FAILED", "search_status": "PROVIDER_FAILURE", "error": "Search integration failed"}
+                logger.warning("ScamAgent: payment scam search failed")
 
         primary_source = search_sources[0] if search_sources else (SearchSource.FAILED.value if provider_failed else SearchSource.REAL.value)
+
+        failed = [check for check in checks.values() if check["provider_status"] == "FAILED"]
+        provider_status = "PARTIAL" if failed and len(failed) < len(checks) else "FAILED" if failed else "SUCCESS"
+        search_status = "PARTIAL" if provider_status == "PARTIAL" else failed[0]["search_status"] if failed else (
+            "SUCCESSFUL_EMPTY" if checks and all(c["search_status"] == "ZERO_RESULTS" for c in checks.values()) else "SUCCESS")
 
         # Deduplicate evidence items by (source_url, title)
         seen_keys = set()
@@ -237,25 +254,20 @@ class ScamAgent:
                     "scam_flagged": True,
                     "risk_signals": detected_signals,
                     "search_source": primary_source,
-                    "provider_status": "FAILED" if provider_failed else "SUCCESS",
+                    "provider_status": provider_status,
+                    "search_status": search_status,
+                    "checks": checks,
+                    "error": failed[0]["error"] if failed else None,
+                    "local_scan_completed": True,
                 },
             )
 
-        unique_evidence.append(
-            EvidenceItem(
-                source_url="https://cybercrime.gov.in",
-                title="No Upfront Fee or Scam Red Flags Detected",
-                description="Offer does not solicit monetary deposits, training fees, or OTP/banking credentials.",
-                evidence_type="SCAM_REPORT",
-                confidence=0.90,
-            )
-        )
-
         return AgentFinding(
             agent_name="ScamAgent",
-            verdict="VERIFIED",
-            confidence=0.90,
-            summary="No advance fee requests or known scam recruitment patterns detected in this offer.",
+            verdict="CANNOT_VERIFY" if provider_failed else "VERIFIED",
+            confidence=0.0 if provider_failed else 0.90,
+            summary="No local scam indicators detected; external checks were unavailable or incomplete."
+                if provider_failed else "No local scam indicators detected; completed searches do not authenticate the offer.",
             evidence=unique_evidence,
             details={
                 "demanded_fee": None,
@@ -263,6 +275,10 @@ class ScamAgent:
                 "scam_flagged": False,
                 "risk_signals": [],
                 "search_source": primary_source,
-                "provider_status": "FAILED" if provider_failed else "SUCCESS",
+                "provider_status": provider_status,
+                "search_status": search_status,
+                "checks": checks,
+                "error": failed[0]["error"] if failed else None,
+                "local_scan_completed": True,
             },
         )

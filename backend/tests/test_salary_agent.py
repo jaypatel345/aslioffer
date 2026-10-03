@@ -52,7 +52,7 @@ async def test_normal_salary_real_source():
 
 @pytest.mark.asyncio
 async def test_inflated_salary_triggers_anomaly():
-    """Verify suspiciously high salary triggers NEEDS_REVIEW, anomaly=True, and cybercrime bait evidence."""
+    """Verify suspiciously high salary triggers NEEDS_REVIEW, anomaly=True, and only retrieved baseline evidence."""
     mock_search_client = MagicMock(spec=SerpApiClient)
     mock_search_client.search = AsyncMock(
         return_value={
@@ -81,17 +81,15 @@ async def test_inflated_salary_triggers_anomaly():
     assert finding.details["search_source"] == SearchSource.REAL.value
     assert any("bait" in finding.summary.lower() for _ in [1])
 
-    # Should contain search result + cybercrime warning item
-    assert len(finding.evidence) == 2
-    scam_evidence = finding.evidence[-1]
-    assert scam_evidence.source_url == "https://cybercrime.gov.in"
-    assert "Bait" in scam_evidence.title
-    assert scam_evidence.confidence == 0.92
+    # Only the actual search result is cited; no invented government warning.
+    assert len(finding.evidence) == 1
+    assert finding.evidence[0].source_url == "https://www.glassdoor.co.in/Salaries/data-entry-operator-salary"
+    assert all("cybercrime.gov.in" not in ev.source_url for ev in finding.evidence)
 
 
 @pytest.mark.asyncio
-async def test_no_search_results_fallback():
-    """Verify empty organic results fallback to baseline market evidence gracefully."""
+async def test_no_search_results_is_inconclusive():
+    """Empty search results must not invent a benchmark or verify salary."""
     mock_search_client = MagicMock(spec=SerpApiClient)
     mock_search_client.search = AsyncMock(
         return_value={
@@ -107,16 +105,15 @@ async def test_no_search_results_fallback():
         offered_salary="₹6 LPA",
     )
 
-    assert finding.verdict == "VERIFIED"
-    assert finding.details["anomaly"] is False
-    assert len(finding.evidence) == 1
-    assert finding.evidence[0].source_url == "https://www.ambitionbox.com/salaries"
-    assert finding.evidence[0].confidence == 0.60
+    assert finding.verdict == "CANNOT_VERIFY"
+    assert finding.details["anomaly"] is None
+    assert finding.details["search_status"] == "SUCCESSFUL_EMPTY"
+    assert finding.evidence == []
 
 
 @pytest.mark.asyncio
 async def test_mock_search_source():
-    """Verify mock search source propagates to details and evidence confidence."""
+    """Synthetic results are tracked but cannot verify a real salary."""
     mock_search_client = MagicMock(spec=SerpApiClient)
     mock_search_client.search = AsyncMock(
         return_value={
@@ -138,6 +135,6 @@ async def test_mock_search_source():
         offered_salary="₹4.5 LPA",
     )
 
-    assert finding.verdict == "VERIFIED"
+    assert finding.verdict == "CANNOT_VERIFY"
     assert finding.details["search_source"] == SearchSource.MOCK.value
-    assert finding.evidence[0].confidence == 0.75
+    assert finding.evidence == []

@@ -1,6 +1,6 @@
 import os
 from typing import List, Union
-from pydantic import AnyHttpUrl, field_validator
+from pydantic import AnyHttpUrl, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic_settings.sources import DotEnvSettingsSource, EnvSettingsSource
 
@@ -53,9 +53,10 @@ class Settings(BaseSettings):
 
     # SerpApi Configuration
     SERPAPI_API_KEY: str = ""
-    SEARCH_TIMEOUT_SECONDS: float = 8.0
-    SEARCH_MAX_RETRIES: int = 2
-    SEARCH_RETRY_BACKOFF_SECONDS: float = 0.5
+    SEARCH_TIMEOUT_SECONDS: float = Field(default=8.0, gt=0, le=60)
+    SEARCH_MAX_RETRIES: int = Field(default=2, ge=0, le=5)
+    SEARCH_RETRY_BACKOFF_SECONDS: float = Field(default=0.5, ge=0, le=5)
+    SEARCH_TOTAL_TIMEOUT_SECONDS: float = Field(default=25.0, gt=0, le=120)
     SEARCH_DEMO_MODE: bool = False
 
     # Gemini AI Configuration

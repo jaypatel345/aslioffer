@@ -1,4 +1,5 @@
 import json
+from copy import deepcopy
 from pathlib import Path
 from typing import Dict, Any, List
 
@@ -39,13 +40,23 @@ class MockSearchClient:
         self.recorded_queries.append(query)
         # Check exact query
         if query in self.query_responses:
-            return self.query_responses[query]
+            return self._replay(self.query_responses[query])
 
         # Check partial or normalized match
         query_clean = query.strip()
         for q_key, resp in self.query_responses.items():
             if q_key.strip() == query_clean:
-                return resp
+                return self._replay(resp)
 
         self.unmatched_queries.append(query)
-        return self.default_response
+        return self._replay(self.default_response)
+
+    @staticmethod
+    def _replay(response):
+        # Fixture DEMO labels describe synthetic corpus provenance. Replay them
+        # as simulated live provider responses so agent/domain regressions are
+        # exercised, rather than short-circuited by production demo isolation.
+        replay = deepcopy(response)
+        if replay.get("source") == "DEMO" and replay.get("status") == "successful":
+            replay["source"] = "REAL"
+        return replay

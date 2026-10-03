@@ -47,11 +47,7 @@ class ReportGenerator:
             "name": company_name,
             "website": official_domain,
             "careers_url": careers_url,
-            "mca_status": (
-                "Active Corporate Entity"
-                if official_domain
-                else "Unconfirmed in Public Footprint"
-            ),
+            "mca_status": "Not independently checked",
             "recruitment_policy": "Legitimate enterprise HR teams never demand fees or deposits for employment.",
         }
 
@@ -77,8 +73,8 @@ class ReportGenerator:
         elif risk_level == RiskLevel.CANNOT_VERIFY:
             summary = (
                 f"INCONCLUSIVE PUBLIC EVIDENCE: Could not independently verify this offer from available evidence. "
-                f"Public search records for {company_name} or the recruiter are sparse or below confidence thresholds. "
-                "While no overt scam demands were found, exercise independent verification before proceeding."
+                "Some checks were unavailable or did not establish sufficient evidence. "
+                "This is not proof of fraud; confirm the offer independently before proceeding."
             )
             actions = [
                 "Could not independently verify this offer from available evidence.",
@@ -124,4 +120,3 @@ class ReportGenerator:
             reason_details=reason_details or [],
             generated_at=datetime.now(timezone.utc),
         )
-

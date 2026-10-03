@@ -1,185 +1,134 @@
-# Task 3: Reliable Search Handling and Honest Reporting of Unavailable Evidence
+# Task 3: reliable search outcomes and honest evidence handling
 
-## Overview and Goal
-In AsliOffer, external search (SerpApi) verifies corporate web presence, official careers portals, recruiter identity alignment, salary baselines, and public fraud advisories.
+Cleanup base: `f9c914e47ec944f2b88dc5f3a3b03cece5a5cbae`.
 
-Prior to Task 3, a missing API key or upstream search outage resulted in fabricated mock search results (e.g. inventing synthetic corporate domains or injecting canned scam advisories) or collapsed into ambiguous failure modes where unavailable searches were conflated with clean/verified records or fraud convictions.
+## Search outcomes
 
-Task 3 establishes search reliability across the integration boundary:
-1. **Explicit Outcome Representation:** A failed search never looks like a successful search with zero results.
-2. **Strict Validation:** Upstream responses are checked for HTTP 200 error payloads and malformed shapes.
-3. **Bounded Failure Handling:** Explicit request timeouts, bounded transient retries with exponential backoff, immediate short-circuiting on permanent errors (missing/bad credentials), and preserved async cancellation.
-4. **Zero Fabricated Evidence:** Production code never synthesizes fake domains, recruiters, or evidence when search is unavailable. Demo mode is strictly isolated.
-5. **Honest Consumer Reporting:** Inconclusive searches propagate as `CANNOT_VERIFY` with `provider_status` and error details recorded. Missing evidence never independently inflates fraud risk or confirms identities.
-6. **Partial Investigation Preservation:** A failure in one external check (e.g. phone search timeout) preserves evidence gathered by successful checks (e.g. company domain verification).
+`SearchResult` remains dictionary-compatible. It carries the query, provider,
+source, outcome, organic results, knowledge graph, and safe error/status fields.
+The query is internal provenance and must not be logged.
 
----
+| Outcome | Meaning |
+| --- | --- |
+| SUCCESS | Completed search with results |
+| ZERO_RESULTS | Completed search with no results |
+| TIMEOUT | Request timeout or overall deadline expired |
+| RATE_LIMIT | HTTP 429 or provider quota error |
+| AUTH_FAILURE | Missing/invalid credentials, HTTP 401/403, auth error payload |
+| PROVIDER_FAILURE | Network/server failure or incomplete provider operation |
+| MALFORMED_RESPONSE | Invalid JSON, missing response shape, or invalid consumed fields |
 
-## 1. Internal Outcome Structure & Meanings
+`is_available` identifies completed searches, including empty searches.
+`is_live` additionally requires `source=REAL`. Agents use `is_live` before using
+external evidence. Explicit DEMO and legacy MOCK results cannot verify live
+investigations. `SEARCH_DEMO_MODE=true` is the only switch enabling generated
+demo fixtures. The legacy `mock_key` value and `fallback_to_mock` argument do
+not enable demo data.
 
-The system defines `SearchOutcome` (`app.services.search.serpapi_client.SearchOutcome`) and `SearchResult` (`app.services.search.serpapi_client.SearchResult`), a dict-compatible data structure ensuring 100% backward compatibility for existing callers while exposing structured status properties.
+Organic result items must be objects with string titles and HTTP(S) links;
+optional snippets must be strings. Consumed knowledge-graph fields and search
+metadata are checked too. Successful empty `search_information` is inspected
+independently of `search_metadata`. An unexplained missing result shape is not
+classified as an empty search.
 
-### Outcome Enum (`SearchOutcome`)
-| Outcome | Description | HTTP Status / Trigger | Consumer Meaning |
-|---|---|---|---|
-| `SUCCESS` | Search executed cleanly with usable organic or knowledge graph results | HTTP 200 with organic results or knowledge graph | Real public footprint found and parsed |
-| `ZERO_RESULTS` | Search executed cleanly, but the search index contains zero hits for query | HTTP 200 with `total_results == 0` or empty results | No public footprint indexed; inconclusive coverage |
-| `TIMEOUT` | Request timed out across all bounded retry attempts | `httpx.TimeoutException` | Provider unavailable due to timeout; check could not run |
-| `RATE_LIMIT` | Provider rate limit exceeded (HTTP 429) or plan exhausted | HTTP 429 or JSON `error` containing rate limit message | Provider unavailable due to quota/rate limit |
-| `AUTH_FAILURE` | Missing, empty, or invalid API credentials | Unconfigured key, HTTP 401/403, or JSON `error` ("Invalid API key") | Permanent configuration or authentication failure |
-| `PROVIDER_FAILURE` | Upstream provider server error or network connection drop | HTTP 5xx, `httpx.ConnectError`, or generic upstream error | Provider unavailable due to server-side outage |
-| `MALFORMED_RESPONSE` | Non-JSON response, invalid JSON type, or invalid field types | Unparseable body, JSON non-dict, or non-list `organic_results` | Provider returned corrupted or incompatible data |
+## Timeouts, retries, and privacy
 
-### Unified `SearchResult` Class
-`SearchResult` inherits from Python's standard `dict` to preserve compatibility with existing code:
-- Compatible dict keys: `res["source"]`, `res.get("organic_results")`, `res.get("knowledge_graph")`, `res["status"]`, `res.get("error")`
-- Explicit object properties: `res.outcome`, `res.is_success`, `res.is_empty`, `res.is_available`, `res.results`, `res.error`, `res.status_code`
-- Adapter method: `SearchResult.from_dict_or_result(res, query=...)` converts legacy dictionary fixtures or replayed mocks into canonical `SearchResult` instances.
+| Setting | Default | Bounds |
+| --- | --- | --- |
+| SEARCH_TIMEOUT_SECONDS | 8 seconds | greater than 0, at most 60 |
+| SEARCH_TOTAL_TIMEOUT_SECONDS | 25 seconds | greater than 0, at most 120 |
+| SEARCH_MAX_RETRIES | 2 | 0 through 5 |
+| SEARCH_RETRY_BACKOFF_SECONDS | 0.5 seconds | 0 through 5 |
+| SEARCH_DEMO_MODE | false | explicit boolean |
 
----
+The overall deadline encloses client setup, HTTP requests, response handling,
+and retry sleeps for one search operation. It is separate from HTTP transport
+phase timeouts. Independent searches in the same investigation each have their
+own budget; this is not a global deadline for extraction and the entire offer.
 
-## 2. Timeout and Retry Policy
+Timeouts, network errors, transient HTTP 500/502/503/504 responses, and explicit
+transient provider error payloads can retry. Delays double with the attempt
+number. Authentication errors, malformed responses, other permanent failures,
+and exhausted quotas do not retry. HTTP 429 supports both numeric and HTTP-date
+Retry-After. Delays above two seconds return RATE_LIMIT immediately instead of
+retrying before the provider's requested time. All remaining waits are bounded
+by the overall deadline. Caller cancellation is preserved.
 
-All external network operations through `SerpApiClient` are bounded:
-- **Per-Attempt Timeout:** Configured via `settings.SEARCH_TIMEOUT_SECONDS` (default: `8.0` seconds).
-- **Maximum Retries:** Configured via `settings.SEARCH_MAX_RETRIES` (default: `2` retries, meaning maximum 3 attempts total).
-- **Backoff Schedule:** Configured via `settings.SEARCH_RETRY_BACKOFF_SECONDS` (default: `0.5` seconds). Doubles on subsequent attempts (`0.5s`, `1.0s`).
-- **Async Event Loop:** All delays use non-blocking `await asyncio.sleep(...)`. `asyncio.CancelledError` is preserved and immediately propagated to ensure cooperative task cancellation.
+Provider errors are mapped to fixed safe messages. Raw response payloads and
+request URLs are not retained. Logs do not include queries, private recruiter
+contacts, exception text, or API keys. The standalone sanitizer also redacts
+keys, URLs, email addresses, and phone-like sequences.
 
-### Retry Rules
-1. **Transient Errors (Retryable up to limit):**
-   - `httpx.ConnectTimeout`, `httpx.ReadTimeout`
-   - `httpx.ConnectError`, `httpx.NetworkError`
-   - HTTP 500 Internal Server Error, HTTP 502 Bad Gateway, HTTP 503 Service Unavailable, HTTP 504 Gateway Timeout
-   - HTTP 429 Rate Limit (retried if `Retry-After` header indicates `<= 2.0s` delay within task time budget).
-2. **Permanent Errors (Short-circuit immediately, never retried):**
-   - Unconfigured, empty, or whitespace API key.
-   - HTTP 401 Unauthorized or HTTP 403 Forbidden.
-   - JSON response payload containing "Invalid API key" or "Unauthorized".
-   - HTTP 400 Bad Request or malformed response shapes.
+## Agent behavior
 
-### Data Privacy & Sanitization
-All error messages and logs pass through `sanitize_search_text`:
-- API keys are redacted (`[REDACTED]`).
-- Sensitive URL query parameters (`api_key=...`) are sanitized.
-- No raw applicant resume text, passwords, or PII are written to search error logs.
+- Company: unavailable or empty searches return CANNOT_VERIFY without external
+  evidence. A web result does not establish MCA registration; that remains
+  NOT_CHECKED.
+- Recruiter: no resolved official domain or a phone search without complaint
+  hits cannot verify identity. Domain-match results and phone flags are retained
+  if a different check fails. Existing adverse signals remain active; Task 5
+  will improve their interpretation and agency handling.
+- Salary: empty/unavailable searches and knowledge-graph-only results do not
+  generate generic AmbitionBox benchmarks. Document-level salary anomalies can
+  still require review, without invented citations.
+- Scam: local document signals survive outages and are cited as
+  `document://submitted-offer`, not retrieved government warnings. If external
+  checks fail and no local signals are found, the verdict is CANNOT_VERIFY.
+  A completed check with no detected signals does not authenticate the offer.
+- Risk: CANNOT_VERIFY/UNVERIFIED coverage gaps add no fraud points and are not
+  inserted into red_flags. They remain visible in findings. The existing 0.05
+  baseline floor is retained. An unresolved investigation remains inconclusive
+  even if unrelated successful checks provide many evidence items.
+- Report: inconclusive evidence is described as unavailable or insufficient,
+  rather than automatically claiming a sparse employer footprint.
 
----
+## Integration notes for Jay
 
-## 3. How Agents Handle Empty and Unavailable Searches
+Public API schemas, database models, and endpoints are unchanged.
+`provider_status` can now be SUCCESS, FAILED, PARTIAL, or NOT_CHECKED. Recruiter
+and scam findings expose a `checks` mapping with each subcheck's outcome, source,
+and safe error. PARTIAL means successful results have been retained alongside
+unavailable checks. Do not render it as wholly successful or wholly failed.
+The UI should display local `document://submitted-offer` evidence as a document
+observation instead of an external clickable citation. These additions use the
+existing free-form details and string source_url fields.
 
-### `CompanyAgent`
-- **Provider Failure (`not search_res.is_available`):**
-  - Verdict: `CANNOT_VERIFY`
-  - Evidence: `[]` (strictly empty; no fabricated MCA links or dummy domains)
-  - Details: `provider_status: "FAILED"`, `official_domain: None`, `error: search_res.error`
-  - Summary: `"External investigation aborted due to upstream search provider outage / rate limit. No external claims verified."`
-- **Empty Search (`search_res.is_empty`):**
-  - Verdict: `CANNOT_VERIFY`
-  - Evidence: `[]`
-  - Details: `provider_status: "SUCCESS"`, `search_status: "SUCCESSFUL_EMPTY"`, `official_domain_resolved: False`
-  - Summary: `"Search completed successfully but returned no indexed public footprint for '{company_name}'."`
-- **Successful Search with Results:**
-  - Evaluates matching official domain; returns `VERIFIED` if official presence matched, or `CANNOT_VERIFY` if results exist but none belong to the company.
+Keep SEARCH_DEMO_MODE=false on the deployed backend. The new total timeout has
+a default, so existing deployments do not need a configuration change to run.
 
-### `RecruiterAgent`
-- **Provider Failure:**
-  - Verdict: `CANNOT_VERIFY`
-  - Details: `provider_status: "FAILED"`, `domain_match: None`
-  - Does NOT flag corporate recruiters as fraudulent impersonators when official domain search failed.
-- **Empty Search / Unresolved Official Domain:**
-  - If recruiter uses free webmail (`@gmail.com`): `HIGH_RISK` (direct signal in offer).
-  - If recruiter uses custom corporate domain but official company domain is unresolved: `CANNOT_VERIFY`, `domain_match: None`.
-- **Phone Number Check:**
-  - If search is empty (clean): does NOT claim identity is verified or inject fake cybercrime registry URLs.
-  - If adverse reports found: flags `HIGH_RISK` with evidence.
+## Validation
 
-### `SalaryAgent`
-- **Provider Failure:**
-  - Verdict: `CANNOT_VERIFY` (or `NEEDS_REVIEW` if document itself contained extreme bait figures like ₹50,000/day)
-  - Evidence: `[]` (no fabricated baseline evidence injected)
-  - Details: `provider_status: "FAILED"`, `error: search_res.error`
-- **Successful Search without Company Hits:**
-  - Uses role-level baseline (`https://www.ambitionbox.com/salaries`, confidence 0.60) to evaluate whether compensation is realistic.
+From the repository root:
 
-### `ScamAgent`
-- **Preservation of Document-Level Scam Indicators:**
-  - Upfront fee demands (`UPFRONT_FEE_DEMAND`), direct UPI requests (`UPI_PAYMENT_REQUEST`), and password/OTP demands present in the offer text trigger `HIGH_RISK` regardless of whether external searches fail or succeed.
-- **Search Provider Failure:**
-  - Recorded in details: `provider_status: "FAILED"`.
-  - If the offer itself has no scam markers, returns `VERIFIED` (clean offer document) with `provider_status: "FAILED"`.
+```bash
+python -m pytest backend/tests/investigation/ -q
+python -m pytest backend/tests/investigation/ backend/tests/test_serpapi_client.py backend/tests/test_task3_cleanup.py -q
+```
 
-### `RiskEngine` & `VerdictReasoner`
-- Missing evidence from `CANNOT_VERIFY` agent findings is treated as uncertainty/unresolved coverage.
-- In `VerdictReasoner`, when evidence is insufficient (< 2 items or search outage) and there are no scam markers, the final verdict is `RiskLevel.CANNOT_VERIFY` with reason codes `COMPANY_NOT_VERIFIED` and `RECRUITER_NOT_VERIFIED`.
-- Missing evidence alone never produces `RiskLevel.HIGH_RISK`.
+For the complete backend suite from the repository root, set PYTHONPATH to
+`backend` (or run `python -m pytest tests/ -q` from inside backend).
 
----
+New regressions exercise actual agents -> RiskEngine -> VerdictReasoner rather
+than supplying an invented risk score. They cover empty and unavailable
+investigations, preservation of partial warning signals, malformed item fields,
+empty search metadata, deadlines for requests and backoff, cancellation,
+Retry-After handling, explicit demo isolation, and private logging.
 
-## 4. Configuration Variables Introduced
+Three previously expected failures are enabled: unresolved recruiter domain,
+phone-only no-hits, and sparse-employer uncertainty. Remaining expected failures
+are genuine later-task defects: lookalike domains, recruitment agencies,
+contextual fee/channel detection, credential/unlock-payment detection, and
+entity extraction. The corpus replay helper models live provider responses
+while retaining the fixture files' synthetic provenance labels; demo isolation
+must not bypass these behavioral tests.
 
-The following environment variables are supported in `Settings` (`backend/app/core/config.py`) and documented in `.env.example`:
+Still deferred: authoritative domain ownership (Task 4), deeper recruiter
+identity checks (Task 5), contextual scam parsing (Task 6), extraction
+implementation (Task 7), the broader risk/coverage redesign (Task 8), and removal
+of other unsupported successful-search conclusions (Task 9). Existing salary
+heuristics on populated searches are not a validated market benchmarking model.
 
-| Environment Variable | Type | Default | Description |
-|---|---|---|---|
-| `SERPAPI_API_KEY` | `str` | `""` | SerpApi API key for live search queries |
-| `SEARCH_TIMEOUT_SECONDS` | `float` | `8.0` | Timeout per HTTP request to SerpApi (seconds) |
-| `SEARCH_MAX_RETRIES` | `int` | `2` | Maximum retry attempts for transient search failures (5xx, timeouts) |
-| `SEARCH_RETRY_BACKOFF_SECONDS` | `float` | `0.5` | Initial backoff delay between retries; doubles on subsequent retries |
-| `SEARCH_DEMO_MODE` | `bool` | `false` | Explicit offline demo mode returning isolated demo fixtures |
-
----
-
-## 5. Integration Notes for Jay (Frontend & Shared Schemas)
-
-1. **API Contract Compatibility:**
-   - No breaking changes were made to public API schemas (`VerificationReport`, `AgentFinding`, `EvidenceItem`, `RiskLevel`).
-   - The database models and endpoints (`/offers/upload`, `/offers/{id}`, `/offers/{id}/report`, `/analysis/run`) remain 100% compatible.
-2. **New Status Fields in Finding Details:**
-   - `finding.details["provider_status"]`: `"SUCCESS"` or `"FAILED"`.
-   - `finding.details["search_status"]`: Detailed machine-readable outcome (`"SUCCESS"`, `"SUCCESSFUL_EMPTY"`, `"TIMEOUT"`, `"RATE_LIMIT"`, `"AUTH_FAILURE"`, `"PROVIDER_FAILURE"`, `"MALFORMED_RESPONSE"`).
-   - `finding.details["error"]`: Sanitized error description when search provider is unavailable.
-3. **Proposed Frontend Enhancements for Jay (Optional / Non-breaking):**
-   - In the investigation report UI, when `finding.details.provider_status === "FAILED"`, display an informative banner: `"External search check temporarily unavailable (Search provider offline)"` rather than presenting it as an absent corporate footprint.
-   - For `CANNOT_VERIFY` findings with `search_status === "SUCCESSFUL_EMPTY"`, display: `"No indexed public presence found"`.
-
----
-
-## 6. Test Results and Remaining Limitations
-
-### Investigation Corpus Test Results
-Running `python -m pytest backend/tests/investigation/ -q`:
-- **28 passed, 13 xfailed in 0.87s**
-- `test_case_11_empty_search_is_uncertainty`: **PASSED** (enabled, xfail removed).
-- `test_case_12_provider_failure_is_not_evidence[rate_limit]`: **PASSED** (enabled, xfail removed).
-- `test_case_12_provider_failure_is_not_evidence[authentication]`: **PASSED** (enabled, xfail removed).
-- `test_case_12_provider_failure_is_not_evidence[timeout]`: **PASSED** (enabled, xfail removed).
-- All Task 2 extraction contract tests: **13 passed**.
-- All Task 1 fixture corpus tests: **11 passed**.
-
-### SerpApi Reliability Regression Suite
-Running `python -m pytest backend/tests/test_serpapi_client.py -v`:
-- **16 passed in 9.13s**
-- Covers all 14 specified regression scenarios:
-  1. Successful populated search
-  2. Successful empty search
-  3. Timeout handling
-  4. HTTP 429 rate limit handling
-  5. Missing and invalid credentials
-  6. HTTP 500/503 provider server failure
-  7. HTTP 200 with SerpApi error payload
-  8. Malformed JSON and schema responses
-  9. Transient failure followed by success
-  10. Exhausted retries after repeated failures
-  11. Permanent failures are not retried
-  12. Partial success across multiple checks
-  13. Provider failure does not trigger fabricated evidence or verification claims
-  14. Missing evidence does not independently increase fraud risk
-  15. Sanitization of sensitive keys in logs and errors
-  16. Dictionary and property backward compatibility
-
-### Remaining Limitations (Deferred to Later Tasks)
-- **Task 4 (Official Domain Resolution):** Domain lookalike detection (e.g. brand name substring in third-party lookalike domain `tcs-careers-portal.example`) is addressed in Task 4.
-- **Task 5 (Recruiter Verification Redesign):** Agency recruitment mandate checking and deeper domain MX validation are addressed in Task 5.
-- **Task 6 (Contextual Scam Detection):** Negated security deposit policies and quoted advisory parsing are addressed in Task 6.
-- **Task 7 (Risk Synthesis & Coverage Redesign):** Decoupling risk score from coverage breadth for startups with sparse web footprints is addressed in Task 7.
+Validated cleanup result (Python 3.12): **127 passed, 10 xfailed** across the
+complete backend suite, including 46 new cleanup checks. The one dependency
+warning is a FastAPI/Starlette test-client deprecation, not a failed test.
+Live SerpApi calls were not used to validate these failure-path regressions.

@@ -1,6 +1,10 @@
 import asyncio
 import json
 import re
+import math
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
+from urllib.parse import urlparse
 from enum import Enum
 from typing import Dict, Any, List, Optional
 import httpx
@@ -31,9 +35,12 @@ def sanitize_search_text(text: str, api_key: Optional[str] = None) -> str:
     if not text:
         return ""
     sanitized = text
-    if api_key and len(api_key) > 4:
+    if api_key:
         sanitized = sanitized.replace(api_key, "[REDACTED]")
     sanitized = re.sub(r"api_key=[^&\s'\"]+", "api_key=[REDACTED]", sanitized)
+    sanitized = re.sub(r"https?://[^\s]+", "[REDACTED_URL]", sanitized)
+    sanitized = re.sub(r"[\w.+-]+@[\w.-]+", "[REDACTED_EMAIL]", sanitized)
+    sanitized = re.sub(r"(?<!\w)\+?\d[\d ()-]{7,}\d(?!\w)", "[REDACTED_PHONE]", sanitized)
     return sanitized
 
 
@@ -139,15 +146,17 @@ class SearchResult(dict):
         """True if search completed and gave usable or empty results (not failed/timed out/rate limited)."""
         return self.outcome in (SearchOutcome.SUCCESS, SearchOutcome.ZERO_RESULTS)
 
+    @property
+    def is_live(self) -> bool:
+        """Only real completed searches may be used as external evidence."""
+        return self.is_available and self.get("source") == SearchSource.REAL.value
+
     @classmethod
     def from_dict_or_result(cls, res: Any, query: str = "", provider: str = "serpapi") -> "SearchResult":
         """
         Adapts a legacy dictionary or mock fixture response into a canonical SearchResult.
         Guarantees that downstream callers always receive a structured SearchResult.
         """
-        if isinstance(res, cls):
-            return res
-
         if not isinstance(res, dict):
             return cls(
                 query=query,
@@ -157,19 +166,31 @@ class SearchResult(dict):
                 error_type="MalformedResponseError",
             )
 
+        shape_error = validate_search_fields(res)
+        if (not shape_error and not any(key in res for key in
+                ("organic_results", "results", "knowledge_graph", "outcome", "error"))
+                and res.get("status") != "failed"):
+            shape_error = "Missing search result shape"
+        if shape_error:
+            return cls(query=query, provider=provider,
+                       outcome=SearchOutcome.MALFORMED_RESPONSE,
+                       error=shape_error, error_type="MalformedResponseError")
+
         # Explicit outcome field present
         if "outcome" in res:
             try:
                 outcome = SearchOutcome(res["outcome"])
-            except ValueError:
-                outcome = SearchOutcome.SUCCESS if res.get("status") == "successful" else SearchOutcome.PROVIDER_FAILURE
+            except (ValueError, TypeError):
+                return cls(query=query, provider=provider,
+                           outcome=SearchOutcome.MALFORMED_RESPONSE,
+                           error="Invalid search outcome", error_type="MalformedResponseError")
             return cls(
                 query=res.get("query", query),
                 provider=res.get("provider", provider),
                 outcome=outcome,
                 results=res.get("organic_results") if res.get("organic_results") is not None else res.get("results"),
                 knowledge_graph=res.get("knowledge_graph"),
-                error=res.get("error"),
+                error=sanitize_search_text(str(res.get("error") or "")) or None,
                 error_type=res.get("error_type"),
                 status_code=res.get("status_code"),
                 source=res.get("source"),
@@ -205,7 +226,7 @@ class SearchResult(dict):
                 outcome=outcome,
                 results=[],
                 knowledge_graph=kg or {},
-                error=error or "Search request failed",
+                error=sanitize_search_text(str(error or "Search request failed")),
                 error_type=error_type or outcome.value,
                 status_code=status_code,
                 source=source or SearchSource.FAILED.value,
@@ -223,6 +244,68 @@ class SearchResult(dict):
             source=source or SearchSource.REAL.value,
             search_metadata=res.get("search_metadata"),
         )
+
+
+def validate_search_fields(data: Dict[str, Any]) -> Optional[str]:
+    """Validate only fields agents consume; never echo provider values in errors."""
+    organic = data.get("organic_results") if data.get("organic_results") is not None else data.get("results")
+    if organic is not None:
+        if not isinstance(organic, list):
+            return "Expected organic_results to be a list"
+        for item in organic:
+            if not isinstance(item, dict):
+                return "Expected each organic result to be an object"
+            for key in ("link", "title", "snippet"):
+                if key in item and not isinstance(item[key], str):
+                    return "Invalid organic result text field"
+            link = item.get("link")
+            if not link or not item.get("title") or not _web_url(link):
+                return "Organic result requires a title and HTTP(S) link"
+    kg = data.get("knowledge_graph")
+    if kg is not None:
+        if not isinstance(kg, dict):
+            return "Expected knowledge_graph to be an object"
+        for key in ("website", "careers_url", "title"):
+            if key in kg and not isinstance(kg[key], str):
+                return "Invalid knowledge graph text field"
+        for key in ("website", "careers_url"):
+            if kg.get(key) and not _web_url(kg[key]):
+                return "Invalid knowledge graph HTTP(S) link"
+    for key in ("search_metadata", "search_information"):
+        if key in data and not isinstance(data[key], dict):
+            return "Invalid search metadata object"
+        info = data.get(key) or {}
+        for field in ("status", "organic_results_state"):
+            if field in info and not isinstance(info[field], str):
+                return "Invalid search metadata text field"
+        if "total_results" in info and (isinstance(info["total_results"], bool)
+                or not isinstance(info["total_results"], (int, float))):
+            return "Invalid search result count"
+    return None
+
+
+def _web_url(value: str) -> bool:
+    try:
+        parsed = urlparse(value)
+        return parsed.scheme in ("http", "https") and bool(parsed.hostname)
+    except ValueError:
+        return False
+
+
+def _retry_after(value: Optional[str]) -> Optional[float]:
+    if value is None:
+        return None
+    try:
+        delay = float(value)
+    except ValueError:
+        try:
+            date = parsedate_to_datetime(value)
+            if date.tzinfo is None:
+                date = date.replace(tzinfo=timezone.utc)
+            delay = max(0.0, (date - datetime.now(timezone.utc)).total_seconds())
+        except (ValueError, TypeError, OverflowError):
+            return None
+    return delay if math.isfinite(delay) and delay >= 0 else None
 
 
 class SerpApiClient:
@@ -243,6 +326,7 @@ class SerpApiClient:
         max_retries: Optional[int] = None,
         retry_backoff: Optional[float] = None,
         demo_mode: Optional[bool] = None,
+        total_timeout: Optional[float] = None,
     ):
         self.api_key = api_key if api_key is not None else settings.SERPAPI_API_KEY
         self.base_url = "https://serpapi.com/search.json"
@@ -250,368 +334,150 @@ class SerpApiClient:
         self.max_retries = max_retries if max_retries is not None else settings.SEARCH_MAX_RETRIES
         self.retry_backoff = retry_backoff if retry_backoff is not None else settings.SEARCH_RETRY_BACKOFF_SECONDS
         self.demo_mode = demo_mode if demo_mode is not None else settings.SEARCH_DEMO_MODE
+        self.total_timeout = total_timeout if total_timeout is not None else settings.SEARCH_TOTAL_TIMEOUT_SECONDS
+        for name, value in (("timeout", self.timeout), ("total_timeout", self.total_timeout)):
+            if not math.isfinite(value) or value <= 0:
+                raise ValueError(f"{name} must be finite and positive")
+        if not isinstance(self.max_retries, int) or not 0 <= self.max_retries <= 5:
+            raise ValueError("max_retries must be between 0 and 5")
+        if not math.isfinite(self.retry_backoff) or not 0 <= self.retry_backoff <= 5:
+            raise ValueError("retry_backoff must be between 0 and 5")
 
     async def search(
-        self,
-        query: str,
-        engine: str = "google",
-        num: int = 5,
+        self, query: str, engine: str = "google", num: int = 5,
         fallback_to_mock: bool = False,
     ) -> SearchResult:
-        """
-        Execute a search query against SerpApi with bounded retries and honest outcome reporting.
-        Production execution never substitutes fabricated companies, domains, or evidence.
-        """
-        logger.info("SerpApiClient query: '%s' (engine=%s)", query, engine)
+        """Bound the complete operation, including HTTP work and retry sleeps.
 
-        # Demo mode check (strictly isolated from real production investigations)
-        if self.demo_mode or self.api_key == "mock_key":
-            logger.info("SerpApiClient: demo mode active. Returning isolated demo fixtures.")
+        fallback_to_mock is retained for caller compatibility and never enables
+        synthetic evidence. Demo results require explicit SEARCH_DEMO_MODE.
+        """
+        logger.info("SerpApiClient search started (engine=%s)", engine)
+        if self.demo_mode:
             return self._demo_search_results(query)
+        if not self.api_key or not self.api_key.strip() or self.api_key == "mock_key":
+            return self._failure(query, SearchOutcome.AUTH_FAILURE,
+                                 "Search credentials are missing or invalid", 401)
+        try:
+            async with asyncio.timeout(self.total_timeout):
+                return await self._search_live(query, engine, num)
+        except TimeoutError:
+            return self._failure(query, SearchOutcome.TIMEOUT,
+                                 "Search exceeded its overall time budget")
+        except Exception:
+            # Client/proxy setup failures occur before the request retry loop.
+            # Cancellation is a BaseException and continues to propagate.
+            return self._failure(query, SearchOutcome.PROVIDER_FAILURE,
+                                 "Search client could not complete the operation")
 
-        # Validate credentials before making network requests (Permanent failure: Do not retry)
-        if not self.api_key or not self.api_key.strip():
-            logger.warning("SerpApiClient: unconfigured or empty API key. Search unavailable.")
-            if fallback_to_mock and self.demo_mode:
-                return self._demo_search_results(query)
-            return SearchResult(
-                query=query,
-                provider="serpapi",
-                outcome=SearchOutcome.AUTH_FAILURE,
-                error="SerpApi API key is unconfigured or empty",
-                error_type="AuthenticationError",
-                status_code=401,
-            )
+    @staticmethod
+    def _failure(query: str, outcome: SearchOutcome, message: str,
+                 status_code: Optional[int] = None) -> SearchResult:
+        # Use fixed messages rather than provider payloads or request URLs.
+        logger.warning("SerpApiClient search unavailable (outcome=%s)", outcome.value)
+        return SearchResult(query=query, outcome=outcome, error=message,
+                            error_type=outcome.value, status_code=status_code)
 
-        params = {
-            "q": query,
-            "engine": engine,
-            "num": num,
-            "api_key": self.api_key,
-        }
-
-        attempts = 0
-        max_attempts = max(1, self.max_retries + 1)
-        current_backoff = self.retry_backoff
-
-        while attempts < max_attempts:
-            attempts += 1
-            try:
-                async with httpx.AsyncClient(timeout=self.timeout) as client:
+    async def _search_live(self, query: str, engine: str, num: int) -> SearchResult:
+        params = {"q": query, "engine": engine, "num": num, "api_key": self.api_key}
+        max_attempts = self.max_retries + 1
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
+            for attempt in range(max_attempts):
+                delay = self.retry_backoff * (2 ** attempt)
+                retryable = False
+                try:
                     response = await client.get(self.base_url, params=params)
-
-                    # HTTP 429 Rate Limit
-                    if response.status_code == 429:
-                        retry_after_hdr = response.headers.get("Retry-After")
-                        retry_after_sec: Optional[float] = None
-                        if retry_after_hdr:
-                            try:
-                                retry_after_sec = float(retry_after_hdr)
-                            except ValueError:
-                                retry_after_sec = None
-
-                        logger.warning(
-                            "SerpApiClient: HTTP 429 rate limit on attempt %d/%d for query '%s'",
-                            attempts,
-                            max_attempts,
-                            query,
-                        )
-
-                        # Retry if within bounded budget (<= 2.0s) and attempts remaining
-                        if attempts < max_attempts:
-                            delay = retry_after_sec if (retry_after_sec is not None and retry_after_sec <= 2.0) else current_backoff
-                            if retry_after_sec is not None and retry_after_sec > 2.0:
-                                # Budget exceeded; fail immediately
+                    code = response.status_code
+                    if code in (401, 403):
+                        return self._failure(query, SearchOutcome.AUTH_FAILURE,
+                                             "Search authentication failed", code)
+                    if code == 429:
+                        result = self._failure(query, SearchOutcome.RATE_LIMIT,
+                                               "Search rate limit exceeded", code)
+                        retry_delay = _retry_after(response.headers.get("Retry-After"))
+                        if retry_delay is not None:
+                            delay = retry_delay
+                        # Long waits are returned to the caller; never retry early.
+                        retryable = delay <= 2.0
+                    elif code >= 500:
+                        result = self._failure(query, SearchOutcome.PROVIDER_FAILURE,
+                                               "Search provider server error", code)
+                        retryable = code in (500, 502, 503, 504)
+                    elif code >= 400:
+                        return self._failure(query, SearchOutcome.PROVIDER_FAILURE,
+                                             "Search request rejected", code)
+                    elif not 200 <= code < 300:
+                        return self._failure(query, SearchOutcome.PROVIDER_FAILURE,
+                                             "Unexpected search HTTP status", code)
+                    else:
+                        try:
+                            data = response.json()
+                        except (ValueError, json.JSONDecodeError):
+                            return self._failure(query, SearchOutcome.MALFORMED_RESPONSE,
+                                                 "Malformed JSON response", code)
+                        if not isinstance(data, dict):
+                            return self._failure(query, SearchOutcome.MALFORMED_RESPONSE,
+                                                 "Expected a JSON object", code)
+                        shape_error = validate_search_fields(data)
+                        if shape_error:
+                            return self._failure(query, SearchOutcome.MALFORMED_RESPONSE,
+                                                 shape_error, code)
+                        if "error" in data:
+                            if not isinstance(data["error"], str):
+                                return self._failure(query, SearchOutcome.MALFORMED_RESPONSE,
+                                                     "Invalid provider error field", code)
+                            error = data["error"].lower()
+                            if "hasn't returned any results" in error or "no results found" in error:
+                                return SearchResult(query=query, outcome=SearchOutcome.ZERO_RESULTS)
+                            if any(term in error for term in ("api key", "invalid api", "unauthorized", "api_key")):
+                                return self._failure(query, SearchOutcome.AUTH_FAILURE,
+                                                     "Search authentication failed", code)
+                            if any(term in error for term in ("rate limit", "exceeded", "out of searches")):
+                                return self._failure(query, SearchOutcome.RATE_LIMIT,
+                                                     "Search quota or rate limit exceeded", code)
+                            result = self._failure(query, SearchOutcome.PROVIDER_FAILURE,
+                                                   "Search provider reported an error", code)
+                            retryable = any(term in error for term in (
+                                "temporarily unavailable", "temporary error", "internal server error", "try again"))
+                        else:
+                            metadata = data.get("search_metadata") or {}
+                            information = data.get("search_information") or {}
+                            status = metadata.get("status")
+                            if status and status != "Success":
+                                result = self._failure(query, SearchOutcome.PROVIDER_FAILURE,
+                                                       "Search provider did not complete the search", code)
+                                retryable = status in ("Queued", "Processing")
+                            else:
+                                organic = data.get("organic_results")
+                                kg = data.get("knowledge_graph")
+                                explicitly_empty = any(
+                                    info.get("total_results") == 0 or info.get("organic_results_state") == "Fully empty"
+                                    for info in (metadata, information))
+                                if organic is None and kg is None and not explicitly_empty:
+                                    return self._failure(query, SearchOutcome.MALFORMED_RESPONSE,
+                                                         "Missing search results and empty-result indication", code)
+                                has_results = bool(organic) or bool(kg and any(kg.values()))
+                                # Do not retain raw provider request URLs/parameters.
+                                safe_metadata = {"status": status} if status else None
                                 return SearchResult(
-                                    query=query,
-                                    provider="serpapi",
-                                    outcome=SearchOutcome.RATE_LIMIT,
-                                    error="Rate limit retry delay exceeds task time budget",
-                                    error_type="RateLimitError",
-                                    status_code=429,
-                                )
-                            await asyncio.sleep(delay)
-                            current_backoff *= 2.0
-                            continue
-
-                        return SearchResult(
-                            query=query,
-                            provider="serpapi",
-                            outcome=SearchOutcome.RATE_LIMIT,
-                            error="HTTP 429 rate limit exceeded",
-                            error_type="RateLimitError",
-                            status_code=429,
-                        )
-
-                    # HTTP 401/403 Authentication Failure (Permanent: Do not retry)
-                    if response.status_code in (401, 403):
-                        logger.warning(
-                            "SerpApiClient: HTTP %d authentication failure for query '%s'",
-                            response.status_code,
-                            query,
-                        )
-                        return SearchResult(
-                            query=query,
-                            provider="serpapi",
-                            outcome=SearchOutcome.AUTH_FAILURE,
-                            error=f"Invalid API key (status {response.status_code})",
-                            error_type="AuthenticationError",
-                            status_code=response.status_code,
-                        )
-
-                    # HTTP 5xx Server Failure (Transient: retryable)
-                    if response.status_code >= 500:
-                        logger.warning(
-                            "SerpApiClient: HTTP %d provider server error on attempt %d/%d for query '%s'",
-                            response.status_code,
-                            attempts,
-                            max_attempts,
-                            query,
-                        )
-                        if attempts < max_attempts:
-                            await asyncio.sleep(current_backoff)
-                            current_backoff *= 2.0
-                            continue
-                        return SearchResult(
-                            query=query,
-                            provider="serpapi",
-                            outcome=SearchOutcome.PROVIDER_FAILURE,
-                            error=f"Search provider server error (HTTP {response.status_code})",
-                            error_type="ProviderServerError",
-                            status_code=response.status_code,
-                        )
-
-                    # Other client errors (HTTP 400 Bad Request, etc. Permanent: Do not retry)
-                    if response.status_code >= 400:
-                        logger.warning(
-                            "SerpApiClient: HTTP %d client error for query '%s'",
-                            response.status_code,
-                            query,
-                        )
-                        return SearchResult(
-                            query=query,
-                            provider="serpapi",
-                            outcome=SearchOutcome.PROVIDER_FAILURE,
-                            error=f"Search request failed (HTTP {response.status_code})",
-                            error_type="ProviderClientError",
-                            status_code=response.status_code,
-                        )
-
-                    # Parse JSON response
-                    try:
-                        data = response.json()
-                    except (json.JSONDecodeError, ValueError) as json_err:
-                        logger.warning(
-                            "SerpApiClient: malformed JSON received for query '%s': %s",
-                            query,
-                            str(json_err),
-                        )
-                        return SearchResult(
-                            query=query,
-                            provider="serpapi",
-                            outcome=SearchOutcome.MALFORMED_RESPONSE,
-                            error="Malformed JSON response from search provider",
-                            error_type="MalformedResponseError",
-                            status_code=200,
-                        )
-
-                    # Response must be a JSON object
-                    if not isinstance(data, dict):
-                        logger.warning("SerpApiClient: response is not a JSON object: %s", type(data).__name__)
-                        return SearchResult(
-                            query=query,
-                            provider="serpapi",
-                            outcome=SearchOutcome.MALFORMED_RESPONSE,
-                            error=f"Expected JSON object, got {type(data).__name__}",
-                            error_type="MalformedResponseError",
-                            status_code=200,
-                        )
-
-                    # Check for SerpApi error payload in HTTP 200 response
-                    if "error" in data:
-                        raw_err = str(data["error"])
-                        safe_err = sanitize_search_text(raw_err, self.api_key)
-                        err_low = raw_err.lower()
-
-                        if "hasn't returned any results" in err_low or "no results found" in err_low:
-                            logger.info("SerpApiClient: query yielded 0 results ('%s')", query)
-                            return SearchResult(
-                                query=query,
-                                provider="serpapi",
-                                outcome=SearchOutcome.ZERO_RESULTS,
-                                results=[],
-                                knowledge_graph={},
-                                search_metadata=data.get("search_metadata"),
-                                raw_response=data,
-                            )
-
-                        if any(k in err_low for k in ["api key", "invalid api", "unauthorized", "api_key"]):
-                            logger.warning("SerpApiClient: auth failure in payload ('%s')", safe_err)
-                            return SearchResult(
-                                query=query,
-                                provider="serpapi",
-                                outcome=SearchOutcome.AUTH_FAILURE,
-                                error=safe_err,
-                                error_type="AuthenticationError",
-                                status_code=200,
-                            )
-
-                        if any(k in err_low for k in ["rate limit", "exceeded", "out of searches"]):
-                            logger.warning("SerpApiClient: rate limit in payload ('%s')", safe_err)
-                            return SearchResult(
-                                query=query,
-                                provider="serpapi",
-                                outcome=SearchOutcome.RATE_LIMIT,
-                                error=safe_err,
-                                error_type="RateLimitError",
-                                status_code=200,
-                            )
-
-                        logger.warning("SerpApiClient: provider error in payload ('%s')", safe_err)
-                        return SearchResult(
-                            query=query,
-                            provider="serpapi",
-                            outcome=SearchOutcome.PROVIDER_FAILURE,
-                            error=safe_err,
-                            error_type="ProviderError",
-                            status_code=200,
-                        )
-
-                    # Validate consumed fields
-                    organic_results = data.get("organic_results")
-                    knowledge_graph = data.get("knowledge_graph")
-
-                    if organic_results is not None and not isinstance(organic_results, list):
-                        return SearchResult(
-                            query=query,
-                            provider="serpapi",
-                            outcome=SearchOutcome.MALFORMED_RESPONSE,
-                            error="Expected 'organic_results' to be a list",
-                            error_type="MalformedResponseError",
-                            status_code=200,
-                        )
-
-                    if knowledge_graph is not None and not isinstance(knowledge_graph, dict):
-                        return SearchResult(
-                            query=query,
-                            provider="serpapi",
-                            outcome=SearchOutcome.MALFORMED_RESPONSE,
-                            error="Expected 'knowledge_graph' to be a dictionary",
-                            error_type="MalformedResponseError",
-                            status_code=200,
-                        )
-
-                    # Neither organic_results nor knowledge_graph present
-                    if organic_results is None and knowledge_graph is None:
-                        metadata = data.get("search_metadata") or data.get("search_information") or {}
-                        total = metadata.get("total_results")
-                        state = metadata.get("organic_results_state")
-                        if total == 0 or state == "Fully empty":
-                            return SearchResult(
-                                query=query,
-                                provider="serpapi",
-                                outcome=SearchOutcome.ZERO_RESULTS,
-                                results=[],
-                                knowledge_graph={},
-                                search_metadata=metadata,
-                                raw_response=data,
-                            )
-                        return SearchResult(
-                            query=query,
-                            provider="serpapi",
-                            outcome=SearchOutcome.MALFORMED_RESPONSE,
-                            error="Missing both 'organic_results' and 'knowledge_graph' in search response",
-                            error_type="MalformedResponseError",
-                            status_code=200,
-                        )
-
-                    # Distinguish populated vs zero results
-                    results_list = organic_results or []
-                    kg_dict = knowledge_graph or {}
-                    has_usable_results = len(results_list) > 0 or any(bool(v) for v in kg_dict.values())
-
-                    outcome = SearchOutcome.SUCCESS if has_usable_results else SearchOutcome.ZERO_RESULTS
-
-                    logger.info("SerpApiClient: search succeeded with outcome=%s for '%s'", outcome.value, query)
-                    return SearchResult(
-                        query=query,
-                        provider="serpapi",
-                        outcome=outcome,
-                        results=results_list,
-                        knowledge_graph=kg_dict,
-                        source=SearchSource.REAL.value,
-                        search_metadata=data.get("search_metadata"),
-                        raw_response=data,
-                    )
-
-            except httpx.TimeoutException as timeout_err:
-                logger.warning(
-                    "SerpApiClient: timeout (%.1fs) on attempt %d/%d for query '%s'",
-                    self.timeout,
-                    attempts,
-                    max_attempts,
-                    query,
-                )
-                if attempts < max_attempts:
-                    await asyncio.sleep(current_backoff)
-                    current_backoff *= 2.0
-                    continue
-                return SearchResult(
-                    query=query,
-                    provider="serpapi",
-                    outcome=SearchOutcome.TIMEOUT,
-                    error=f"Search request timed out after {self.timeout}s",
-                    error_type="TimeoutError",
-                )
-
-            except (httpx.ConnectError, httpx.NetworkError) as net_err:
-                safe_err_msg = sanitize_search_text(str(net_err), self.api_key)
-                logger.warning(
-                    "SerpApiClient: network error on attempt %d/%d for query '%s': %s",
-                    attempts,
-                    max_attempts,
-                    query,
-                    safe_err_msg,
-                )
-                if attempts < max_attempts:
-                    await asyncio.sleep(current_backoff)
-                    current_backoff *= 2.0
-                    continue
-                return SearchResult(
-                    query=query,
-                    provider="serpapi",
-                    outcome=SearchOutcome.PROVIDER_FAILURE,
-                    error="Connection error reaching search provider",
-                    error_type="ConnectionError",
-                )
-
-            except asyncio.CancelledError:
-                # Always preserve task cancellation
-                raise
-
-            except Exception as unhandled_err:
-                safe_err_msg = sanitize_search_text(str(unhandled_err), self.api_key)
-                logger.warning(
-                    "SerpApiClient: unexpected failure for query '%s': %s",
-                    query,
-                    safe_err_msg,
-                )
-                return SearchResult(
-                    query=query,
-                    provider="serpapi",
-                    outcome=SearchOutcome.PROVIDER_FAILURE,
-                    error="Unexpected search integration failure",
-                    error_type="UnexpectedError",
-                )
-
-        # Retries exhausted fallback
-        return SearchResult(
-            query=query,
-            provider="serpapi",
-            outcome=SearchOutcome.PROVIDER_FAILURE,
-            error="Search failed after exhausting all retry attempts",
-            error_type="RetriesExhaustedError",
-        )
+                                    query=query, outcome=SearchOutcome.SUCCESS if has_results else SearchOutcome.ZERO_RESULTS,
+                                    results=organic or [], knowledge_graph=kg or {}, search_metadata=safe_metadata)
+                except httpx.TimeoutException:
+                    result = self._failure(query, SearchOutcome.TIMEOUT, "Search request timed out")
+                    retryable = True
+                except (httpx.NetworkError, httpx.RemoteProtocolError):
+                    result = self._failure(query, SearchOutcome.PROVIDER_FAILURE,
+                                           "Connection error reaching search provider")
+                    retryable = True
+                except asyncio.CancelledError:
+                    raise
+                except Exception:
+                    return self._failure(query, SearchOutcome.PROVIDER_FAILURE,
+                                         "Unexpected search integration failure")
+                if not retryable or attempt + 1 == max_attempts:
+                    return result
+                await asyncio.sleep(delay)
+        return self._failure(query, SearchOutcome.PROVIDER_FAILURE, "Search attempts exhausted")
 
     def _demo_search_results(self, query: str) -> SearchResult:
         """

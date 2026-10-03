@@ -46,12 +46,7 @@ class SalaryAgent:
         """
         Investigate salary plausibility using live market search baselines from SerpApi.
         """
-        logger.info(
-            "SalaryAgent investigating: role=%s, salary=%s at %s",
-            role_title,
-            offered_salary,
-            company_name,
-        )
+        logger.info("SalaryAgent investigation started")
 
         role = role_title or "Entry Level Role"
         salary = offered_salary or "Undisclosed"
@@ -66,39 +61,23 @@ class SalaryAgent:
 
         search_source = search_res.get("source", SearchSource.FAILED.value)
 
-        # 1. Handle provider outage / rate limit / failure
-        if not search_res.is_available:
-            logger.warning("SalaryAgent: salary search unavailable (%s)", search_res.error)
-            if is_suspiciously_high:
-                return AgentFinding(
-                    agent_name="SalaryAgent",
-                    verdict="NEEDS_REVIEW",
-                    confidence=0.85,
-                    summary=f"The stated compensation of '{salary}' is unusually high for {role} and may be used as bait.",
-                    evidence=[],
-                    details={
-                        "offered_salary": salary,
-                        "anomaly": True,
-                        "provider_status": "FAILED",
-                        "error": search_res.error,
-                        "search_status": search_res.outcome.value,
-                        "search_source": search_source,
-                    },
-                )
+        # A completed empty search is not a salary benchmark. Knowledge-graph
+        # company data alone is also insufficient to benchmark compensation.
+        if not search_res.is_live or not search_res.organic_results:
+            unavailable = not search_res.is_live
             return AgentFinding(
-                agent_name="SalaryAgent",
-                verdict="CANNOT_VERIFY",
-                confidence=0.0,
-                summary=f"Salary baseline search unavailable due to search provider failure ({company_name}).",
-                evidence=[],
-                details={
-                    "offered_salary": salary,
-                    "provider_status": "FAILED",
-                    "error": search_res.error,
-                    "search_status": search_res.outcome.value,
+                agent_name="SalaryAgent", verdict="NEEDS_REVIEW" if is_suspiciously_high else "CANNOT_VERIFY",
+                confidence=0.85 if is_suspiciously_high else 0.0,
+                summary="Stated compensation requires review; no external salary benchmark was established."
+                    if is_suspiciously_high else "No external salary benchmark could be established.",
+                evidence=[], details={
+                    "offered_salary": salary, "anomaly": True if is_suspiciously_high else None,
+                    "provider_status": "FAILED" if unavailable else "SUCCESS",
+                    "error": search_res.error or ("Live search evidence unavailable" if unavailable else None),
+                    "search_status": (search_res.outcome.value if search_source == "FAILED" else "DEMO")
+                        if unavailable else "SUCCESSFUL_EMPTY" if search_res.is_empty else "SUCCESS",
                     "search_source": search_source,
-                },
-            )
+                })
 
         evidence_list: List[EvidenceItem] = []
         for result in (search_res.organic_results or [])[:3]:
@@ -116,28 +95,7 @@ class SalaryAgent:
                     )
                 )
 
-        # Fallback to market salary baseline for the role if no company-specific search hits
-        if not evidence_list:
-            evidence_list.append(
-                EvidenceItem(
-                    source_url="https://www.ambitionbox.com/salaries",
-                    title=f"Market Salary Baseline: {role}",
-                    description=f"Standard compensation range for {role} at tier-1/tier-2 tech firms in India is typically ₹3.5 LPA - ₹12 LPA.",
-                    evidence_type="SALARY",
-                    confidence=0.60,
-                )
-            )
-
         if is_suspiciously_high:
-            evidence_list.append(
-                EvidenceItem(
-                    source_url="https://cybercrime.gov.in",
-                    title="Inflated Salary Bait Pattern Detected",
-                    description=f"Offered salary '{salary}' is disproportionately higher than typical market rates to induce emotional compliance.",
-                    evidence_type="SALARY",
-                    confidence=0.92,
-                )
-            )
             return AgentFinding(
                 agent_name="SalaryAgent",
                 verdict="NEEDS_REVIEW",

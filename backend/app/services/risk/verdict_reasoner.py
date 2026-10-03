@@ -67,6 +67,7 @@ class VerdictReasoner:
         # Evidence count < 2 OR avg_confidence < 0.60
         insufficient_evidence = (
             evidence_count < self.MIN_EVIDENCE_COUNT or avg_evidence_conf < self.CONFIDENCE_THRESHOLD
+            or any(f.verdict in ("CANNOT_VERIFY", "UNVERIFIED") for f in findings)
         )
 
         reasons: List[str] = []

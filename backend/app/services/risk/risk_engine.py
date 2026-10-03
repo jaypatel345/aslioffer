@@ -40,25 +40,20 @@ class RiskEngine:
             elif recruiter_finding.verdict == "NEEDS_REVIEW":
                 base_score += 0.20
                 red_flags.append(recruiter_finding.summary)
-            elif recruiter_finding.verdict == "CANNOT_VERIFY":
+            elif recruiter_finding.verdict in ("CANNOT_VERIFY", "UNVERIFIED"):
                 # Unchecked is not the same as clean. Falling through to the green
                 # branch let a mail with no sender address earn a green flag.
-                base_score += 0.25
                 cautions.append(recruiter_finding.summary)
-            else:
+            elif recruiter_finding.verdict == "VERIFIED":
                 green_flags.append("Recruiter credentials consistent with corporate domain standards.")
 
         # 3. Company Agent Weight
         company_finding = agent_map.get("CompanyAgent")
         if company_finding:
-            if company_finding.verdict == "UNVERIFIED":
-                base_score += 0.25
-                red_flags.append(company_finding.summary)
-            elif company_finding.verdict == "CANNOT_VERIFY":
-                base_score += 0.30
+            if company_finding.verdict in ("UNVERIFIED", "CANNOT_VERIFY"):
                 cautions.append(company_finding.summary)
-            else:
-                green_flags.append("Legitimate corporate registration and public web presence verified.")
+            elif company_finding.verdict == "VERIFIED":
+                green_flags.append("Company public web presence matched; registration has not been checked.")
 
         # 4. Salary Agent Weight
         salary_finding = agent_map.get("SalaryAgent")
@@ -67,23 +62,23 @@ class RiskEngine:
                 base_score += 0.15
                 red_flags.append(salary_finding.summary)
             elif salary_finding.verdict == "CANNOT_VERIFY":
-                base_score += 0.05
                 cautions.append(salary_finding.summary)
-            else:
+            elif salary_finding.verdict == "VERIFIED":
                 green_flags.append("Compensation package falls within expected market baseline.")
 
-        # Unverifiable claims are surfaced alongside outright red flags: for a job
-        # seeker "we could not confirm this" needs to be as visible as a hard hit.
-        red_flags.extend(cautions)
+        # Inconclusive findings remain visible in the report's findings. They are
+        # coverage gaps, not adverse evidence or red flags.
 
         # Normalization (0.0 to 1.0)
         risk_score = min(max(round(base_score, 2), 0.05), 0.99)
 
         # Determine level
-        if risk_score >= 0.50 or any("Critical scam" in f or "personal webmail" in f for f in red_flags):
+        if risk_score >= 0.50 or any(f.verdict == "HIGH_RISK" for f in findings):
             risk_level = RiskLevel.HIGH_RISK
         elif risk_score >= 0.25:
             risk_level = RiskLevel.NEEDS_REVIEW
+        elif cautions or any(f.verdict == "CANNOT_VERIFY" for f in findings):
+            risk_level = RiskLevel.CANNOT_VERIFY
         else:
             risk_level = RiskLevel.VERIFIED
 

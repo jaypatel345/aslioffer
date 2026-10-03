@@ -170,7 +170,7 @@ async def test_serpapi_error_payload_with_http_200():
         mock_get.return_value = mock_resp_auth
         res_auth = await client.search("TCS careers")
         assert res_auth.outcome == SearchOutcome.AUTH_FAILURE
-        assert "invalid api key" in (res_auth.error or "").lower()
+        assert "authentication" in (res_auth.error or "").lower()
 
     # Rate limit in JSON
     mock_resp_rl = MagicMock(spec=httpx.Response)
@@ -318,7 +318,10 @@ async def test_partial_success_across_multiple_checks():
     assert comp_finding.details.get("official_domain") == "https://www.wipro.com"
 
     # Phone check timed out and failure is reported honestly
-    assert rec_finding.details.get("provider_status") == "FAILED"
+    assert rec_finding.details.get("provider_status") == "PARTIAL"
+    assert rec_finding.details["domain_match"] is True
+    assert rec_finding.details["checks"]["phone_reports"]["search_status"] == "TIMEOUT"
+    assert rec_finding.evidence
     assert rec_finding.verdict == "CANNOT_VERIFY"
 
 
@@ -398,13 +401,17 @@ def test_missing_evidence_does_not_independently_increase_fraud_risk():
     assert rec.verdict not in ("HIGH_RISK", "VERIFIED")
     assert sal.verdict not in ("HIGH_RISK", "VERIFIED")
 
-    # In the final verdict reasoning layer, missing evidence produces CANNOT_VERIFY, NOT HIGH_RISK
+    # Exercise the actual scoring path rather than supplying an invented score.
+    score, level, red_flags, _ = RiskEngine().compute_risk([comp, rec, sal, scam])
+    assert score < 0.25
+    assert red_flags == []
     result = reasoner.evaluate(
         company_result=comp,
         recruiter_result=rec,
         salary_result=sal,
         scam_result=scam,
-        initial_risk_score=0.30,
+        initial_risk_score=score,
+        initial_risk_level=level,
     )
 
     assert result.verdict == RiskLevel.CANNOT_VERIFY
@@ -416,7 +423,7 @@ def test_sanitize_search_text():
     text = "Error connecting to https://serpapi.com/search.json?q=test&api_key=secret_12345_token"
     sanitized = sanitize_search_text(text, api_key="secret_12345_token")
     assert "secret_12345_token" not in sanitized
-    assert "[REDACTED]" in sanitized
+    assert "[REDACTED_URL]" in sanitized
 
 
 @pytest.mark.asyncio

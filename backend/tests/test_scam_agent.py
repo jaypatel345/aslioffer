@@ -31,7 +31,7 @@ async def test_registration_fee_triggers_high_risk():
     assert finding.details["scam_flagged"] is True
     assert "UPFRONT_FEE_DEMAND" in finding.details["risk_signals"]
     assert any("Advance Fee" in ev.title for ev in finding.evidence)
-    assert any("cybercrime.gov.in" in ev.source_url for ev in finding.evidence)
+    assert all(ev.source_url == "document://submitted-offer" for ev in finding.evidence)
 
 
 @pytest.mark.asyncio
@@ -111,7 +111,8 @@ async def test_clean_offer_returns_verified():
     assert finding.confidence == 0.90
     assert finding.details["scam_flagged"] is False
     assert len(finding.details["risk_signals"]) == 0
-    assert any("No Upfront Fee" in ev.title for ev in finding.evidence)
+    assert finding.evidence == []
+    assert finding.details["local_scan_completed"] is True
 
 
 @pytest.mark.asyncio
@@ -139,7 +140,7 @@ async def test_search_failure_resilience():
 
 @pytest.mark.asyncio
 async def test_mock_search_source_propagation():
-    """Verify mock search results are converted to EvidenceItems and source is tracked."""
+    """Synthetic search evidence is excluded while local warning signals survive."""
     mock_search = MagicMock(spec=SerpApiClient)
     mock_search.search = AsyncMock(
         return_value={
@@ -165,8 +166,9 @@ async def test_mock_search_source_propagation():
 
     assert finding.verdict == "HIGH_RISK"
     assert finding.details["search_source"] == SearchSource.MOCK.value
-    # Search result added to evidence
-    assert any("Warning: Fraudulent" in ev.title for ev in finding.evidence)
+    # Synthetic provider results must not be cited as live evidence.
+    assert not any("Warning: Fraudulent" in ev.title for ev in finding.evidence)
+    assert all(ev.source_url == "document://submitted-offer" for ev in finding.evidence)
 
 
 @pytest.mark.asyncio
