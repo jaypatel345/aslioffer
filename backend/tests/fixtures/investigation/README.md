@@ -88,13 +88,13 @@ Each fixture is a readable JSON file structured as follows:
 | 4 | `CASE-LEGIT-POLICY-NEGATED-FEE-04` | Negated Fee Policy | Legitimate policy saying "We never charge a security deposit" | `NO_STRONG_RISK_SIGNALS` |
 | 5 | `CASE-QUOTED-SCAM-WARNING-05` | Quoted Scam Warning | Quoted anti-scam advisory containing fee keywords | `NO_STRONG_RISK_SIGNALS` |
 | 6 | `CASE-ORDINARY-TELEGRAM-06` | Ordinary Telegram | Informational Telegram channel mention without payment demands | `NEEDS_REVIEW` |
-| 7 | `CASE-EXPLICIT-UPFRONT-FEE-07` | Upfront Fee Demand | Explicit mandatory security deposit demanded via UPI | `HIGH_RISK` |
+| 7 | `CASE-EXPLICIT-UPFRONT-FEE-07` | Upfront Fee Demand | Explicit mandatory security deposit demanded via UPI | `NEEDS_REVIEW` |
 | 8 | `CASE-EXPLICIT-BANK-OTP-DEMAND-08` | Credential Theft | Explicit bank OTP or password demand for payroll activation | `HIGH_RISK` |
 | 9 | `CASE-PAYMENT-TO-UNLOCK-JOB-09` | Task Scam | Payment required to unlock earned task salary | `HIGH_RISK` |
 | 10 | `CASE-SMALL-EMPLOYER-SPARSE-10` | Sparse Employer | Early-stage small startup with sparse public presence | `CANNOT_VERIFY` |
 | 11 | `CASE-SUCCESSFUL-SEARCH-EMPTY-11` | Empty Search | Search executes successfully with 0 results | `CANNOT_VERIFY` |
 | 12 | `CASE-PROVIDER-OUTAGE-TIMEOUT-12` | Provider Outage | Upstream search returns HTTP 429 rate limit or timeout | `CANNOT_VERIFY` |
-| 13 | `CASE-REALISTIC-IMPERSONATION-13` | Impersonation | Plausible salary & copied corporate address with lookalike contact | `HIGH_RISK` / Unconfirmed |
+| 13 | `CASE-REALISTIC-IMPERSONATION-13` | Impersonation | Plausible salary & copied corporate address with lookalike contact | `NEEDS_REVIEW` / Unconfirmed |
 | 14 | `CASE-LEGIT-AGENCY-RECRUITMENT-14` | Staffing Agency | Legitimate third-party agency hiring on behalf of corporate client | `NEEDS_REVIEW` |
 | 15 | `CASE-CANDIDATE-AND-RECRUITER-EMAILS-15` | Role Separation | Message contains candidate (@gmail.com) and recruiter corporate email | `NO_STRONG_RISK_SIGNALS` |
 | 16 | `CASE-EXTRACTION-TRAP-PLATFORM-16` | Tooling Platform Trap | Message mentions Google Meet / Microsoft Teams for interview slot | `NO_STRONG_RISK_SIGNALS` |
@@ -119,3 +119,66 @@ python -m pytest backend/tests/investigation/ -v
 ```
 
 Known defects are tracked with `@pytest.mark.xfail(strict=True, reason="...")`. When running the test suite, expected failures will show as `XFAIL`. If a defect is unexpectedly fixed or altered without updating the test, it will result in `XPASS` and fail the suite.
+
+
+
+## Task 1 cleanup handoff (corpus v1.0.1)
+
+Application logic is unchanged. These tests establish intended behavior; expected
+failures are defects for later tasks, not completed fixes.
+
+- Case 1 has no independent canonical-domain evidence, so it leaves ownership
+  unresolved and requires review. It no longer invents a tcs.com resolution.
+- Case 13 models suspected impersonation, not proven fraud: domain mismatch
+  alone requires affiliation/agency review, consistent with Case 14.
+- Case 12 supplies separate 429, 401 and timeout response variants. These test
+  agent consumption of failure payloads; HTTP transport exceptions, retries and
+  client fallback behavior still need transport tests in Task 3.
+- Case 15 actually places the candidate contact before the recruiter contact.
+- Case 10 risk synthesis uses assessments supplied by the JSON fixture.
+- Fictional contacts and application/channel URLs use reserved domains. Public
+  employer references in search responses are explicit test inputs, not live
+  verification. All successful responses are labeled DEMO.
+- Helpers are in fixture_helpers.py rather than imported from conftest. The
+  investigation conftest resolves app imports from either invocation directory.
+- Strict xfail is limited to AssertionError; import/runtime failures remain errors.
+
+From repository root (with backend requirements installed):
+
+```bash
+python -m pytest backend/tests/investigation/ -q
+```
+
+From backend/:
+
+```bash
+python -m pytest tests/investigation/ -q
+```
+
+To inspect actual known-defect assertions while working on fixes:
+
+```bash
+python -m pytest tests/investigation/test_behavioral_regression.py --runxfail -q
+```
+
+Validation of this cleanup against application code at c928b7c: **11 passed,
+17 xfailed**, from both invocation directories. These are investigation-only
+results, not a full backend or live-provider certification. No live API calls
+are needed by these tests. Corpus validation also checks nested response shapes,
+allowed outcomes, exact manifest coverage, provider variant coverage, reserved
+contact domains and source support for expected resolved company domains.
+
+### Subsequent-task mapping
+
+| Task | Fixtures/checks to reuse |
+|---|---|
+| 3: search failures | 11 and 12; add client-level HTTP transport tests |
+| 4: employer domains | 1, 13, 14 and 16 |
+| 5: recruiter verification | 2, 3, 13 and 14 |
+| 6: contextual scam detection | 4 through 9 |
+| 7: extraction | 15 and 16; preserve source quotes |
+| 8: risk versus coverage | 10 through 12 |
+| 9: unsupported conclusions | Canonical-domain evidence validation; extend registry/salary checks |
+
+When a known defect is fixed, remove its xfail after verifying its intended
+assertions pass. Do not weaken expected outcomes merely to match existing bugs.

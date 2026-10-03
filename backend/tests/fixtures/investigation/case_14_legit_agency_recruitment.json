@@ -32,7 +32,7 @@
     "query_responses": {
       "\"Wipro Limited\" official website careers": {
         "status": "successful",
-        "source": "mock",
+        "source": "DEMO",
         "knowledge_graph": {
           "title": "Wipro Limited",
           "website": "https://www.wipro.example"
@@ -47,7 +47,7 @@
       },
       "\"Apex Staffing Solutions Pvt Ltd\" official website": {
         "status": "successful",
-        "source": "mock",
+        "source": "DEMO",
         "knowledge_graph": {
           "title": "Apex Staffing Solutions",
           "website": "https://www.apexstaffing.example"
@@ -63,7 +63,7 @@
     },
     "default_response": {
       "status": "successful",
-      "source": "mock",
+      "source": "DEMO",
       "organic_results": []
     }
   },

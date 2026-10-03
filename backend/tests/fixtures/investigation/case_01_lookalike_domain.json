@@ -31,7 +31,7 @@
     "query_responses": {
       "\"Tata Consultancy Services\" official website careers": {
         "status": "successful",
-        "source": "mock",
+        "source": "DEMO",
         "knowledge_graph": {},
         "organic_results": [
           {
@@ -44,18 +44,18 @@
     },
     "default_response": {
       "status": "successful",
-      "source": "mock",
+      "source": "DEMO",
       "organic_results": []
     }
   },
   "expected_observations": {
     "company_assessment": {
-      "official_domain_resolved": true,
-      "canonical_domain": "https://www.tcs.com",
+      "official_domain_resolved": false,
+      "canonical_domain": null,
       "lookalike_detected": true
     },
     "recruiter_assessment": {
-      "domain_match": false,
+      "domain_match": null,
       "email_domain": "tcs-careers-portal.example",
       "verdict": "NEEDS_REVIEW",
       "is_lookalike": true
@@ -65,9 +65,9 @@
       "otp_requested": false,
       "verdict": "VERIFIED"
     },
-    "overall_outcome": "HIGH_RISK",
+    "overall_outcome": "NEEDS_REVIEW",
     "authenticity_status": "UNCONFIRMED",
-    "risk_level": "HIGH_RISK"
+    "risk_level": "NEEDS_REVIEW"
   },
-  "rationale": "A brand name embedded in a third-party hostname (tcs-careers-portal.example) does not prove official ownership. Independent authoritative evidence resolves TCS to tcs.com."
+  "rationale": "Brand text in a hostname does not establish ownership. This fixture supplies only the claimed lookalike, so canonical ownership remains unresolved; review is required without asserting confirmed impersonation."
 }

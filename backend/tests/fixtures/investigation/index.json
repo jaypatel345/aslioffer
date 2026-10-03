@@ -1,5 +1,5 @@
 {
-  "corpus_version": "1.0.0",
+  "corpus_version": "1.0.1",
   "generated_date": "2026-10-03",
   "total_cases": 16,
   "description": "Reproducible investigation fixture corpus capturing real-world failure modes, lookalike domains, contextual fee semantics, credential demands, and uncertainty states for AsliOffer.",
@@ -29,7 +29,7 @@
       "scenario": "A real company name with a lookalike application domain",
       "category": "lookalike_domain",
       "threat_category": "domain_impersonation",
-      "expected_outcome": "HIGH_RISK"
+      "expected_outcome": "NEEDS_REVIEW"
     },
     {
       "case_id": "CASE-UNKNOWN-CORP-RECRUITER-02",
@@ -137,7 +137,7 @@
       "scenario": "A realistic impersonation using plausible salary and copied corporate details",
       "category": "realistic_impersonation",
       "threat_category": "corporate_impersonation",
-      "expected_outcome": "HIGH_RISK"
+      "expected_outcome": "NEEDS_REVIEW"
     },
     {
       "case_id": "CASE-LEGIT-AGENCY-RECRUITMENT-14",

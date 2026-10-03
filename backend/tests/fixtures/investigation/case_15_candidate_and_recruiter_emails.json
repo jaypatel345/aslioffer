@@ -2,7 +2,7 @@
   "case_id": "CASE-CANDIDATE-AND-RECRUITER-EMAILS-15",
   "category": "contact_role_separation",
   "title": "Message containing both candidate and recruiter email addresses",
-  "description": "Email header or text contains both candidate destination (sneha.student@gmail.com) and recruiter sender (talent.acquisition@tata-elxsi.example). System must separate semantic roles.",
+  "description": "Email header or text contains both candidate destination (sneha.student@example.com) and recruiter sender (talent.acquisition@tata-elxsi.example). System must separate semantic roles.",
   "synthetic": true,
   "unresolved_facts": [],
   "labels": {
@@ -11,11 +11,11 @@
     "expected_verdict": "VERIFIED",
     "required_case_index": 15
   },
-  "raw_text": "From: talent.acquisition@tata-elxsi.example\nTo: sneha.student@gmail.com\nDate: 03 Oct 2026 10:15 IST\nSubject: Offer of Employment - Embedded Systems Engineer\nDear Sneha, Tata Elxsi is pleased to offer you the role of Embedded Systems Engineer. CTC: INR 7.2 LPA.\nPlease confirm your acceptance by replying to this email.",
+  "raw_text": "To: sneha.student@example.com\nFrom: talent.acquisition@tata-elxsi.example\nDate: 03 Oct 2026 10:15 IST\nSubject: Offer of Employment - Embedded Systems Engineer\nDear Sneha, Tata Elxsi is pleased to offer you the role of Embedded Systems Engineer. CTC: INR 7.2 LPA.\nPlease confirm your acceptance by replying to this email.",
   "structured_input": {
     "company_name": "Tata Elxsi",
     "candidate_name": "Sneha",
-    "candidate_email": "sneha.student@gmail.com",
+    "candidate_email": "sneha.student@example.com",
     "recruiter_name": "Talent Acquisition",
     "recruiter_email": "talent.acquisition@tata-elxsi.example",
     "recruiter_phone": null,
@@ -31,7 +31,7 @@
     "query_responses": {
       "\"Tata Elxsi\" official website careers": {
         "status": "successful",
-        "source": "mock",
+        "source": "DEMO",
         "knowledge_graph": {
           "title": "Tata Elxsi",
           "website": "https://www.tata-elxsi.example"
@@ -47,13 +47,13 @@
     },
     "default_response": {
       "status": "successful",
-      "source": "mock",
+      "source": "DEMO",
       "organic_results": []
     }
   },
   "expected_observations": {
     "extraction_assessment": {
-      "candidate_email": "sneha.student@gmail.com",
+      "candidate_email": "sneha.student@example.com",
       "recruiter_email": "talent.acquisition@tata-elxsi.example",
       "recruiter_email_misattributed_to_candidate": false
     },

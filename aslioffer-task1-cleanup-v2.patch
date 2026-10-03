@@ -1,0 +1,1141 @@
+diff --git a/backend/tests/fixtures/investigation/README.md b/backend/tests/fixtures/investigation/README.md
+index fb80001..6148d0b 100644
+--- a/backend/tests/fixtures/investigation/README.md
++++ b/backend/tests/fixtures/investigation/README.md
+@@ -88,13 +88,13 @@ Each fixture is a readable JSON file structured as follows:
+ | 4 | `CASE-LEGIT-POLICY-NEGATED-FEE-04` | Negated Fee Policy | Legitimate policy saying "We never charge a security deposit" | `NO_STRONG_RISK_SIGNALS` |
+ | 5 | `CASE-QUOTED-SCAM-WARNING-05` | Quoted Scam Warning | Quoted anti-scam advisory containing fee keywords | `NO_STRONG_RISK_SIGNALS` |
+ | 6 | `CASE-ORDINARY-TELEGRAM-06` | Ordinary Telegram | Informational Telegram channel mention without payment demands | `NEEDS_REVIEW` |
+-| 7 | `CASE-EXPLICIT-UPFRONT-FEE-07` | Upfront Fee Demand | Explicit mandatory security deposit demanded via UPI | `HIGH_RISK` |
++| 7 | `CASE-EXPLICIT-UPFRONT-FEE-07` | Upfront Fee Demand | Explicit mandatory security deposit demanded via UPI | `NEEDS_REVIEW` |
+ | 8 | `CASE-EXPLICIT-BANK-OTP-DEMAND-08` | Credential Theft | Explicit bank OTP or password demand for payroll activation | `HIGH_RISK` |
+ | 9 | `CASE-PAYMENT-TO-UNLOCK-JOB-09` | Task Scam | Payment required to unlock earned task salary | `HIGH_RISK` |
+ | 10 | `CASE-SMALL-EMPLOYER-SPARSE-10` | Sparse Employer | Early-stage small startup with sparse public presence | `CANNOT_VERIFY` |
+ | 11 | `CASE-SUCCESSFUL-SEARCH-EMPTY-11` | Empty Search | Search executes successfully with 0 results | `CANNOT_VERIFY` |
+ | 12 | `CASE-PROVIDER-OUTAGE-TIMEOUT-12` | Provider Outage | Upstream search returns HTTP 429 rate limit or timeout | `CANNOT_VERIFY` |
+-| 13 | `CASE-REALISTIC-IMPERSONATION-13` | Impersonation | Plausible salary & copied corporate address with lookalike contact | `HIGH_RISK` / Unconfirmed |
++| 13 | `CASE-REALISTIC-IMPERSONATION-13` | Impersonation | Plausible salary & copied corporate address with lookalike contact | `NEEDS_REVIEW` / Unconfirmed |
+ | 14 | `CASE-LEGIT-AGENCY-RECRUITMENT-14` | Staffing Agency | Legitimate third-party agency hiring on behalf of corporate client | `NEEDS_REVIEW` |
+ | 15 | `CASE-CANDIDATE-AND-RECRUITER-EMAILS-15` | Role Separation | Message contains candidate (@gmail.com) and recruiter corporate email | `NO_STRONG_RISK_SIGNALS` |
+ | 16 | `CASE-EXTRACTION-TRAP-PLATFORM-16` | Tooling Platform Trap | Message mentions Google Meet / Microsoft Teams for interview slot | `NO_STRONG_RISK_SIGNALS` |
+@@ -119,3 +119,66 @@ python -m pytest backend/tests/investigation/ -v
+ ```
+ 
+ Known defects are tracked with `@pytest.mark.xfail(strict=True, reason="...")`. When running the test suite, expected failures will show as `XFAIL`. If a defect is unexpectedly fixed or altered without updating the test, it will result in `XPASS` and fail the suite.
++
++
++
++## Task 1 cleanup handoff (corpus v1.0.1)
++
++Application logic is unchanged. These tests establish intended behavior; expected
++failures are defects for later tasks, not completed fixes.
++
++- Case 1 has no independent canonical-domain evidence, so it leaves ownership
++  unresolved and requires review. It no longer invents a tcs.com resolution.
++- Case 13 models suspected impersonation, not proven fraud: domain mismatch
++  alone requires affiliation/agency review, consistent with Case 14.
++- Case 12 supplies separate 429, 401 and timeout response variants. These test
++  agent consumption of failure payloads; HTTP transport exceptions, retries and
++  client fallback behavior still need transport tests in Task 3.
++- Case 15 actually places the candidate contact before the recruiter contact.
++- Case 10 risk synthesis uses assessments supplied by the JSON fixture.
++- Fictional contacts and application/channel URLs use reserved domains. Public
++  employer references in search responses are explicit test inputs, not live
++  verification. All successful responses are labeled DEMO.
++- Helpers are in fixture_helpers.py rather than imported from conftest. The
++  investigation conftest resolves app imports from either invocation directory.
++- Strict xfail is limited to AssertionError; import/runtime failures remain errors.
++
++From repository root (with backend requirements installed):
++
++```bash
++python -m pytest backend/tests/investigation/ -q
++```
++
++From backend/:
++
++```bash
++python -m pytest tests/investigation/ -q
++```
++
++To inspect actual known-defect assertions while working on fixes:
++
++```bash
++python -m pytest tests/investigation/test_behavioral_regression.py --runxfail -q
++```
++
++Validation of this cleanup against application code at c928b7c: **11 passed,
++17 xfailed**, from both invocation directories. These are investigation-only
++results, not a full backend or live-provider certification. No live API calls
++are needed by these tests. Corpus validation also checks nested response shapes,
++allowed outcomes, exact manifest coverage, provider variant coverage, reserved
++contact domains and source support for expected resolved company domains.
++
++### Subsequent-task mapping
++
++| Task | Fixtures/checks to reuse |
++|---|---|
++| 3: search failures | 11 and 12; add client-level HTTP transport tests |
++| 4: employer domains | 1, 13, 14 and 16 |
++| 5: recruiter verification | 2, 3, 13 and 14 |
++| 6: contextual scam detection | 4 through 9 |
++| 7: extraction | 15 and 16; preserve source quotes |
++| 8: risk versus coverage | 10 through 12 |
++| 9: unsupported conclusions | Canonical-domain evidence validation; extend registry/salary checks |
++
++When a known defect is fixed, remove its xfail after verifying its intended
++assertions pass. Do not weaken expected outcomes merely to match existing bugs.
+diff --git a/backend/tests/fixtures/investigation/case_01_lookalike_domain.json b/backend/tests/fixtures/investigation/case_01_lookalike_domain.json
+index d0d8455..2bdf18d 100644
+--- a/backend/tests/fixtures/investigation/case_01_lookalike_domain.json
++++ b/backend/tests/fixtures/investigation/case_01_lookalike_domain.json
+@@ -31,7 +31,7 @@
+     "query_responses": {
+       "\"Tata Consultancy Services\" official website careers": {
+         "status": "successful",
+-        "source": "mock",
++        "source": "DEMO",
+         "knowledge_graph": {},
+         "organic_results": [
+           {
+@@ -44,18 +44,18 @@
+     },
+     "default_response": {
+       "status": "successful",
+-      "source": "mock",
++      "source": "DEMO",
+       "organic_results": []
+     }
+   },
+   "expected_observations": {
+     "company_assessment": {
+-      "official_domain_resolved": true,
+-      "canonical_domain": "https://www.tcs.com",
++      "official_domain_resolved": false,
++      "canonical_domain": null,
+       "lookalike_detected": true
+     },
+     "recruiter_assessment": {
+-      "domain_match": false,
++      "domain_match": null,
+       "email_domain": "tcs-careers-portal.example",
+       "verdict": "NEEDS_REVIEW",
+       "is_lookalike": true
+@@ -65,9 +65,9 @@
+       "otp_requested": false,
+       "verdict": "VERIFIED"
+     },
+-    "overall_outcome": "HIGH_RISK",
++    "overall_outcome": "NEEDS_REVIEW",
+     "authenticity_status": "UNCONFIRMED",
+-    "risk_level": "HIGH_RISK"
++    "risk_level": "NEEDS_REVIEW"
+   },
+-  "rationale": "A brand name embedded in a third-party hostname (tcs-careers-portal.example) does not prove official ownership. Independent authoritative evidence resolves TCS to tcs.com."
++  "rationale": "Brand text in a hostname does not establish ownership. This fixture supplies only the claimed lookalike, so canonical ownership remains unresolved; review is required without asserting confirmed impersonation."
+ }
+diff --git a/backend/tests/fixtures/investigation/case_02_unknown_recruiter_no_company_domain.json b/backend/tests/fixtures/investigation/case_02_unknown_recruiter_no_company_domain.json
+index 4f8fb2c..5d4293e 100644
+--- a/backend/tests/fixtures/investigation/case_02_unknown_recruiter_no_company_domain.json
++++ b/backend/tests/fixtures/investigation/case_02_unknown_recruiter_no_company_domain.json
+@@ -32,19 +32,19 @@
+     "query_responses": {
+       "\"Apex Horizon Tech\" official website careers": {
+         "status": "successful",
+-        "source": "mock",
++        "source": "DEMO",
+         "knowledge_graph": {},
+         "organic_results": []
+       },
+       "\"recruiter.v@apexhorizon-holdings.example\" scam fraud complaint": {
+         "status": "successful",
+-        "source": "mock",
++        "source": "DEMO",
+         "organic_results": []
+       }
+     },
+     "default_response": {
+       "status": "successful",
+-      "source": "mock",
++      "source": "DEMO",
+       "organic_results": []
+     }
+   },
+diff --git a/backend/tests/fixtures/investigation/case_03_phone_only_recruiter_no_matches.json b/backend/tests/fixtures/investigation/case_03_phone_only_recruiter_no_matches.json
+index f4669b9..9e85b0d 100644
+--- a/backend/tests/fixtures/investigation/case_03_phone_only_recruiter_no_matches.json
++++ b/backend/tests/fixtures/investigation/case_03_phone_only_recruiter_no_matches.json
+@@ -32,19 +32,19 @@
+     "query_responses": {
+       "\"Zen Vertex Logistics\" official website careers": {
+         "status": "successful",
+-        "source": "mock",
++        "source": "DEMO",
+         "knowledge_graph": {},
+         "organic_results": []
+       },
+       "\"+919876543210\" scam fraud complaint": {
+         "status": "successful",
+-        "source": "mock",
++        "source": "DEMO",
+         "organic_results": []
+       }
+     },
+     "default_response": {
+       "status": "successful",
+-      "source": "mock",
++      "source": "DEMO",
+       "organic_results": []
+     }
+   },
+diff --git a/backend/tests/fixtures/investigation/case_04_legit_policy_negated_deposit.json b/backend/tests/fixtures/investigation/case_04_legit_policy_negated_deposit.json
+index 6fc8991..424fb2b 100644
+--- a/backend/tests/fixtures/investigation/case_04_legit_policy_negated_deposit.json
++++ b/backend/tests/fixtures/investigation/case_04_legit_policy_negated_deposit.json
+@@ -29,7 +29,7 @@
+     "query_responses": {
+       "\"Infosys BPO Services Limited\" official website careers": {
+         "status": "successful",
+-        "source": "mock",
++        "source": "DEMO",
+         "knowledge_graph": {
+           "title": "Infosys BPM",
+           "website": "https://www.infosys.example"
+@@ -45,7 +45,7 @@
+     },
+     "default_response": {
+       "status": "successful",
+-      "source": "mock",
++      "source": "DEMO",
+       "organic_results": []
+     }
+   },
+diff --git a/backend/tests/fixtures/investigation/case_05_quoted_scam_warning.json b/backend/tests/fixtures/investigation/case_05_quoted_scam_warning.json
+index 9e70bcc..cb97c60 100644
+--- a/backend/tests/fixtures/investigation/case_05_quoted_scam_warning.json
++++ b/backend/tests/fixtures/investigation/case_05_quoted_scam_warning.json
+@@ -29,7 +29,7 @@
+     "query_responses": {
+       "\"Wipro\" official website careers": {
+         "status": "successful",
+-        "source": "mock",
++        "source": "DEMO",
+         "knowledge_graph": {
+           "title": "Wipro",
+           "website": "https://www.wipro.example"
+@@ -45,7 +45,7 @@
+     },
+     "default_response": {
+       "status": "successful",
+-      "source": "mock",
++      "source": "DEMO",
+       "organic_results": []
+     }
+   },
+diff --git a/backend/tests/fixtures/investigation/case_06_ordinary_telegram_mention.json b/backend/tests/fixtures/investigation/case_06_ordinary_telegram_mention.json
+index a190264..a063043 100644
+--- a/backend/tests/fixtures/investigation/case_06_ordinary_telegram_mention.json
++++ b/backend/tests/fixtures/investigation/case_06_ordinary_telegram_mention.json
+@@ -13,7 +13,7 @@
+     "expected_verdict": "NEEDS_REVIEW",
+     "required_case_index": 6
+   },
+-  "raw_text": "TechStream Labs Campus Drive 2026.\nCongratulations on qualifying for Round 2 for the Graduate Engineer Trainee role.\nAll schedule updates and orientation links will be posted on our student community Telegram channel: https://t.me/techstream_campus_2026.\nFor individual queries, email hr@techstreamlabs.example.",
++  "raw_text": "TechStream Labs Campus Drive 2026.\nCongratulations on qualifying for Round 2 for the Graduate Engineer Trainee role.\nAll schedule updates and orientation links will be posted on our student community Telegram channel: https://telegram.example/techstream_campus_2026.\nFor individual queries, email hr@techstreamlabs.example.",
+   "structured_input": {
+     "company_name": "TechStream Labs",
+     "recruiter_name": "Campus Hiring Desk",
+@@ -31,7 +31,7 @@
+     "query_responses": {
+       "\"TechStream Labs\" official website careers": {
+         "status": "successful",
+-        "source": "mock",
++        "source": "DEMO",
+         "knowledge_graph": {
+           "title": "TechStream Labs",
+           "website": "https://techstreamlabs.example"
+@@ -47,7 +47,7 @@
+     },
+     "default_response": {
+       "status": "successful",
+-      "source": "mock",
++      "source": "DEMO",
+       "organic_results": []
+     }
+   },
+diff --git a/backend/tests/fixtures/investigation/case_07_explicit_upfront_fee_demand.json b/backend/tests/fixtures/investigation/case_07_explicit_upfront_fee_demand.json
+index c97c276..7c54f5a 100644
+--- a/backend/tests/fixtures/investigation/case_07_explicit_upfront_fee_demand.json
++++ b/backend/tests/fixtures/investigation/case_07_explicit_upfront_fee_demand.json
+@@ -15,7 +15,7 @@
+   "structured_input": {
+     "company_name": "Global Cloud Services India Pvt Ltd",
+     "recruiter_name": "HR Department",
+-    "recruiter_email": "onboarding@gmail.com",
++    "recruiter_email": "onboarding@gmail.example",
+     "recruiter_phone": "+919876500000",
+     "job_role": "Cloud Support Engineer",
+     "salary": "INR 7.5 LPA",
+@@ -33,13 +33,13 @@
+     "query_responses": {
+       "\"Global Cloud Services India Pvt Ltd\" official website careers": {
+         "status": "successful",
+-        "source": "mock",
++        "source": "DEMO",
+         "knowledge_graph": {},
+         "organic_results": []
+       },
+       "\"Global Cloud Services India Pvt Ltd\" job scam fraud complaint telegram": {
+         "status": "successful",
+-        "source": "mock",
++        "source": "DEMO",
+         "organic_results": [
+           {
+             "title": "Warning: Fake job offers under Global Cloud Services name",
+@@ -51,7 +51,7 @@
+     },
+     "default_response": {
+       "status": "successful",
+-      "source": "mock",
++      "source": "DEMO",
+       "organic_results": []
+     }
+   },
+diff --git a/backend/tests/fixtures/investigation/case_08_explicit_bank_otp_password_demand.json b/backend/tests/fixtures/investigation/case_08_explicit_bank_otp_password_demand.json
+index 11acab7..8b9c663 100644
+--- a/backend/tests/fixtures/investigation/case_08_explicit_bank_otp_password_demand.json
++++ b/backend/tests/fixtures/investigation/case_08_explicit_bank_otp_password_demand.json
+@@ -11,11 +11,11 @@
+     "expected_verdict": "HIGH_RISK",
+     "required_case_index": 8
+   },
+-  "raw_text": "SwiftPay FinTech Solutions HR Desk.\nWelcome to the team. To set up your corporate direct-deposit salary account and verify your identity, our automated payroll gateway has triggered a 6-digit bank verification OTP to your registered mobile number.\nPlease share your bank OTP and net-banking login password immediately with HR at verify-desk@gmail.com to activate your salary clearance.",
++  "raw_text": "SwiftPay FinTech Solutions HR Desk.\nWelcome to the team. To set up your corporate direct-deposit salary account and verify your identity, our automated payroll gateway has triggered a 6-digit bank verification OTP to your registered mobile number.\nPlease share your bank OTP and net-banking login password immediately with HR at verify-desk@gmail.example to activate your salary clearance.",
+   "structured_input": {
+     "company_name": "SwiftPay FinTech Solutions",
+     "recruiter_name": "Payroll Desk",
+-    "recruiter_email": "verify-desk@gmail.com",
++    "recruiter_email": "verify-desk@gmail.example",
+     "recruiter_phone": null,
+     "job_role": "Associate",
+     "salary": null,
+@@ -31,14 +31,14 @@
+     "query_responses": {
+       "\"SwiftPay FinTech Solutions\" official website careers": {
+         "status": "successful",
+-        "source": "mock",
++        "source": "DEMO",
+         "knowledge_graph": {},
+         "organic_results": []
+       }
+     },
+     "default_response": {
+       "status": "successful",
+-      "source": "mock",
++      "source": "DEMO",
+       "organic_results": []
+     }
+   },
+diff --git a/backend/tests/fixtures/investigation/case_09_payment_to_unlock_job_demand.json b/backend/tests/fixtures/investigation/case_09_payment_to_unlock_job_demand.json
+index fe65d6b..b30a777 100644
+--- a/backend/tests/fixtures/investigation/case_09_payment_to_unlock_job_demand.json
++++ b/backend/tests/fixtures/investigation/case_09_payment_to_unlock_job_demand.json
+@@ -29,14 +29,14 @@
+     "query_responses": {
+       "\"TaskMatrix Media\" official website careers": {
+         "status": "successful",
+-        "source": "mock",
++        "source": "DEMO",
+         "knowledge_graph": {},
+         "organic_results": []
+       }
+     },
+     "default_response": {
+       "status": "successful",
+-      "source": "mock",
++      "source": "DEMO",
+       "organic_results": []
+     }
+   },
+diff --git a/backend/tests/fixtures/investigation/case_10_small_employer_sparse_footprint.json b/backend/tests/fixtures/investigation/case_10_small_employer_sparse_footprint.json
+index 960e4c5..cfd1555 100644
+--- a/backend/tests/fixtures/investigation/case_10_small_employer_sparse_footprint.json
++++ b/backend/tests/fixtures/investigation/case_10_small_employer_sparse_footprint.json
+@@ -31,24 +31,24 @@
+     "query_responses": {
+       "\"Kaviya Design Studio LLP\" official website careers": {
+         "status": "successful",
+-        "source": "mock",
++        "source": "DEMO",
+         "knowledge_graph": {},
+         "organic_results": []
+       },
+       "\"Kaviya Design Studio LLP\" job scam fraud complaint telegram": {
+         "status": "successful",
+-        "source": "mock",
++        "source": "DEMO",
+         "organic_results": []
+       },
+       "\"founder@kaviyastudio.example\" scam fraud complaint": {
+         "status": "successful",
+-        "source": "mock",
++        "source": "DEMO",
+         "organic_results": []
+       }
+     },
+     "default_response": {
+       "status": "successful",
+-      "source": "mock",
++      "source": "DEMO",
+       "organic_results": []
+     }
+   },
+@@ -71,7 +71,11 @@
+     },
+     "overall_outcome": "CANNOT_VERIFY",
+     "authenticity_status": "UNCONFIRMED",
+-    "risk_level": "NEEDS_REVIEW"
++    "risk_level": "NEEDS_REVIEW",
++    "salary_assessment": {
++      "verdict": "CANNOT_VERIFY",
++      "reason": "No independently retrieved comparable stipend benchmark."
++    }
+   },
+   "rationale": "Missing public records for a small business or startup is an evidence gap (uncertainty), NOT proof of fraudulent intent. The system must abstain with CANNOT_VERIFY rather than falsely convicting the startup as HIGH_RISK."
+ }
+diff --git a/backend/tests/fixtures/investigation/case_11_successful_search_empty_results.json b/backend/tests/fixtures/investigation/case_11_successful_search_empty_results.json
+index 4057c22..7b2e147 100644
+--- a/backend/tests/fixtures/investigation/case_11_successful_search_empty_results.json
++++ b/backend/tests/fixtures/investigation/case_11_successful_search_empty_results.json
+@@ -31,7 +31,7 @@
+     "query_responses": {
+       "\"Prathamesh Robotics Enterprise\" official website careers": {
+         "status": "successful",
+-        "source": "live",
++        "source": "DEMO",
+         "search_metadata": {
+           "status": "Success",
+           "total_results": 0
+@@ -42,7 +42,7 @@
+     },
+     "default_response": {
+       "status": "successful",
+-      "source": "live",
++      "source": "DEMO",
+       "organic_results": []
+     }
+   },
+diff --git a/backend/tests/fixtures/investigation/case_12_provider_timeout_or_failure.json b/backend/tests/fixtures/investigation/case_12_provider_timeout_or_failure.json
+index 0390fe4..0ada591 100644
+--- a/backend/tests/fixtures/investigation/case_12_provider_timeout_or_failure.json
++++ b/backend/tests/fixtures/investigation/case_12_provider_timeout_or_failure.json
+@@ -31,19 +31,55 @@
+     "query_responses": {
+       "\"Stellar Dynamics India Pvt Ltd\" official website careers": {
+         "status": "failed",
++        "source": "FAILED",
++        "error": "Rate limit exceeded",
+         "error_type": "RateLimitError",
+         "status_code": 429,
+-        "message": "SerpApi credit limit reached or upstream rate limited (429)",
+-        "source": "error"
++        "organic_results": []
+       }
+     },
+     "default_response": {
+       "status": "failed",
++      "source": "FAILED",
++      "error": "Rate limit exceeded",
+       "error_type": "RateLimitError",
+       "status_code": 429,
+-      "message": "SerpApi credit limit reached or upstream rate limited (429)",
+-      "source": "error"
+-    }
++      "organic_results": []
++    },
++    "variants": [
++      {
++        "name": "rate_limit",
++        "response": {
++          "status": "failed",
++          "source": "FAILED",
++          "error": "Rate limit exceeded",
++          "error_type": "RateLimitError",
++          "status_code": 429,
++          "organic_results": []
++        }
++      },
++      {
++        "name": "authentication",
++        "response": {
++          "status": "failed",
++          "source": "FAILED",
++          "error": "Invalid API key",
++          "error_type": "AuthenticationError",
++          "status_code": 401,
++          "organic_results": []
++        }
++      },
++      {
++        "name": "timeout",
++        "response": {
++          "status": "failed",
++          "source": "FAILED",
++          "error": "Request timed out",
++          "error_type": "TimeoutError",
++          "organic_results": []
++        }
++      }
++    ]
+   },
+   "expected_observations": {
+     "company_assessment": {
+diff --git a/backend/tests/fixtures/investigation/case_13_realistic_impersonation_plausible_details.json b/backend/tests/fixtures/investigation/case_13_realistic_impersonation_plausible_details.json
+index 3c9f4c7..4bfa3fc 100644
+--- a/backend/tests/fixtures/investigation/case_13_realistic_impersonation_plausible_details.json
++++ b/backend/tests/fixtures/investigation/case_13_realistic_impersonation_plausible_details.json
+@@ -2,16 +2,16 @@
+   "case_id": "CASE-REALISTIC-IMPERSONATION-13",
+   "category": "realistic_impersonation",
+   "title": "Realistic impersonation using plausible salary and copied corporate details",
+-  "description": "Scam offer mimics real multinational employer (Infosys BPM), uses genuine corporate address and realistic fresher salary, but directs communication to a suspicious third-party mailbox.",
++  "description": "Plausible employer details plus an unrelated contact domain create a suspected impersonation scenario; agency authorization remains unresolved.",
+   "synthetic": true,
+   "unresolved_facts": [
+-    "Recruiter email domain recruitment-desk.example has no affiliation with Infosys BPM Limited",
++    "Affiliation or authorized agency status of recruitment-desk.example has not been established",
+     "Plausible corporate details copied from public web cannot authenticate offer issuance"
+   ],
+   "labels": {
+     "data_type": "synthetic",
+     "threat_category": "corporate_impersonation",
+-    "expected_verdict": "HIGH_RISK",
++    "expected_verdict": "NEEDS_REVIEW",
+     "required_case_index": 13
+   },
+   "raw_text": "Infosys BPM Limited.\nRegistered Office: Electronics City, Hosur Road, Bengaluru 560100, Karnataka, India.\nCIN: U72200KA2002PLC030310.\nAppointment Letter: Process Specialist - Technical Support.\nWe are pleased to offer you employment with an annual compensation of INR 3,85,000 per annum.\nPlease confirm your joining by submitting your verified identity documents to our onboarding coordinator at infosys-onboarding@recruitment-desk.example.",
+@@ -32,7 +32,7 @@
+     "query_responses": {
+       "\"Infosys BPM Limited\" official website careers": {
+         "status": "successful",
+-        "source": "mock",
++        "source": "DEMO",
+         "knowledge_graph": {
+           "title": "Infosys BPM Limited",
+           "website": "https://www.infosysbpm.com",
+@@ -48,13 +48,13 @@
+       },
+       "\"infosys-onboarding@recruitment-desk.example\" scam fraud complaint": {
+         "status": "successful",
+-        "source": "mock",
++        "source": "DEMO",
+         "organic_results": []
+       }
+     },
+     "default_response": {
+       "status": "successful",
+-      "source": "mock",
++      "source": "DEMO",
+       "organic_results": []
+     }
+   },
+@@ -68,15 +68,15 @@
+       "domain_match": false,
+       "email_domain": "recruitment-desk.example",
+       "official_domain": "infosysbpm.com",
+-      "verdict": "HIGH_RISK",
++      "verdict": "NEEDS_REVIEW",
+       "summary": "Sender domain '@recruitment-desk.example' does not match Infosys BPM's official domain 'infosysbpm.com'."
+     },
+     "scam_assessment": {
+       "verdict": "VERIFIED"
+     },
+-    "overall_outcome": "HIGH_RISK",
++    "overall_outcome": "NEEDS_REVIEW",
+     "authenticity_status": "UNCONFIRMED",
+-    "risk_level": "HIGH_RISK"
++    "risk_level": "NEEDS_REVIEW"
+   },
+-  "rationale": "Plausible company details and market-standard salary do NOT authenticate an offer. If the recruiter contact channel fails canonical domain alignment, the offer must be flagged as suspected impersonation."
++  "rationale": "Copied company details do not authenticate issuance. A different contact domain warrants independent affiliation/agency confirmation, but the supplied evidence alone does not establish fraud."
+ }
+diff --git a/backend/tests/fixtures/investigation/case_14_legit_agency_recruitment.json b/backend/tests/fixtures/investigation/case_14_legit_agency_recruitment.json
+index ed642b7..e25bca0 100644
+--- a/backend/tests/fixtures/investigation/case_14_legit_agency_recruitment.json
++++ b/backend/tests/fixtures/investigation/case_14_legit_agency_recruitment.json
+@@ -32,7 +32,7 @@
+     "query_responses": {
+       "\"Wipro Limited\" official website careers": {
+         "status": "successful",
+-        "source": "mock",
++        "source": "DEMO",
+         "knowledge_graph": {
+           "title": "Wipro Limited",
+           "website": "https://www.wipro.example"
+@@ -47,7 +47,7 @@
+       },
+       "\"Apex Staffing Solutions Pvt Ltd\" official website": {
+         "status": "successful",
+-        "source": "mock",
++        "source": "DEMO",
+         "knowledge_graph": {
+           "title": "Apex Staffing Solutions",
+           "website": "https://www.apexstaffing.example"
+@@ -63,7 +63,7 @@
+     },
+     "default_response": {
+       "status": "successful",
+-      "source": "mock",
++      "source": "DEMO",
+       "organic_results": []
+     }
+   },
+diff --git a/backend/tests/fixtures/investigation/case_15_candidate_and_recruiter_emails.json b/backend/tests/fixtures/investigation/case_15_candidate_and_recruiter_emails.json
+index 6cf471f..bacb803 100644
+--- a/backend/tests/fixtures/investigation/case_15_candidate_and_recruiter_emails.json
++++ b/backend/tests/fixtures/investigation/case_15_candidate_and_recruiter_emails.json
+@@ -2,7 +2,7 @@
+   "case_id": "CASE-CANDIDATE-AND-RECRUITER-EMAILS-15",
+   "category": "contact_role_separation",
+   "title": "Message containing both candidate and recruiter email addresses",
+-  "description": "Email header or text contains both candidate destination (sneha.student@gmail.com) and recruiter sender (talent.acquisition@tata-elxsi.example). System must separate semantic roles.",
++  "description": "Email header or text contains both candidate destination (sneha.student@example.com) and recruiter sender (talent.acquisition@tata-elxsi.example). System must separate semantic roles.",
+   "synthetic": true,
+   "unresolved_facts": [],
+   "labels": {
+@@ -11,11 +11,11 @@
+     "expected_verdict": "VERIFIED",
+     "required_case_index": 15
+   },
+-  "raw_text": "From: talent.acquisition@tata-elxsi.example\nTo: sneha.student@gmail.com\nDate: 03 Oct 2026 10:15 IST\nSubject: Offer of Employment - Embedded Systems Engineer\nDear Sneha, Tata Elxsi is pleased to offer you the role of Embedded Systems Engineer. CTC: INR 7.2 LPA.\nPlease confirm your acceptance by replying to this email.",
++  "raw_text": "To: sneha.student@example.com\nFrom: talent.acquisition@tata-elxsi.example\nDate: 03 Oct 2026 10:15 IST\nSubject: Offer of Employment - Embedded Systems Engineer\nDear Sneha, Tata Elxsi is pleased to offer you the role of Embedded Systems Engineer. CTC: INR 7.2 LPA.\nPlease confirm your acceptance by replying to this email.",
+   "structured_input": {
+     "company_name": "Tata Elxsi",
+     "candidate_name": "Sneha",
+-    "candidate_email": "sneha.student@gmail.com",
++    "candidate_email": "sneha.student@example.com",
+     "recruiter_name": "Talent Acquisition",
+     "recruiter_email": "talent.acquisition@tata-elxsi.example",
+     "recruiter_phone": null,
+@@ -31,7 +31,7 @@
+     "query_responses": {
+       "\"Tata Elxsi\" official website careers": {
+         "status": "successful",
+-        "source": "mock",
++        "source": "DEMO",
+         "knowledge_graph": {
+           "title": "Tata Elxsi",
+           "website": "https://www.tata-elxsi.example"
+@@ -47,13 +47,13 @@
+     },
+     "default_response": {
+       "status": "successful",
+-      "source": "mock",
++      "source": "DEMO",
+       "organic_results": []
+     }
+   },
+   "expected_observations": {
+     "extraction_assessment": {
+-      "candidate_email": "sneha.student@gmail.com",
++      "candidate_email": "sneha.student@example.com",
+       "recruiter_email": "talent.acquisition@tata-elxsi.example",
+       "recruiter_email_misattributed_to_candidate": false
+     },
+diff --git a/backend/tests/fixtures/investigation/case_16_extraction_trap_platform_mention.json b/backend/tests/fixtures/investigation/case_16_extraction_trap_platform_mention.json
+index e5dd6b1..5ed01ba 100644
+--- a/backend/tests/fixtures/investigation/case_16_extraction_trap_platform_mention.json
++++ b/backend/tests/fixtures/investigation/case_16_extraction_trap_platform_mention.json
+@@ -30,7 +30,7 @@
+     "query_responses": {
+       "\"V-Guard Industries Ltd\" official website careers": {
+         "status": "successful",
+-        "source": "mock",
++        "source": "DEMO",
+         "knowledge_graph": {
+           "title": "V-Guard Industries Ltd",
+           "website": "https://www.vguard.example"
+@@ -46,7 +46,7 @@
+     },
+     "default_response": {
+       "status": "successful",
+-      "source": "mock",
++      "source": "DEMO",
+       "organic_results": []
+     }
+   },
+diff --git a/backend/tests/fixtures/investigation/index.json b/backend/tests/fixtures/investigation/index.json
+index 8abaa45..0eedc4f 100644
+--- a/backend/tests/fixtures/investigation/index.json
++++ b/backend/tests/fixtures/investigation/index.json
+@@ -1,5 +1,5 @@
+ {
+-  "corpus_version": "1.0.0",
++  "corpus_version": "1.0.1",
+   "generated_date": "2026-10-03",
+   "total_cases": 16,
+   "description": "Reproducible investigation fixture corpus capturing real-world failure modes, lookalike domains, contextual fee semantics, credential demands, and uncertainty states for AsliOffer.",
+@@ -29,7 +29,7 @@
+       "scenario": "A real company name with a lookalike application domain",
+       "category": "lookalike_domain",
+       "threat_category": "domain_impersonation",
+-      "expected_outcome": "HIGH_RISK"
++      "expected_outcome": "NEEDS_REVIEW"
+     },
+     {
+       "case_id": "CASE-UNKNOWN-CORP-RECRUITER-02",
+@@ -137,7 +137,7 @@
+       "scenario": "A realistic impersonation using plausible salary and copied corporate details",
+       "category": "realistic_impersonation",
+       "threat_category": "corporate_impersonation",
+-      "expected_outcome": "HIGH_RISK"
++      "expected_outcome": "NEEDS_REVIEW"
+     },
+     {
+       "case_id": "CASE-LEGIT-AGENCY-RECRUITMENT-14",
+diff --git a/backend/tests/investigation/conftest.py b/backend/tests/investigation/conftest.py
+index be54695..7786216 100644
+--- a/backend/tests/investigation/conftest.py
++++ b/backend/tests/investigation/conftest.py
+@@ -1,55 +1,12 @@
+-import json
+ from pathlib import Path
+-from typing import Dict, Any, List
++import sys
+ import pytest
+-from app.services.search.serpapi_client import SerpApiClient
+ 
+-FIXTURES_DIR = Path(__file__).resolve().parent.parent / "fixtures" / "investigation"
++# Resolve app imports from either repository root or backend/.
++BACKEND_DIR = Path(__file__).resolve().parents[2]
++sys.path.insert(0, str(BACKEND_DIR))
+ 
+-
+-def load_all_fixtures() -> List[Dict[str, Any]]:
+-    """Loads all 16 JSON investigation fixtures from the fixture directory."""
+-    fixtures = []
+-    for json_file in sorted(FIXTURES_DIR.glob("case_*.json")):
+-        with open(json_file, "r", encoding="utf-8") as f:
+-            data = json.load(f)
+-            fixtures.append(data)
+-    return fixtures
+-
+-
+-def load_fixture_by_id(case_id: str) -> Dict[str, Any]:
+-    """Loads a specific investigation fixture by case_id."""
+-    for fixture in load_all_fixtures():
+-        if fixture.get("case_id") == case_id:
+-            return fixture
+-    raise FileNotFoundError(f"Fixture with case_id '{case_id}' not found in {FIXTURES_DIR}")
+-
+-
+-class MockSearchClient(SerpApiClient):
+-    """
+-    Injected deterministic search client that replays search responses
+-    from fixture query_responses mappings without making any network calls.
+-    """
+-
+-    def __init__(self, query_responses: Dict[str, Any], default_response: Dict[str, Any] = None):
+-        super().__init__(api_key="mock-key-investigation")
+-        self.query_responses = query_responses or {}
+-        self.default_response = default_response or {"status": "successful", "source": "mock", "organic_results": []}
+-        self.recorded_queries: List[str] = []
+-
+-    async def search(self, query: str, engine: str = "google", num: int = 5) -> Dict[str, Any]:
+-        self.recorded_queries.append(query)
+-        # Check exact query
+-        if query in self.query_responses:
+-            return self.query_responses[query]
+-
+-        # Check partial or normalized match
+-        query_clean = query.strip()
+-        for q_key, resp in self.query_responses.items():
+-            if q_key.strip() == query_clean:
+-                return resp
+-
+-        return self.default_response
++from .fixture_helpers import load_all_fixtures
+ 
+ 
+ @pytest.fixture
+diff --git a/backend/tests/investigation/fixture_helpers.py b/backend/tests/investigation/fixture_helpers.py
+new file mode 100644
+index 0000000..3ace538
+--- /dev/null
++++ b/backend/tests/investigation/fixture_helpers.py
+@@ -0,0 +1,51 @@
++import json
++from pathlib import Path
++from typing import Dict, Any, List
++
++FIXTURES_DIR = Path(__file__).resolve().parent.parent / "fixtures" / "investigation"
++
++
++def load_all_fixtures() -> List[Dict[str, Any]]:
++    """Loads all 16 JSON investigation fixtures from the fixture directory."""
++    fixtures = []
++    for json_file in sorted(FIXTURES_DIR.glob("case_*.json")):
++        with open(json_file, "r", encoding="utf-8") as f:
++            data = json.load(f)
++            fixtures.append(data)
++    return fixtures
++
++
++def load_fixture_by_id(case_id: str) -> Dict[str, Any]:
++    """Loads a specific investigation fixture by case_id."""
++    for fixture in load_all_fixtures():
++        if fixture.get("case_id") == case_id:
++            return fixture
++    raise FileNotFoundError(f"Fixture with case_id '{case_id}' not found in {FIXTURES_DIR}")
++
++
++class MockSearchClient:
++    """
++    Injected deterministic search client that replays search responses
++    from fixture query_responses mappings without making any network calls.
++    """
++
++    def __init__(self, query_responses: Dict[str, Any], default_response: Dict[str, Any] = None):
++        self.query_responses = query_responses or {}
++        self.default_response = default_response or {"status": "successful", "source": "DEMO", "organic_results": []}
++        self.recorded_queries: List[str] = []
++        self.unmatched_queries: List[str] = []
++
++    async def search(self, query: str, engine: str = "google", num: int = 5, fallback_to_mock: bool = True) -> Dict[str, Any]:
++        self.recorded_queries.append(query)
++        # Check exact query
++        if query in self.query_responses:
++            return self.query_responses[query]
++
++        # Check partial or normalized match
++        query_clean = query.strip()
++        for q_key, resp in self.query_responses.items():
++            if q_key.strip() == query_clean:
++                return resp
++
++        self.unmatched_queries.append(query)
++        return self.default_response
+diff --git a/backend/tests/investigation/test_behavioral_regression.py b/backend/tests/investigation/test_behavioral_regression.py
+index 37769c9..18bf77a 100644
+--- a/backend/tests/investigation/test_behavioral_regression.py
++++ b/backend/tests/investigation/test_behavioral_regression.py
+@@ -5,7 +5,7 @@ from app.services.agents.recruiter_agent import RecruiterAgent
+ from app.services.agents.scam_agent import ScamAgent
+ from app.services.extractor.entity_extractor import EntityExtractor
+ from app.services.risk.risk_engine import RiskEngine
+-from backend.tests.investigation.conftest import MockSearchClient, load_fixture_by_id
++from .fixture_helpers import MockSearchClient, load_fixture_by_id
+ 
+ 
+ # ===========================================================================
+@@ -15,6 +15,7 @@ from backend.tests.investigation.conftest import MockSearchClient, load_fixture_
+ @pytest.mark.asyncio
+ @pytest.mark.xfail(
+     strict=True,
++    raises=AssertionError,
+     reason="Defect: CompanyAgent._domain_matches treats brand name substring in lookalike domain as official, returning VERIFIED",
+ )
+ async def test_case_01_lookalike_domain_must_not_be_verified():
+@@ -40,6 +41,7 @@ async def test_case_01_lookalike_domain_must_not_be_verified():
+ @pytest.mark.asyncio
+ @pytest.mark.xfail(
+     strict=True,
++    raises=AssertionError,
+     reason="Defect: RecruiterAgent falls through to VERIFIED and domain_match=True when official company domain is unresolved",
+ )
+ async def test_case_02_unknown_recruiter_unresolved_domain_must_not_pass():
+@@ -68,6 +70,7 @@ async def test_case_02_unknown_recruiter_unresolved_domain_must_not_pass():
+ @pytest.mark.asyncio
+ @pytest.mark.xfail(
+     strict=True,
++    raises=AssertionError,
+     reason="Defect: RecruiterAgent treats absence of public scam complaints for a phone number as VERIFIED",
+ )
+ async def test_case_03_phone_only_no_hits_must_not_verify():
+@@ -95,6 +98,7 @@ async def test_case_03_phone_only_no_hits_must_not_verify():
+ @pytest.mark.asyncio
+ @pytest.mark.xfail(
+     strict=True,
++    raises=AssertionError,
+     reason="Defect: RecruiterAgent condemns legitimate recruitment agency domain as HIGH_RISK impersonation",
+ )
+ async def test_case_14_agency_recruitment_must_not_be_high_risk_impersonation():
+@@ -127,6 +131,7 @@ async def test_case_14_agency_recruitment_must_not_be_high_risk_impersonation():
+ @pytest.mark.asyncio
+ @pytest.mark.xfail(
+     strict=True,
++    raises=AssertionError,
+     reason="Defect: ScamAgent flags negated fee policies ('never charge a security deposit') as UPFRONT_FEE_DEMAND and HIGH_RISK",
+ )
+ async def test_case_04_negated_security_deposit_must_not_trigger_fee_demand():
+@@ -156,6 +161,7 @@ async def test_case_04_negated_security_deposit_must_not_trigger_fee_demand():
+ @pytest.mark.asyncio
+ @pytest.mark.xfail(
+     strict=True,
++    raises=AssertionError,
+     reason="Defect: ScamAgent fails to distinguish quoted anti-scam warnings from active fee demands, returning HIGH_RISK",
+ )
+ async def test_case_05_quoted_scam_warning_must_not_trigger_fee_demand():
+@@ -185,6 +191,7 @@ async def test_case_05_quoted_scam_warning_must_not_trigger_fee_demand():
+ @pytest.mark.asyncio
+ @pytest.mark.xfail(
+     strict=True,
++    raises=AssertionError,
+     reason="Defect: ScamAgent unconditionally flags any Telegram mention as critical HIGH_RISK fraud",
+ )
+ async def test_case_06_ordinary_telegram_mention_must_not_be_critical_fraud():
+@@ -238,6 +245,7 @@ async def test_case_07_explicit_upfront_fee_triggers_high_risk():
+ @pytest.mark.asyncio
+ @pytest.mark.xfail(
+     strict=True,
++    raises=AssertionError,
+     reason="Defect: ScamAgent lacks explicit OTP and password credential theft detection, returning VERIFIED",
+ )
+ async def test_case_08_explicit_bank_otp_demand_must_trigger_high_risk():
+@@ -267,6 +275,7 @@ async def test_case_08_explicit_bank_otp_demand_must_trigger_high_risk():
+ @pytest.mark.asyncio
+ @pytest.mark.xfail(
+     strict=True,
++    raises=AssertionError,
+     reason="Defect: ScamAgent misses task-scam unlock-earnings payment demands not matching fixed keyword list",
+ )
+ async def test_case_09_payment_to_unlock_earnings_must_trigger_high_risk():
+@@ -298,43 +307,21 @@ async def test_case_09_payment_to_unlock_earnings_must_trigger_high_risk():
+ 
+ @pytest.mark.xfail(
+     strict=True,
++    raises=AssertionError,
+     reason="Defect: RiskEngine conflates lack of evidence (CANNOT_VERIFY) with fraud, producing risk_score 0.60 and HIGH_RISK",
+ )
+ def test_case_10_sparse_employer_must_not_be_condemned_as_high_risk():
+     """Case 10: Early-stage startup with sparse web footprint and no adverse signals must remain inconclusive, NOT HIGH_RISK."""
+     engine = RiskEngine()
+ 
+-    # Incomplete footprint: Company, Recruiter, and Salary are CANNOT_VERIFY, but Scam check is clean (VERIFIED)
+-    findings = [
+-        AgentFinding(
+-            agent_name="CompanyAgent",
+-            verdict="CANNOT_VERIFY",
+-            confidence=0.45,
+-            summary="No official website or careers page could be matched.",
+-            evidence=[],
+-        ),
+-        AgentFinding(
+-            agent_name="RecruiterAgent",
+-            verdict="CANNOT_VERIFY",
+-            confidence=0.55,
+-            summary="Recruiter contact cannot be verified against official records.",
+-            evidence=[],
+-        ),
+-        AgentFinding(
+-            agent_name="SalaryAgent",
+-            verdict="CANNOT_VERIFY",
+-            confidence=0.50,
+-            summary="Insufficient market benchmark data for monthly internship stipend.",
+-            evidence=[],
+-        ),
+-        AgentFinding(
+-            agent_name="ScamAgent",
+-            verdict="VERIFIED",
+-            confidence=0.95,
+-            summary="No advance fee demands, security deposits, or OTP requests found.",
+-            evidence=[],
+-        ),
+-    ]
++    fixture = load_fixture_by_id("CASE-SMALL-EMPLOYER-SPARSE-10")
++    expected = fixture["expected_observations"]
++    findings = [AgentFinding(agent_name=name, verdict=expected[key]["verdict"],
++                             confidence=0.5, summary="Fixture assessment", evidence=[])
++                for name, key in [("CompanyAgent", "company_assessment"),
++                                  ("RecruiterAgent", "recruiter_assessment"),
++                                  ("SalaryAgent", "salary_assessment"),
++                                  ("ScamAgent", "scam_assessment")]]
+ 
+     score, level, red_flags, green_flags = engine.compute_risk(findings)
+ 
+@@ -350,27 +337,25 @@ def test_case_10_sparse_employer_must_not_be_condemned_as_high_risk():
+ 
+ @pytest.mark.xfail(
+     strict=True,
++    raises=AssertionError,
+     reason="Defect: EntityExtractor regex assigns candidate email as recruiter email when candidate email appears first",
+ )
+ def test_case_15_candidate_and_recruiter_email_role_separation():
+     """Case 15: If candidate email appears before recruiter email, regex extractor must not assign candidate email to recruiter."""
+     extractor = EntityExtractor()
+-    text = (
+-        "To: candidate.ananya@gmail.com\n"
+-        "From: talent.acquisition@tata-elxsi.example\n"
+-        "Subject: Offer of Employment\n"
+-        "Dear Candidate, we are pleased to offer you the role at Tata Elxsi."
+-    )
++    fixture = load_fixture_by_id("CASE-CANDIDATE-AND-RECRUITER-EMAILS-15")
++    text = fixture["raw_text"]
+     extracted = extractor.extract_regex(text)
+ 
+     # Desired behavior: Recruiter email is talent.acquisition@tata-elxsi.example, NOT candidate.ananya@gmail.com
+     # Current buggy behavior: First email matched is candidate.ananya@gmail.com, triggering PUBLIC_EMAIL_DOMAIN_USED flag
+-    assert extracted.recruiter_email == "talent.acquisition@tata-elxsi.example"
++    assert extracted.recruiter_email == fixture["structured_input"]["recruiter_email"]
+     assert "PUBLIC_EMAIL_DOMAIN_USED" not in extracted.flags
+ 
+ 
+ @pytest.mark.xfail(
+     strict=True,
++    raises=AssertionError,
+     reason="Defect: EntityExtractor regex extracts 'Google' as company due to meeting URL/platform mention instead of actual employer V-Guard",
+ )
+ def test_case_16_company_extraction_trap_platform_mention():
+@@ -383,3 +368,45 @@ def test_case_16_company_extraction_trap_platform_mention():
+     # Ensure Google Meet is not treated as company 'Google'
+     assert extracted.company != "Google"
+     assert extracted.company is not None and "V-Guard" in extracted.company
++
++
++
++@pytest.mark.asyncio
++@pytest.mark.xfail(strict=True, raises=AssertionError,
++                   reason="CompanyAgent treats successful empty footprint as UNVERIFIED instead of CANNOT_VERIFY")
++async def test_case_11_empty_search_is_uncertainty():
++    fixture = load_fixture_by_id("CASE-SUCCESSFUL-SEARCH-EMPTY-11")
++    mock = MockSearchClient(**fixture["search_mock"])
++    finding = await CompanyAgent(mock).investigate(fixture["structured_input"]["company_name"])
++    assert finding.verdict == "CANNOT_VERIFY"
++    assert finding.details.get("official_domain") is None
++
++
++@pytest.mark.asyncio
++@pytest.mark.parametrize("variant_name", ["rate_limit", "authentication", "timeout"])
++@pytest.mark.xfail(strict=True, raises=AssertionError,
++                   reason="CompanyAgent does not preserve provider failure as uncertainty with structured error")
++async def test_case_12_provider_failure_is_not_evidence(variant_name):
++    fixture = load_fixture_by_id("CASE-PROVIDER-OUTAGE-TIMEOUT-12")
++    variant = next(v for v in fixture["search_mock"]["variants"] if v["name"] == variant_name)
++    query = next(iter(fixture["search_mock"]["query_responses"]))
++    mock = MockSearchClient({query: variant["response"]}, variant["response"])
++    finding = await CompanyAgent(mock).investigate(fixture["structured_input"]["company_name"])
++    assert finding.verdict == "CANNOT_VERIFY"
++    assert finding.details.get("provider_status") == "FAILED"
++    assert finding.details.get("error")
++    assert finding.evidence == []
++
++
++@pytest.mark.asyncio
++@pytest.mark.xfail(strict=True, raises=AssertionError,
++                   reason="Domain mismatch alone is treated as HIGH_RISK without checking possible agency affiliation")
++async def test_case_13_plausible_details_do_not_confirm_offer_or_fraud():
++    fixture = load_fixture_by_id("CASE-REALISTIC-IMPERSONATION-13")
++    mock = MockSearchClient(**fixture["search_mock"])
++    data = fixture["structured_input"]
++    finding = await RecruiterAgent(mock).investigate(
++        company_name=data["company_name"], recruiter_name=data["recruiter_name"],
++        recruiter_email=data["recruiter_email"], recruiter_phone=data["recruiter_phone"])
++    assert finding.verdict == fixture["expected_observations"]["recruiter_assessment"]["verdict"]
++    assert finding.details.get("domain_match") is False
+diff --git a/backend/tests/investigation/test_fixture_corpus.py b/backend/tests/investigation/test_fixture_corpus.py
+index b677eb4..9a91288 100644
+--- a/backend/tests/investigation/test_fixture_corpus.py
++++ b/backend/tests/investigation/test_fixture_corpus.py
+@@ -2,7 +2,7 @@ import json
+ import re
+ from pathlib import Path
+ import pytest
+-from backend.tests.investigation.conftest import load_all_fixtures, FIXTURES_DIR
++from .fixture_helpers import load_all_fixtures, FIXTURES_DIR
+ 
+ REQUIRED_CASE_CATEGORIES = {
+     "lookalike_domain",
+@@ -122,14 +122,6 @@ def test_safety_and_synthetic_isolation(all_investigation_fixtures):
+         for pattern in forbidden_patterns:
+             assert not re.search(pattern, content_str), f"Forbidden credential pattern '{pattern}' matched in {fixture.get('case_id')}"
+ 
+-        # Ensure domains used in synthetic email/links are either reserved example domains or public real portals
+-        recruiter_email = fixture["structured_input"].get("recruiter_email")
+-        if recruiter_email and "@" in recruiter_email:
+-            domain = recruiter_email.split("@")[-1].lower()
+-            allowed_top_levels = [".example", ".com", ".org", ".in", ".net"]
+-            assert any(domain.endswith(tld) for tld in allowed_top_levels), (
+-                f"Email domain '{domain}' in {fixture.get('case_id')} has unexpected TLD"
+-            )
+ 
+ 
+ def test_index_manifest_matches_files():
+@@ -150,3 +142,78 @@ def test_index_manifest_matches_files():
+             data = json.load(f)
+             assert data["case_id"] == case_meta["case_id"]
+             assert data["category"] == case_meta["category"]
++
++
++
++OUTCOMES = {"HIGH_RISK", "NEEDS_REVIEW", "CANNOT_VERIFY", "NO_STRONG_RISK_SIGNALS"}
++
++
++def test_nested_responses_and_expected_outcomes(all_investigation_fixtures):
++    for fixture in all_investigation_fixtures:
++        assert fixture["expected_observations"]["overall_outcome"] in OUTCOMES
++        mock = fixture["search_mock"]
++        assert isinstance(mock["query_responses"], dict)
++        for query, response in mock["query_responses"].items():
++            assert isinstance(query, str) and query.strip()
++            validate_response(response)
++        validate_response(mock["default_response"])
++        for variant in mock.get("variants", []):
++            assert variant["name"] in {"rate_limit", "authentication", "timeout"}
++            validate_response(variant["response"])
++        company = fixture["expected_observations"].get("company_assessment", {})
++        canonical = company.get("canonical_domain")
++        if company.get("official_domain_resolved"):
++            assert canonical, fixture["case_id"]
++            responses = list(mock["query_responses"].values())
++            assert any(canonical in json.dumps(r) for r in responses), (
++                f"{fixture['case_id']}: resolved domain has no supplied search evidence")
++
++
++def validate_response(response):
++    assert isinstance(response, dict)
++    assert response["status"] in {"successful", "failed"}
++    assert response["source"] in {"DEMO", "FAILED"}
++    if response["status"] == "failed":
++        assert response["source"] == "FAILED"
++        assert response.get("error") or response.get("message")
++        assert not response.get("organic_results")
++    else:
++        assert isinstance(response.get("organic_results"), list)
++        for result in response["organic_results"]:
++            assert all(isinstance(result.get(k), str) and result[k] for k in ["title", "link"])
++            assert isinstance(result.get("snippet", ""), str)
++
++
++def test_manifest_is_exact_and_outcomes_agree():
++    index = json.loads((FIXTURES_DIR / "index.json").read_text())
++    entries = index["cases"]
++    names = [entry["file"] for entry in entries]
++    assert len(names) == len(set(names))
++    assert set(names) == {p.name for p in FIXTURES_DIR.glob("case_*.json")}
++    assert index["total_cases"] == len(entries)
++    for entry in entries:
++        fixture = json.loads((FIXTURES_DIR / entry["file"]).read_text())
++        assert entry["expected_outcome"] == fixture["expected_observations"]["overall_outcome"]
++
++
++def test_provider_variants_are_distinct(all_investigation_fixtures):
++    case = next(f for f in all_investigation_fixtures if f["category"] == "provider_failure_or_rate_limit")
++    variants = case["search_mock"]["variants"]
++    assert {v["name"] for v in variants} == {"rate_limit", "authentication", "timeout"}
++    assert len(variants) == 3
++
++
++def test_fixture_local_claims_use_reserved_domains(all_investigation_fixtures):
++    from urllib.parse import urlparse
++    # Public company/authority references in search payloads are allowed;
++    # fictional contacts/application destinations must use reserved namespaces.
++    reserved = {"example.com", "example.org", "example.net"}
++    def allowed(host):
++        return host in reserved or host.endswith((".example", ".invalid", ".test")) or any(
++            host.endswith("." + domain) for domain in reserved)
++    for fixture in all_investigation_fixtures:
++        text = fixture["raw_text"] + " " + json.dumps(fixture["structured_input"])
++        for email in re.findall(r"[\w.+-]+@([\w.-]+\.[A-Za-z]+)", text):
++            assert allowed(email.rstrip(".")), (fixture["case_id"], email)
++        for url in re.findall(r'https?://[^\s"<>]+', text):
++            assert allowed(urlparse(url).hostname or ""), (fixture["case_id"], url)

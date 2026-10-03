@@ -32,19 +32,19 @@
     "query_responses": {
       "\"Apex Horizon Tech\" official website careers": {
         "status": "successful",
-        "source": "mock",
+        "source": "DEMO",
         "knowledge_graph": {},
         "organic_results": []
       },
       "\"recruiter.v@apexhorizon-holdings.example\" scam fraud complaint": {
         "status": "successful",
-        "source": "mock",
+        "source": "DEMO",
         "organic_results": []
       }
     },
     "default_response": {
       "status": "successful",
-      "source": "mock",
+      "source": "DEMO",
       "organic_results": []
     }
   },

@@ -29,7 +29,7 @@
     "query_responses": {
       "\"Infosys BPO Services Limited\" official website careers": {
         "status": "successful",
-        "source": "mock",
+        "source": "DEMO",
         "knowledge_graph": {
           "title": "Infosys BPM",
           "website": "https://www.infosys.example"
@@ -45,7 +45,7 @@
     },
     "default_response": {
       "status": "successful",
-      "source": "mock",
+      "source": "DEMO",
       "organic_results": []
     }
   },

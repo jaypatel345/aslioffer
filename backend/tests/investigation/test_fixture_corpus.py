@@ -2,7 +2,7 @@ import json
 import re
 from pathlib import Path
 import pytest
-from backend.tests.investigation.conftest import load_all_fixtures, FIXTURES_DIR
+from .fixture_helpers import load_all_fixtures, FIXTURES_DIR
 
 REQUIRED_CASE_CATEGORIES = {
     "lookalike_domain",
@@ -122,14 +122,6 @@ def test_safety_and_synthetic_isolation(all_investigation_fixtures):
         for pattern in forbidden_patterns:
             assert not re.search(pattern, content_str), f"Forbidden credential pattern '{pattern}' matched in {fixture.get('case_id')}"
 
-        # Ensure domains used in synthetic email/links are either reserved example domains or public real portals
-        recruiter_email = fixture["structured_input"].get("recruiter_email")
-        if recruiter_email and "@" in recruiter_email:
-            domain = recruiter_email.split("@")[-1].lower()
-            allowed_top_levels = [".example", ".com", ".org", ".in", ".net"]
-            assert any(domain.endswith(tld) for tld in allowed_top_levels), (
-                f"Email domain '{domain}' in {fixture.get('case_id')} has unexpected TLD"
-            )
 
 
 def test_index_manifest_matches_files():
@@ -150,3 +142,78 @@ def test_index_manifest_matches_files():
             data = json.load(f)
             assert data["case_id"] == case_meta["case_id"]
             assert data["category"] == case_meta["category"]
+
+
+
+OUTCOMES = {"HIGH_RISK", "NEEDS_REVIEW", "CANNOT_VERIFY", "NO_STRONG_RISK_SIGNALS"}
+
+
+def test_nested_responses_and_expected_outcomes(all_investigation_fixtures):
+    for fixture in all_investigation_fixtures:
+        assert fixture["expected_observations"]["overall_outcome"] in OUTCOMES
+        mock = fixture["search_mock"]
+        assert isinstance(mock["query_responses"], dict)
+        for query, response in mock["query_responses"].items():
+            assert isinstance(query, str) and query.strip()
+            validate_response(response)
+        validate_response(mock["default_response"])
+        for variant in mock.get("variants", []):
+            assert variant["name"] in {"rate_limit", "authentication", "timeout"}
+            validate_response(variant["response"])
+        company = fixture["expected_observations"].get("company_assessment", {})
+        canonical = company.get("canonical_domain")
+        if company.get("official_domain_resolved"):
+            assert canonical, fixture["case_id"]
+            responses = list(mock["query_responses"].values())
+            assert any(canonical in json.dumps(r) for r in responses), (
+                f"{fixture['case_id']}: resolved domain has no supplied search evidence")
+
+
+def validate_response(response):
+    assert isinstance(response, dict)
+    assert response["status"] in {"successful", "failed"}
+    assert response["source"] in {"DEMO", "FAILED"}
+    if response["status"] == "failed":
+        assert response["source"] == "FAILED"
+        assert response.get("error") or response.get("message")
+        assert not response.get("organic_results")
+    else:
+        assert isinstance(response.get("organic_results"), list)
+        for result in response["organic_results"]:
+            assert all(isinstance(result.get(k), str) and result[k] for k in ["title", "link"])
+            assert isinstance(result.get("snippet", ""), str)
+
+
+def test_manifest_is_exact_and_outcomes_agree():
+    index = json.loads((FIXTURES_DIR / "index.json").read_text())
+    entries = index["cases"]
+    names = [entry["file"] for entry in entries]
+    assert len(names) == len(set(names))
+    assert set(names) == {p.name for p in FIXTURES_DIR.glob("case_*.json")}
+    assert index["total_cases"] == len(entries)
+    for entry in entries:
+        fixture = json.loads((FIXTURES_DIR / entry["file"]).read_text())
+        assert entry["expected_outcome"] == fixture["expected_observations"]["overall_outcome"]
+
+
+def test_provider_variants_are_distinct(all_investigation_fixtures):
+    case = next(f for f in all_investigation_fixtures if f["category"] == "provider_failure_or_rate_limit")
+    variants = case["search_mock"]["variants"]
+    assert {v["name"] for v in variants} == {"rate_limit", "authentication", "timeout"}
+    assert len(variants) == 3
+
+
+def test_fixture_local_claims_use_reserved_domains(all_investigation_fixtures):
+    from urllib.parse import urlparse
+    # Public company/authority references in search payloads are allowed;
+    # fictional contacts/application destinations must use reserved namespaces.
+    reserved = {"example.com", "example.org", "example.net"}
+    def allowed(host):
+        return host in reserved or host.endswith((".example", ".invalid", ".test")) or any(
+            host.endswith("." + domain) for domain in reserved)
+    for fixture in all_investigation_fixtures:
+        text = fixture["raw_text"] + " " + json.dumps(fixture["structured_input"])
+        for email in re.findall(r"[\w.+-]+@([\w.-]+\.[A-Za-z]+)", text):
+            assert allowed(email.rstrip(".")), (fixture["case_id"], email)
+        for url in re.findall(r'https?://[^\s"<>]+', text):
+            assert allowed(urlparse(url).hostname or ""), (fixture["case_id"], url)

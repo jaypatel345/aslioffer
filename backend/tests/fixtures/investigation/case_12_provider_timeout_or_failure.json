@@ -31,19 +31,55 @@
     "query_responses": {
       "\"Stellar Dynamics India Pvt Ltd\" official website careers": {
         "status": "failed",
+        "source": "FAILED",
+        "error": "Rate limit exceeded",
         "error_type": "RateLimitError",
         "status_code": 429,
-        "message": "SerpApi credit limit reached or upstream rate limited (429)",
-        "source": "error"
+        "organic_results": []
       }
     },
     "default_response": {
       "status": "failed",
+      "source": "FAILED",
+      "error": "Rate limit exceeded",
       "error_type": "RateLimitError",
       "status_code": 429,
-      "message": "SerpApi credit limit reached or upstream rate limited (429)",
-      "source": "error"
-    }
+      "organic_results": []
+    },
+    "variants": [
+      {
+        "name": "rate_limit",
+        "response": {
+          "status": "failed",
+          "source": "FAILED",
+          "error": "Rate limit exceeded",
+          "error_type": "RateLimitError",
+          "status_code": 429,
+          "organic_results": []
+        }
+      },
+      {
+        "name": "authentication",
+        "response": {
+          "status": "failed",
+          "source": "FAILED",
+          "error": "Invalid API key",
+          "error_type": "AuthenticationError",
+          "status_code": 401,
+          "organic_results": []
+        }
+      },
+      {
+        "name": "timeout",
+        "response": {
+          "status": "failed",
+          "source": "FAILED",
+          "error": "Request timed out",
+          "error_type": "TimeoutError",
+          "organic_results": []
+        }
+      }
+    ]
   },
   "expected_observations": {
     "company_assessment": {

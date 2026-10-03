@@ -15,7 +15,7 @@
   "structured_input": {
     "company_name": "Global Cloud Services India Pvt Ltd",
     "recruiter_name": "HR Department",
-    "recruiter_email": "onboarding@gmail.com",
+    "recruiter_email": "onboarding@gmail.example",
     "recruiter_phone": "+919876500000",
     "job_role": "Cloud Support Engineer",
     "salary": "INR 7.5 LPA",
@@ -33,13 +33,13 @@
     "query_responses": {
       "\"Global Cloud Services India Pvt Ltd\" official website careers": {
         "status": "successful",
-        "source": "mock",
+        "source": "DEMO",
         "knowledge_graph": {},
         "organic_results": []
       },
       "\"Global Cloud Services India Pvt Ltd\" job scam fraud complaint telegram": {
         "status": "successful",
-        "source": "mock",
+        "source": "DEMO",
         "organic_results": [
           {
             "title": "Warning: Fake job offers under Global Cloud Services name",
@@ -51,7 +51,7 @@
     },
     "default_response": {
       "status": "successful",
-      "source": "mock",
+      "source": "DEMO",
       "organic_results": []
     }
   },

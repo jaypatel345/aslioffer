@@ -13,7 +13,7 @@
     "expected_verdict": "NEEDS_REVIEW",
     "required_case_index": 6
   },
-  "raw_text": "TechStream Labs Campus Drive 2026.\nCongratulations on qualifying for Round 2 for the Graduate Engineer Trainee role.\nAll schedule updates and orientation links will be posted on our student community Telegram channel: https://t.me/techstream_campus_2026.\nFor individual queries, email hr@techstreamlabs.example.",
+  "raw_text": "TechStream Labs Campus Drive 2026.\nCongratulations on qualifying for Round 2 for the Graduate Engineer Trainee role.\nAll schedule updates and orientation links will be posted on our student community Telegram channel: https://telegram.example/techstream_campus_2026.\nFor individual queries, email hr@techstreamlabs.example.",
   "structured_input": {
     "company_name": "TechStream Labs",
     "recruiter_name": "Campus Hiring Desk",
@@ -31,7 +31,7 @@
     "query_responses": {
       "\"TechStream Labs\" official website careers": {
         "status": "successful",
-        "source": "mock",
+        "source": "DEMO",
         "knowledge_graph": {
           "title": "TechStream Labs",
           "website": "https://techstreamlabs.example"
@@ -47,7 +47,7 @@
     },
     "default_response": {
       "status": "successful",
-      "source": "mock",
+      "source": "DEMO",
       "organic_results": []
     }
   },

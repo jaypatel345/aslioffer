@@ -5,7 +5,7 @@ from app.services.agents.recruiter_agent import RecruiterAgent
 from app.services.agents.scam_agent import ScamAgent
 from app.services.extractor.entity_extractor import EntityExtractor
 from app.services.risk.risk_engine import RiskEngine
-from backend.tests.investigation.conftest import MockSearchClient, load_fixture_by_id
+from .fixture_helpers import MockSearchClient, load_fixture_by_id
 
 
 # ===========================================================================
@@ -15,6 +15,7 @@ from backend.tests.investigation.conftest import MockSearchClient, load_fixture_
 @pytest.mark.asyncio
 @pytest.mark.xfail(
     strict=True,
+    raises=AssertionError,
     reason="Defect: CompanyAgent._domain_matches treats brand name substring in lookalike domain as official, returning VERIFIED",
 )
 async def test_case_01_lookalike_domain_must_not_be_verified():
@@ -40,6 +41,7 @@ async def test_case_01_lookalike_domain_must_not_be_verified():
 @pytest.mark.asyncio
 @pytest.mark.xfail(
     strict=True,
+    raises=AssertionError,
     reason="Defect: RecruiterAgent falls through to VERIFIED and domain_match=True when official company domain is unresolved",
 )
 async def test_case_02_unknown_recruiter_unresolved_domain_must_not_pass():
@@ -68,6 +70,7 @@ async def test_case_02_unknown_recruiter_unresolved_domain_must_not_pass():
 @pytest.mark.asyncio
 @pytest.mark.xfail(
     strict=True,
+    raises=AssertionError,
     reason="Defect: RecruiterAgent treats absence of public scam complaints for a phone number as VERIFIED",
 )
 async def test_case_03_phone_only_no_hits_must_not_verify():
@@ -95,6 +98,7 @@ async def test_case_03_phone_only_no_hits_must_not_verify():
 @pytest.mark.asyncio
 @pytest.mark.xfail(
     strict=True,
+    raises=AssertionError,
     reason="Defect: RecruiterAgent condemns legitimate recruitment agency domain as HIGH_RISK impersonation",
 )
 async def test_case_14_agency_recruitment_must_not_be_high_risk_impersonation():
@@ -127,6 +131,7 @@ async def test_case_14_agency_recruitment_must_not_be_high_risk_impersonation():
 @pytest.mark.asyncio
 @pytest.mark.xfail(
     strict=True,
+    raises=AssertionError,
     reason="Defect: ScamAgent flags negated fee policies ('never charge a security deposit') as UPFRONT_FEE_DEMAND and HIGH_RISK",
 )
 async def test_case_04_negated_security_deposit_must_not_trigger_fee_demand():
@@ -156,6 +161,7 @@ async def test_case_04_negated_security_deposit_must_not_trigger_fee_demand():
 @pytest.mark.asyncio
 @pytest.mark.xfail(
     strict=True,
+    raises=AssertionError,
     reason="Defect: ScamAgent fails to distinguish quoted anti-scam warnings from active fee demands, returning HIGH_RISK",
 )
 async def test_case_05_quoted_scam_warning_must_not_trigger_fee_demand():
@@ -185,6 +191,7 @@ async def test_case_05_quoted_scam_warning_must_not_trigger_fee_demand():
 @pytest.mark.asyncio
 @pytest.mark.xfail(
     strict=True,
+    raises=AssertionError,
     reason="Defect: ScamAgent unconditionally flags any Telegram mention as critical HIGH_RISK fraud",
 )
 async def test_case_06_ordinary_telegram_mention_must_not_be_critical_fraud():
@@ -238,6 +245,7 @@ async def test_case_07_explicit_upfront_fee_triggers_high_risk():
 @pytest.mark.asyncio
 @pytest.mark.xfail(
     strict=True,
+    raises=AssertionError,
     reason="Defect: ScamAgent lacks explicit OTP and password credential theft detection, returning VERIFIED",
 )
 async def test_case_08_explicit_bank_otp_demand_must_trigger_high_risk():
@@ -267,6 +275,7 @@ async def test_case_08_explicit_bank_otp_demand_must_trigger_high_risk():
 @pytest.mark.asyncio
 @pytest.mark.xfail(
     strict=True,
+    raises=AssertionError,
     reason="Defect: ScamAgent misses task-scam unlock-earnings payment demands not matching fixed keyword list",
 )
 async def test_case_09_payment_to_unlock_earnings_must_trigger_high_risk():
@@ -298,43 +307,21 @@ async def test_case_09_payment_to_unlock_earnings_must_trigger_high_risk():
 
 @pytest.mark.xfail(
     strict=True,
+    raises=AssertionError,
     reason="Defect: RiskEngine conflates lack of evidence (CANNOT_VERIFY) with fraud, producing risk_score 0.60 and HIGH_RISK",
 )
 def test_case_10_sparse_employer_must_not_be_condemned_as_high_risk():
     """Case 10: Early-stage startup with sparse web footprint and no adverse signals must remain inconclusive, NOT HIGH_RISK."""
     engine = RiskEngine()
 
-    # Incomplete footprint: Company, Recruiter, and Salary are CANNOT_VERIFY, but Scam check is clean (VERIFIED)
-    findings = [
-        AgentFinding(
-            agent_name="CompanyAgent",
-            verdict="CANNOT_VERIFY",
-            confidence=0.45,
-            summary="No official website or careers page could be matched.",
-            evidence=[],
-        ),
-        AgentFinding(
-            agent_name="RecruiterAgent",
-            verdict="CANNOT_VERIFY",
-            confidence=0.55,
-            summary="Recruiter contact cannot be verified against official records.",
-            evidence=[],
-        ),
-        AgentFinding(
-            agent_name="SalaryAgent",
-            verdict="CANNOT_VERIFY",
-            confidence=0.50,
-            summary="Insufficient market benchmark data for monthly internship stipend.",
-            evidence=[],
-        ),
-        AgentFinding(
-            agent_name="ScamAgent",
-            verdict="VERIFIED",
-            confidence=0.95,
-            summary="No advance fee demands, security deposits, or OTP requests found.",
-            evidence=[],
-        ),
-    ]
+    fixture = load_fixture_by_id("CASE-SMALL-EMPLOYER-SPARSE-10")
+    expected = fixture["expected_observations"]
+    findings = [AgentFinding(agent_name=name, verdict=expected[key]["verdict"],
+                             confidence=0.5, summary="Fixture assessment", evidence=[])
+                for name, key in [("CompanyAgent", "company_assessment"),
+                                  ("RecruiterAgent", "recruiter_assessment"),
+                                  ("SalaryAgent", "salary_assessment"),
+                                  ("ScamAgent", "scam_assessment")]]
 
     score, level, red_flags, green_flags = engine.compute_risk(findings)
 
@@ -350,27 +337,25 @@ def test_case_10_sparse_employer_must_not_be_condemned_as_high_risk():
 
 @pytest.mark.xfail(
     strict=True,
+    raises=AssertionError,
     reason="Defect: EntityExtractor regex assigns candidate email as recruiter email when candidate email appears first",
 )
 def test_case_15_candidate_and_recruiter_email_role_separation():
     """Case 15: If candidate email appears before recruiter email, regex extractor must not assign candidate email to recruiter."""
     extractor = EntityExtractor()
-    text = (
-        "To: candidate.ananya@gmail.com\n"
-        "From: talent.acquisition@tata-elxsi.example\n"
-        "Subject: Offer of Employment\n"
-        "Dear Candidate, we are pleased to offer you the role at Tata Elxsi."
-    )
+    fixture = load_fixture_by_id("CASE-CANDIDATE-AND-RECRUITER-EMAILS-15")
+    text = fixture["raw_text"]
     extracted = extractor.extract_regex(text)
 
     # Desired behavior: Recruiter email is talent.acquisition@tata-elxsi.example, NOT candidate.ananya@gmail.com
     # Current buggy behavior: First email matched is candidate.ananya@gmail.com, triggering PUBLIC_EMAIL_DOMAIN_USED flag
-    assert extracted.recruiter_email == "talent.acquisition@tata-elxsi.example"
+    assert extracted.recruiter_email == fixture["structured_input"]["recruiter_email"]
     assert "PUBLIC_EMAIL_DOMAIN_USED" not in extracted.flags
 
 
 @pytest.mark.xfail(
     strict=True,
+    raises=AssertionError,
     reason="Defect: EntityExtractor regex extracts 'Google' as company due to meeting URL/platform mention instead of actual employer V-Guard",
 )
 def test_case_16_company_extraction_trap_platform_mention():
@@ -383,3 +368,45 @@ def test_case_16_company_extraction_trap_platform_mention():
     # Ensure Google Meet is not treated as company 'Google'
     assert extracted.company != "Google"
     assert extracted.company is not None and "V-Guard" in extracted.company
+
+
+
+@pytest.mark.asyncio
+@pytest.mark.xfail(strict=True, raises=AssertionError,
+                   reason="CompanyAgent treats successful empty footprint as UNVERIFIED instead of CANNOT_VERIFY")
+async def test_case_11_empty_search_is_uncertainty():
+    fixture = load_fixture_by_id("CASE-SUCCESSFUL-SEARCH-EMPTY-11")
+    mock = MockSearchClient(**fixture["search_mock"])
+    finding = await CompanyAgent(mock).investigate(fixture["structured_input"]["company_name"])
+    assert finding.verdict == "CANNOT_VERIFY"
+    assert finding.details.get("official_domain") is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("variant_name", ["rate_limit", "authentication", "timeout"])
+@pytest.mark.xfail(strict=True, raises=AssertionError,
+                   reason="CompanyAgent does not preserve provider failure as uncertainty with structured error")
+async def test_case_12_provider_failure_is_not_evidence(variant_name):
+    fixture = load_fixture_by_id("CASE-PROVIDER-OUTAGE-TIMEOUT-12")
+    variant = next(v for v in fixture["search_mock"]["variants"] if v["name"] == variant_name)
+    query = next(iter(fixture["search_mock"]["query_responses"]))
+    mock = MockSearchClient({query: variant["response"]}, variant["response"])
+    finding = await CompanyAgent(mock).investigate(fixture["structured_input"]["company_name"])
+    assert finding.verdict == "CANNOT_VERIFY"
+    assert finding.details.get("provider_status") == "FAILED"
+    assert finding.details.get("error")
+    assert finding.evidence == []
+
+
+@pytest.mark.asyncio
+@pytest.mark.xfail(strict=True, raises=AssertionError,
+                   reason="Domain mismatch alone is treated as HIGH_RISK without checking possible agency affiliation")
+async def test_case_13_plausible_details_do_not_confirm_offer_or_fraud():
+    fixture = load_fixture_by_id("CASE-REALISTIC-IMPERSONATION-13")
+    mock = MockSearchClient(**fixture["search_mock"])
+    data = fixture["structured_input"]
+    finding = await RecruiterAgent(mock).investigate(
+        company_name=data["company_name"], recruiter_name=data["recruiter_name"],
+        recruiter_email=data["recruiter_email"], recruiter_phone=data["recruiter_phone"])
+    assert finding.verdict == fixture["expected_observations"]["recruiter_assessment"]["verdict"]
+    assert finding.details.get("domain_match") is False

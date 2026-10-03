@@ -32,19 +32,19 @@
     "query_responses": {
       "\"Zen Vertex Logistics\" official website careers": {
         "status": "successful",
-        "source": "mock",
+        "source": "DEMO",
         "knowledge_graph": {},
         "organic_results": []
       },
       "\"+919876543210\" scam fraud complaint": {
         "status": "successful",
-        "source": "mock",
+        "source": "DEMO",
         "organic_results": []
       }
     },
     "default_response": {
       "status": "successful",
-      "source": "mock",
+      "source": "DEMO",
       "organic_results": []
     }
   },

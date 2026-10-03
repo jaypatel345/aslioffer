@@ -2,16 +2,16 @@
   "case_id": "CASE-REALISTIC-IMPERSONATION-13",
   "category": "realistic_impersonation",
   "title": "Realistic impersonation using plausible salary and copied corporate details",
-  "description": "Scam offer mimics real multinational employer (Infosys BPM), uses genuine corporate address and realistic fresher salary, but directs communication to a suspicious third-party mailbox.",
+  "description": "Plausible employer details plus an unrelated contact domain create a suspected impersonation scenario; agency authorization remains unresolved.",
   "synthetic": true,
   "unresolved_facts": [
-    "Recruiter email domain recruitment-desk.example has no affiliation with Infosys BPM Limited",
+    "Affiliation or authorized agency status of recruitment-desk.example has not been established",
     "Plausible corporate details copied from public web cannot authenticate offer issuance"
   ],
   "labels": {
     "data_type": "synthetic",
     "threat_category": "corporate_impersonation",
-    "expected_verdict": "HIGH_RISK",
+    "expected_verdict": "NEEDS_REVIEW",
     "required_case_index": 13
   },
   "raw_text": "Infosys BPM Limited.\nRegistered Office: Electronics City, Hosur Road, Bengaluru 560100, Karnataka, India.\nCIN: U72200KA2002PLC030310.\nAppointment Letter: Process Specialist - Technical Support.\nWe are pleased to offer you employment with an annual compensation of INR 3,85,000 per annum.\nPlease confirm your joining by submitting your verified identity documents to our onboarding coordinator at infosys-onboarding@recruitment-desk.example.",
@@ -32,7 +32,7 @@
     "query_responses": {
       "\"Infosys BPM Limited\" official website careers": {
         "status": "successful",
-        "source": "mock",
+        "source": "DEMO",
         "knowledge_graph": {
           "title": "Infosys BPM Limited",
           "website": "https://www.infosysbpm.com",
@@ -48,13 +48,13 @@
       },
       "\"infosys-onboarding@recruitment-desk.example\" scam fraud complaint": {
         "status": "successful",
-        "source": "mock",
+        "source": "DEMO",
         "organic_results": []
       }
     },
     "default_response": {
       "status": "successful",
-      "source": "mock",
+      "source": "DEMO",
       "organic_results": []
     }
   },
@@ -68,15 +68,15 @@
       "domain_match": false,
       "email_domain": "recruitment-desk.example",
       "official_domain": "infosysbpm.com",
-      "verdict": "HIGH_RISK",
+      "verdict": "NEEDS_REVIEW",
       "summary": "Sender domain '@recruitment-desk.example' does not match Infosys BPM's official domain 'infosysbpm.com'."
     },
     "scam_assessment": {
       "verdict": "VERIFIED"
     },
-    "overall_outcome": "HIGH_RISK",
+    "overall_outcome": "NEEDS_REVIEW",
     "authenticity_status": "UNCONFIRMED",
-    "risk_level": "HIGH_RISK"
+    "risk_level": "NEEDS_REVIEW"
   },
-  "rationale": "Plausible company details and market-standard salary do NOT authenticate an offer. If the recruiter contact channel fails canonical domain alignment, the offer must be flagged as suspected impersonation."
+  "rationale": "Copied company details do not authenticate issuance. A different contact domain warrants independent affiliation/agency confirmation, but the supplied evidence alone does not establish fraud."
 }

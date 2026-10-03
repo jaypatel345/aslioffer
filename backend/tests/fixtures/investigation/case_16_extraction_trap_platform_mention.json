@@ -30,7 +30,7 @@
     "query_responses": {
       "\"V-Guard Industries Ltd\" official website careers": {
         "status": "successful",
-        "source": "mock",
+        "source": "DEMO",
         "knowledge_graph": {
           "title": "V-Guard Industries Ltd",
           "website": "https://www.vguard.example"
@@ -46,7 +46,7 @@
     },
     "default_response": {
       "status": "successful",
-      "source": "mock",
+      "source": "DEMO",
       "organic_results": []
     }
   },

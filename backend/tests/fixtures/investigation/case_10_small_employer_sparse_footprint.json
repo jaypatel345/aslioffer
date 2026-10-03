@@ -31,24 +31,24 @@
     "query_responses": {
       "\"Kaviya Design Studio LLP\" official website careers": {
         "status": "successful",
-        "source": "mock",
+        "source": "DEMO",
         "knowledge_graph": {},
         "organic_results": []
       },
       "\"Kaviya Design Studio LLP\" job scam fraud complaint telegram": {
         "status": "successful",
-        "source": "mock",
+        "source": "DEMO",
         "organic_results": []
       },
       "\"founder@kaviyastudio.example\" scam fraud complaint": {
         "status": "successful",
-        "source": "mock",
+        "source": "DEMO",
         "organic_results": []
       }
     },
     "default_response": {
       "status": "successful",
-      "source": "mock",
+      "source": "DEMO",
       "organic_results": []
     }
   },
@@ -71,7 +71,11 @@
     },
     "overall_outcome": "CANNOT_VERIFY",
     "authenticity_status": "UNCONFIRMED",
-    "risk_level": "NEEDS_REVIEW"
+    "risk_level": "NEEDS_REVIEW",
+    "salary_assessment": {
+      "verdict": "CANNOT_VERIFY",
+      "reason": "No independently retrieved comparable stipend benchmark."
+    }
   },
   "rationale": "Missing public records for a small business or startup is an evidence gap (uncertainty), NOT proof of fraudulent intent. The system must abstain with CANNOT_VERIFY rather than falsely convicting the startup as HIGH_RISK."
 }
