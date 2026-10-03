@@ -75,7 +75,12 @@ def test_upload_and_report_verified_flow(client):
                 "title": "Infosys - Official Careers",
                 "link": "https://www.infosys.com/careers",
                 "snippet": "Infosys official careers page. We never demand fees from candidates.",
-            }
+            },
+            {
+                "title": "Infosys Recruitment Lead - Pooja Kulkarni",
+                "link": "https://www.infosys.com/careers/pooja-kulkarni",
+                "snippet": "Pooja Kulkarni - Specialist Recruitment Lead at Infosys Limited. Contact: pooja.kulkarni@infosys.com",
+            },
         ],
         knowledge_graph={
             "title": "Infosys Limited",

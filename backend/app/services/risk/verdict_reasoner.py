@@ -94,9 +94,19 @@ class VerdictReasoner:
 
             if rec.verdict == "HIGH_RISK":
                 reasons.append(rec.summary)
+                rec_code = rec.details.get("reason_code")
+                if not rec_code:
+                    if rec.details.get("phone_flagged"):
+                        rec_code = "ADVERSE_PHONE_REPORT"
+                    elif rec.details.get("email_flagged"):
+                        rec_code = "ADVERSE_EMAIL_REPORT"
+                    elif "webmail" in rec.summary.lower() or rec.details.get("is_free_email"):
+                        rec_code = "PERSONAL_EMAIL_DOMAIN"
+                    else:
+                        rec_code = "RECRUITER_IMPERSONATION"
                 reason_details.append(
                     VerdictReason(
-                        code="PERSONAL_EMAIL_DOMAIN",
+                        code=rec_code,
                         reason=rec.summary,
                     )
                 )
@@ -143,7 +153,13 @@ class VerdictReasoner:
                 )
 
         # 6. Check for Anomaly / Needs Review
-        elif sal.verdict == "NEEDS_REVIEW" or comp.verdict == "NEEDS_REVIEW" or initial_risk_score >= 0.25:
+        elif (
+            sal.verdict == "NEEDS_REVIEW"
+            or comp.verdict == "NEEDS_REVIEW"
+            or rec.verdict == "NEEDS_REVIEW"
+            or initial_risk_level == RiskLevel.NEEDS_REVIEW
+            or initial_risk_score >= 0.25
+        ):
             verdict = RiskLevel.NEEDS_REVIEW
 
             if sal.verdict == "NEEDS_REVIEW":
@@ -163,7 +179,27 @@ class VerdictReasoner:
                         reason=comp.summary,
                     )
                 )
-            else:
+
+            if rec.verdict == "NEEDS_REVIEW":
+                reasons.append(rec.summary)
+                rec_code = rec.details.get("reason_code")
+                if not rec_code:
+                    if rec.details.get("is_agency"):
+                        rec_code = "AGENCY_MANDATE_UNCONFIRMED"
+                    elif rec.details.get("is_free_email"):
+                        rec_code = "FREE_WEBMAIL_DOMAIN"
+                    elif rec.details.get("domain_match") is False:
+                        rec_code = "RECRUITER_DOMAIN_MISMATCH"
+                    else:
+                        rec_code = "RECRUITER_NEEDS_REVIEW"
+                reason_details.append(
+                    VerdictReason(
+                        code=rec_code,
+                        reason=rec.summary,
+                    )
+                )
+
+            if not any(f.verdict == "NEEDS_REVIEW" for f in (sal, comp, rec)):
                 reasons.append("Certain offer parameters require independent corporate confirmation.")
                 reason_details.append(
                     VerdictReason(

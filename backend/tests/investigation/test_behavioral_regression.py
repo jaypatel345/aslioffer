@@ -81,11 +81,6 @@ async def test_case_03_phone_only_no_hits_must_not_verify():
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(
-    strict=True,
-    raises=AssertionError,
-    reason="Defect: RecruiterAgent condemns legitimate recruitment agency domain as HIGH_RISK impersonation",
-)
 async def test_case_14_agency_recruitment_must_not_be_high_risk_impersonation():
     """Case 14: Third-party recruitment agencies use their own domain; requires verification, not immediate fraud conviction."""
     fixture = load_fixture_by_id("CASE-LEGIT-AGENCY-RECRUITMENT-14")
@@ -101,12 +96,16 @@ async def test_case_14_agency_recruitment_must_not_be_high_risk_impersonation():
         recruiter_name=s_in["recruiter_name"],
         recruiter_email=s_in["recruiter_email"],
         recruiter_phone=s_in["recruiter_phone"],
+        agency_name=s_in.get("agency_name"),
     )
 
     # Desired behavior: Agency representation needs review/mandate check, not HIGH_RISK fraud flag
-    # Current buggy behavior: domain mismatch between @apexstaffing and @wipro flags HIGH_RISK
     assert finding.verdict != "HIGH_RISK"
     assert finding.verdict == "NEEDS_REVIEW"
+    assert finding.details.get("is_agency") is True
+    assert finding.details.get("agency_domain") == "apexstaffing.example"
+    assert finding.details.get("agency_authorization_status") == "UNCONFIRMED"
+    assert finding.details.get("domain_match") is False
 
 
 # ===========================================================================
@@ -375,8 +374,6 @@ async def test_case_12_provider_failure_is_not_evidence(variant_name):
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(strict=True, raises=AssertionError,
-                   reason="Domain mismatch alone is treated as HIGH_RISK without checking possible agency affiliation")
 async def test_case_13_plausible_details_do_not_confirm_offer_or_fraud():
     fixture = load_fixture_by_id("CASE-REALISTIC-IMPERSONATION-13")
     mock = MockSearchClient(**fixture["search_mock"])
@@ -386,3 +383,5 @@ async def test_case_13_plausible_details_do_not_confirm_offer_or_fraud():
         recruiter_email=data["recruiter_email"], recruiter_phone=data["recruiter_phone"])
     assert finding.verdict == fixture["expected_observations"]["recruiter_assessment"]["verdict"]
     assert finding.details.get("domain_match") is False
+    assert finding.details.get("email_domain") == fixture["expected_observations"]["recruiter_assessment"]["email_domain"]
+    assert finding.details.get("recruiter_email_status") == "CONFLICTING"

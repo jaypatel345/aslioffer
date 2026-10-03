@@ -190,6 +190,7 @@ async def test_independent_risk_signals_matrix():
     f3 = await agent.investigate("Enterprise Inc", None, None, [], "All communication will be through whatsapp task group.")
     assert f3.verdict == "HIGH_RISK"
 
-    # 4. Personal email domain for enterprise claim
+    # 4. Personal email domain alone is deferred to RecruiterAgent; ScamAgent does not force HIGH_RISK
     f4 = await agent.investigate("Tata Consultancy Services", None, None, [], "Contact recruiter at tcs.recruitment@gmail.com")
-    assert f4.verdict == "HIGH_RISK"
+    assert f4.verdict != "HIGH_RISK"
+    assert "PERSONAL_EMAIL_ENTERPRISE" not in f4.details.get("risk_signals", [])

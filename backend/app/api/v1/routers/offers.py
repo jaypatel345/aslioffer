@@ -139,6 +139,7 @@ async def get_offer_report(id: int, session: Session = Depends(get_session)):
             recruiter_name=entities.recruiter_name,
             recruiter_email=entities.recruiter_email,
             recruiter_phone=entities.recruiter_phone,
+            agency_name=getattr(entities, "agency_name", None),
         ),
         salary_agent.investigate(
             company_name=company_name,

@@ -118,24 +118,9 @@ class ScamAgent:
                 )
             )
 
-        # Signal E: Personal Email for Enterprise Claims
+        # Signal E: Free webmail / email domain assessment is the sole authority of RecruiterAgent (Task 5).
+        # ScamAgent does not treat free email in the document as an independent enterprise fraud signal.
         safe_company = company_name if (company_name and company_name.lower() not in ["", "unknown", "unknown company"]) else ""
-        has_personal_email = (
-            any(f"@{dom}" in raw_lower for dom in FREE_EMAIL_DOMAINS)
-            or "PERSONAL_EMAIL" in flags
-            or "FREE_WEBMAIL" in flags
-        ) and bool(safe_company)
-        if has_personal_email:
-            detected_signals.append("PERSONAL_EMAIL_ENTERPRISE")
-            evidence_list.append(
-                EvidenceItem(
-                    source_url="document://submitted-offer",
-                    title="Free Webmail Used for Corporate Recruitment",
-                    description=f"Recruitment for '{safe_company}' conducted using a public webmail domain rather than an official corporate email domain.",
-                    evidence_type="SCAM_REPORT",
-                    confidence=0.92,
-                )
-            )
 
         is_scam = len(detected_signals) > 0
         provider_failed = False

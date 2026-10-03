@@ -460,7 +460,12 @@ async def test_consistent_domain_resolution_in_both_agents():
                 "title": "Wipro",
                 "link": "https://www.wipro.com",
                 "snippet": "Official site.",
-            }
+            },
+            {
+                "title": "Wipro Recruitment - Pooja",
+                "link": "https://www.wipro.com/careers/team/pooja",
+                "snippet": "Pooja - Talent Acquisition Specialist at Wipro Limited. Contact: pooja@wipro.com",
+            },
         ],
     )
 

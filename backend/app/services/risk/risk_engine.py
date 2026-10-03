@@ -75,7 +75,7 @@ class RiskEngine:
         # Determine level
         if risk_score >= 0.50 or any(f.verdict == "HIGH_RISK" for f in findings):
             risk_level = RiskLevel.HIGH_RISK
-        elif risk_score >= 0.25:
+        elif risk_score >= 0.25 or any(f.verdict == "NEEDS_REVIEW" for f in findings):
             risk_level = RiskLevel.NEEDS_REVIEW
         elif cautions or any(f.verdict == "CANNOT_VERIFY" for f in findings):
             risk_level = RiskLevel.CANNOT_VERIFY
