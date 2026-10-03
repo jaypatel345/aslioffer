@@ -502,8 +502,8 @@ async def test_partial_recruiter_checks_intact():
                 outcome=SearchOutcome.SUCCESS,
                 source="REAL",
                 results=[{
-                    "title": "Scam phone report 9876543210",
-                    "snippet": "Victim reported fraud from 9876543210.",
+                    "title": "Scam phone report +919876543210",
+                    "snippet": "Victim reported fraud from +919876543210.",
                     "link": "https://complaints.example/scam/9876543210",
                 }],
             )

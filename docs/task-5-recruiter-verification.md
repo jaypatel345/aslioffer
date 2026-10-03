@@ -205,3 +205,32 @@ The frontend can inspect existing structured keys within `AgentFinding.details`:
 ### Deferred Limitations (Out of Scope for Task 5)
 - **Live DNS/MX Verification**: Mail server exchange records and SPF/DKIM verification remain deferred (mail infrastructure does not authenticate individual hiring authority).
 - **Payment & Messaging Extraction**: WhatsApp/Telegram interview channels, upfront payment parsing, and document tamper detection belong to Task 6 (Scam Detection) and Task 7 (Risk Redesign).
+
+### Task 5 review cleanup (base 5efba24)
+
+- Employer affiliation verification requires employer-published exact email and
+  recruiting context when an email is supplied. Professional profiles remain
+  supporting evidence and cannot independently produce VERIFIED.
+- Professional profile authority is checked by parsed hostname, not URL text.
+- Agency authorization requires a resolved employer host and positive recruiting
+  partnership context. Agency names, self-claims and ordinary vendor relationships
+  are insufficient. A supported partnership still does not authenticate an offer.
+- When no agency name is extracted, a mismatched custom sender domain gets one
+  discovery search. A full organization identity card, matching resolved domain
+  and staffing context on that domain are required. Discovery results are reused;
+  at most five provider calls are made per investigation.
+- Agency recruiter affiliation is investigated against the agency domain.
+- Contact matching rejects email suffixes and phone suffix/country-code guesses.
+  Phone reports must publish the supplied country code when one is supplied;
+  ambiguous local-number matches remain unconfirmed.
+- Adverse reports are checked for personal email contacts too. Only sentences
+  containing the exact contact contribute allegations; generic advice and
+  negated reports do not automatically establish an adverse report.
+- Search failures/demo results yield CHECK_UNAVAILABLE. One successful contact
+  search cannot make a second failed contact check look complete.
+- Recruiter warnings survive final CANNOT_VERIFY reasoning when other evidence
+  is insufficient. Details explicitly retain offer_authenticated=false.
+
+These are conservative search-snippet assessments, not identity authentication.
+No webpage fetching, extraction schema changes or general offer-text parsing
+are introduced by this cleanup.

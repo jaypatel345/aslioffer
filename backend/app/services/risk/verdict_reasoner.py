@@ -152,6 +152,10 @@ class VerdictReasoner:
                     )
                 )
 
+            if rec.verdict == "NEEDS_REVIEW":
+                reasons.append(rec.summary)
+                reason_details.append(VerdictReason(code=rec.details.get("reason_code") or "RECRUITER_REQUIRES_REVIEW", reason=rec.summary))
+
         # 6. Check for Anomaly / Needs Review
         elif (
             sal.verdict == "NEEDS_REVIEW"

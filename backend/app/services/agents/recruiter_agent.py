@@ -80,16 +80,15 @@ class RecruiterAgent:
         if "@" not in email or email.count("@") != 1:
             return False, None, None
         local, domain = email.split("@")
-        local = local.strip()
         domain = domain.strip().lower()
-        if not local or not domain:
+        if not local or not domain or not re.fullmatch(r"[A-Za-z0-9!#$%&'*+/=?^_`{|}~.-]+", local) or local.startswith(".") or local.endswith(".") or ".." in local:
             return False, None, None
         if any(c in domain for c in "/:@?#\\ "):
             return False, None, None
         parsed = DomainResolver.normalize_and_parse_url("https://" + domain)
         if not parsed.is_valid or not parsed.registrable_domain:
             return False, None, None
-        return True, local, domain
+        return True, local, parsed.hostname
 
     @staticmethod
     def _normalize_phone(phone: Optional[str]) -> Tuple[bool, Optional[str], Optional[str]]:
@@ -100,6 +99,8 @@ class RecruiterAgent:
         """
         if not phone or not isinstance(phone, str):
             return False, None, None
+        if not re.fullmatch(r"\+?[0-9().\s-]+", phone.strip()):
+            return False, None, phone.strip()
         digits = re.sub(r"\D", "", phone)
         # Bounded between 7 and 15 digits (ITU-T E.164 recommendation)
         if len(digits) < 7 or len(digits) > 15:
@@ -114,18 +115,23 @@ class RecruiterAgent:
         """
         if not text or not phone_digits:
             return False
-        # Match number patterns with word boundaries or non-digit delimiters
-        pattern = r'(?:(?<=\D)|^)(?:\+?\d{1,4}[-.\s]*)?(?:\(?\d{2,4}\)?[-.\s]*)?\d{3,4}[-.\s]*\d{3,4}(?:(?=\D)|$)'
-        for match in re.finditer(pattern, text):
-            cand_digits = re.sub(r"\D", "", match.group(0))
-            if cand_digits == phone_digits:
-                return True
-            # Match 10-digit national number against +91 / country code prefix
-            if len(phone_digits) == 10 and cand_digits.endswith(phone_digits) and len(cand_digits) <= 12:
-                return True
-            if len(cand_digits) == 10 and phone_digits.endswith(cand_digits) and len(phone_digits) <= 12:
+        # Full numeric tokens only; country codes must not be guessed.
+        for match in re.finditer(r"(?<![\w+])\+?\d(?:[\d ().-]*\d)?(?!\w)", text):
+            if re.sub(r"\D", "", match.group()) == phone_digits:
                 return True
         return False
+
+    @staticmethod
+    def _email_match(email: Optional[str], text: str) -> bool:
+        return bool(email and re.search(
+            r"(?<![\w.+-])" + re.escape(email.strip()) + r"(?![\w@+-]|\.[\w-])",
+            text, re.IGNORECASE,
+        ))
+
+    @staticmethod
+    def _role_match(text: str) -> bool:
+        return bool(re.search(r"\b(?:recruiter|recruitment|talent acquisition|hr|human resources|staffing|hiring)\b", text, re.I))
+
 
     @classmethod
     def _evaluate_contact_adverse_context(cls, title: str, snippet: str) -> Tuple[bool, str]:
@@ -136,7 +142,7 @@ class RecruiterAgent:
         combined = f"{title} {snippet}".lower()
 
         has_benign = any(kw in combined for kw in BENIGN_OFFICIAL_KEYWORDS)
-        has_adverse = any(kw in combined for kw in ADVERSE_KEYWORDS)
+        has_adverse = bool(re.search(r"\b(?:scam|fraud|fraudulent|scammer|scammed|cheated|phishing|extortion|impersonator)\b", combined))
 
         # Specific misuse allegation indicators:
         misuse_indicators = [
@@ -167,10 +173,10 @@ class RecruiterAgent:
         if is_advisory_or_official and not has_specific_misuse:
             return False, "Incidental mention in official contact listing or fraud-prevention advisory."
 
-        if has_specific_misuse:
+        if has_specific_misuse and has_adverse and not re.search(r"\b(?:no|not|never|without|prevent|prevention|avoid|protect)\b", combined):
             return True, "Public report alleges fraudulent activity or impersonation associated with this contact."
 
-        if has_adverse:
+        if has_adverse and not re.search(r"\b(?:no|not|never|without|prevent|prevention|avoid|protect)\b", combined):
             return True, "Public report alleges fraudulent activity associated with this contact."
 
         return False, "Contact mentioned without specific adverse allegations."
@@ -210,10 +216,10 @@ class RecruiterAgent:
                     if DomainResolver.is_matching_domain(parsed_link.hostname, canonical_domain):
                         text = f"{r.get('title', '')} {r.get('snippet', '')}".lower()
                         name_hit = bool(rec_name_lower and not is_generic_name and rec_name_lower in text)
-                        email_hit = bool(recruiter_email and recruiter_email.lower() in text)
-                        if name_hit or email_hit:
-                            role_hit = any(kw in text for kw in RECRUITMENT_ROLE_KEYWORDS)
-                            if role_hit or email_hit:
+                        email_hit = cls._email_match(recruiter_email, text)
+                        if email_hit or (not recruiter_email and name_hit):
+                            role_hit = cls._role_match(text) and not re.search(r"\b(?:former|retired|no longer|not a recruiter)\b", text)
+                            if role_hit:
                                 ev = EvidenceItem(
                                     source_url=link,
                                     title=r.get("title") or f"{company_name} Official Recruiter Directory",
@@ -237,10 +243,11 @@ class RecruiterAgent:
                 snippet = r.get("snippet", "")
                 text = f"{title} {snippet}".lower()
 
-                if any(domain in link.lower() for domain in ["linkedin.com", "xing.com", "crunchbase.com"]):
+                parsed_profile = DomainResolver.normalize_and_parse_url(link)
+                if parsed_profile.is_valid and parsed_profile.registrable_domain in {"linkedin.com", "xing.com", "crunchbase.com"}:
                     if re.search(r"\b" + re.escape(rec_name_lower) + r"\b", text):
                         if company_lower in text or (canonical_domain and canonical_domain in text):
-                            if any(kw in text for kw in RECRUITMENT_ROLE_KEYWORDS):
+                            if cls._role_match(text):
                                 ev = EvidenceItem(
                                     source_url=link,
                                     title=title or f"Public Professional Profile: {recruiter_name}",
@@ -265,6 +272,7 @@ class RecruiterAgent:
         agency_name: str,
         agency_domain: Optional[str],
         company_name: str,
+        employer_domain: Optional[str] = None,
     ) -> Tuple[str, str, List[EvidenceItem], Optional[str]]:
         """
         Distinguishes agency public footprint from employer authorization to recruit.
@@ -274,14 +282,17 @@ class RecruiterAgent:
         """
         evidence_items: List[EvidenceItem] = []
         if not company_search_res or not company_search_res.is_live:
-            return "UNCONFIRMED", "Employer search results unavailable to verify agency authorization mandate.", evidence_items, None
+            return "CHECK_UNAVAILABLE", "Employer search results unavailable to verify agency authorization mandate.", evidence_items, None
 
         agency_name_clean = agency_name.lower().strip()
         results = company_search_res.organic_results or []
         for r in results:
+            parsed = DomainResolver.normalize_and_parse_url(r.get("link", ""))
+            if not employer_domain or not parsed.is_valid or not DomainResolver.is_matching_domain(parsed.hostname, employer_domain):
+                continue
             text = f"{r.get('title', '')} {r.get('snippet', '')}".lower()
             if agency_name_clean in text or (agency_domain and agency_domain.lower() in text):
-                if any(kw in text for kw in ["partner", "authorized", "staffing vendor", "agency", "empaneled", "vendor"]):
+                if cls._role_match(text.replace(agency_name_clean, "")) and re.search(r"\b(?:partner|authorized|work|empaneled|vendor)\b", text) and not re.search(r"\b(?:not|no|unauthorized|never|former|terminated)\b", text):
                     ev = EvidenceItem(
                         source_url=r.get("link", ""),
                         title=r.get("title") or f"{company_name} Authorized Partner Listing",
@@ -454,11 +465,37 @@ class RecruiterAgent:
             recruiter_email_expl = "Malformed or unusable email address supplied; rejected as unusable input, not fraud."
             domain_match = None
 
-        # 2. Agency Investigation (if agency_name provided)
+        # A custom sender domain can identify an agency even before extraction
+        # supports agency_name. Require a full identity card plus staffing context;
+        # never manufacture an organization name from the hostname.
+        agency_search_res = None
+        if not agency_name and domain_match is False and not is_free_email:
+            discovery_query = f'"{email_domain}" staffing recruitment agency'
+            agency_search_res = SearchResult.from_dict_or_result(
+                await self.search_client.search(discovery_query), query=discovery_query)
+            record("agency_discovery", agency_search_res)
+            card = agency_search_res.get("knowledge_graph") or {}
+            candidate_name = card.get("title")
+            if agency_search_res.is_live and isinstance(candidate_name, str) and candidate_name.strip():
+                candidate_resolution = DomainResolver.resolve(candidate_name, agency_search_res)
+                staffing_text = " ".join(str(r.get("title", "")) + " " + str(r.get("snippet", ""))
+                                         for r in agency_search_res.organic_results or []
+                                         if DomainResolver.is_matching_domain(
+                                             DomainResolver.normalize_and_parse_url(r.get("link", "")).hostname or "", email_domain))
+                if (candidate_resolution.state == DomainResolutionState.RESOLVED
+                    and DomainResolver.is_matching_domain(email_domain, candidate_resolution.canonical_domain or "")
+                    and self._role_match(staffing_text)):
+                    agency_name = candidate_name.strip()
+            if not agency_name:
+                agency_identity_status = "UNCONFIRMED" if agency_search_res.is_live else "CHECK_UNAVAILABLE"
+                agency_identity_expl = "Sender domain did not establish a corroborated staffing agency identity."
+
+        # 2. Agency Investigation (explicit or independently discovered identity)
         if agency_name and isinstance(agency_name, str) and agency_name.strip():
             clean_agency = agency_name.strip()
             agency_query = f'"{clean_agency}" official website'
-            agency_search_res = SearchResult.from_dict_or_result(await self.search_client.search(agency_query), query=agency_query)
+            if agency_search_res is None:
+                agency_search_res = SearchResult.from_dict_or_result(await self.search_client.search(agency_query), query=agency_query)
             record("agency_identity", agency_search_res)
             agency_res = DomainResolver.resolve(clean_agency, agency_search_res)
             checks["agency_identity"].update({
@@ -493,7 +530,7 @@ class RecruiterAgent:
                 # Check employer authorization for this agency
                 if company_search_res:
                     auth_status, auth_expl, auth_ev, auth_strength = self._evaluate_agency_authorization(
-                        company_search_res, clean_agency, agency_domain, company_name
+                        company_search_res, clean_agency, agency_domain, company_name, resolved_employer_domain
                     )
                     agency_authorization_status = auth_status
                     agency_authorization_expl = auth_expl
@@ -507,7 +544,7 @@ class RecruiterAgent:
                     agency_authorization_expl = f"Agency footprint verified on '{agency_domain}', but client representation mandate requires secondary confirmation."
                     agency_authorization_strength = None
             else:
-                agency_identity_status = "UNCONFIRMED"
+                agency_identity_status = "UNCONFIRMED" if agency_search_res.is_live else "CHECK_UNAVAILABLE"
                 agency_identity_expl = f"Staffing agency '{clean_agency}' public footprint could not be verified."
                 agency_authorization_status = "UNCONFIRMED"
                 agency_authorization_expl = "Agency authorization unconfirmed because agency footprint is unverified."
@@ -523,7 +560,10 @@ class RecruiterAgent:
                     snippet = r.get("snippet", "")
                     # Match title and snippet independently without cross-concatenation
                     if self._find_exact_phone_match(phone_digits, title) or self._find_exact_phone_match(phone_digits, snippet):
-                        is_adv, expl = self._evaluate_contact_adverse_context(title, snippet)
+                        matched_parts = [part for field in (title, snippet)
+                                         for part in re.split(r"(?<=[.!?])\s+|[;\n]", field)
+                                         if self._find_exact_phone_match(phone_digits, part)]
+                        is_adv, expl = self._evaluate_contact_adverse_context("", " ".join(matched_parts))
                         if is_adv:
                             phone_flagged = True
                             adverse_reports_status = "SUPPORTED"
@@ -542,7 +582,7 @@ class RecruiterAgent:
             checks["phone_reports"]["identity_verified"] = False
             adverse_reports_facts["phone_flagged"] = phone_flagged
 
-        if is_valid_email and email_domain and not is_free_email and not phone_flagged:
+        if is_valid_email and email_domain and not phone_flagged:
             email_adv_query = f'"{recruiter_email}" scam fraud complaint'
             email_search = SearchResult.from_dict_or_result(await self.search_client.search(email_adv_query), query=email_adv_query)
             record("email_reports", email_search)
@@ -550,8 +590,11 @@ class RecruiterAgent:
                 for r in email_search.organic_results or []:
                     title = r.get("title", "")
                     snippet = r.get("snippet", "")
-                    if recruiter_email.lower() in title.lower() or recruiter_email.lower() in snippet.lower():
-                        is_adv, expl = self._evaluate_contact_adverse_context(title, snippet)
+                    if self._email_match(recruiter_email, title) or self._email_match(recruiter_email, snippet):
+                        matched_parts = [part for field in (title, snippet)
+                                         for part in re.split(r"(?<=[.!?])\s+|[;\n]", field)
+                                         if self._email_match(recruiter_email, part)]
+                        is_adv, expl = self._evaluate_contact_adverse_context("", " ".join(matched_parts))
                         if is_adv:
                             email_flagged = True
                             adverse_reports_status = "SUPPORTED"
@@ -575,7 +618,7 @@ class RecruiterAgent:
                     checks[k]["provider_status"] == "SUCCESS"
                     for k in ("phone_reports", "email_reports") if k in checks
                 )
-                if has_search_live:
+                if has_search_live and all(checks[k]["provider_status"] == "SUCCESS" for k in ("phone_reports", "email_reports") if k in checks):
                     adverse_reports_status = "NO_MATCH"
                     adverse_reports_expl = "No matching adverse scam or fraud reports found for submitted contacts; empty search does not verify identity."
                 else:
@@ -588,9 +631,12 @@ class RecruiterAgent:
             # First check company search results if available
             aff_status = "UNCONFIRMED"
             aff_expl = "Recruiter affiliation could not be confirmed from available evidence."
-            if company_search_res and company_search_res.is_live and resolved_employer_domain:
+            affiliation_domain = agency_domain if is_agency else resolved_employer_domain
+            affiliation_company = clean_agency if is_agency else company_name
+            initial_affiliation_search = agency_search_res if is_agency else company_search_res
+            if initial_affiliation_search and initial_affiliation_search.is_live and affiliation_domain:
                 aff_status, aff_expl, aff_ev, aff_str = self._evaluate_affiliation_evidence(
-                    company_search_res, recruiter_name, recruiter_email, company_name, resolved_employer_domain
+                    initial_affiliation_search, recruiter_name, recruiter_email, affiliation_company, affiliation_domain
                 )
                 if aff_str:
                     recruiter_affiliation_strength = aff_str
@@ -599,13 +645,14 @@ class RecruiterAgent:
                     recruiter_affiliation_urls.append(ev.source_url)
 
             # If unconfirmed and recruiter_name provided (and not generic), perform bounded affiliation search
-            if aff_status != "SUPPORTED" and recruiter_name and recruiter_name.lower().strip() not in GENERIC_TITLES:
-                aff_query = f'"{recruiter_name.strip()}" "{company_name.strip()}"'
+            if aff_status != "SUPPORTED" and (is_valid_email or (recruiter_name and recruiter_name.lower().strip() not in GENERIC_TITLES)):
+                aff_subject = recruiter_name.strip() if recruiter_name and recruiter_name.lower().strip() not in GENERIC_TITLES else recruiter_email.strip()
+                aff_query = f'"{aff_subject}" "{affiliation_company.strip()}"'
                 aff_search = SearchResult.from_dict_or_result(await self.search_client.search(aff_query), query=aff_query)
                 record("recruiter_affiliation", aff_search)
                 if aff_search.is_live:
                     aff_status, aff_expl, aff_ev, aff_str = self._evaluate_affiliation_evidence(
-                        aff_search, recruiter_name, recruiter_email, company_name, resolved_employer_domain
+                        aff_search, recruiter_name, recruiter_email, affiliation_company, affiliation_domain
                     )
                     if aff_str:
                         recruiter_affiliation_strength = aff_str
@@ -614,12 +661,14 @@ class RecruiterAgent:
                         recruiter_affiliation_urls.append(ev.source_url)
                 else:
                     checks["recruiter_affiliation"]["provider_status"] = "FAILED"
+                    aff_status = "CHECK_UNAVAILABLE"
+                    aff_expl = "Recruiter affiliation search unavailable or synthetic."
 
             recruiter_affiliation_status = aff_status
             recruiter_affiliation_expl = aff_expl
             recruiter_affiliation_facts = {
                 "recruiter_name": recruiter_name,
-                "company_name": company_name,
+                "company_name": affiliation_company,
                 "affiliation_status": aff_status,
                 "evidence_strength": recruiter_affiliation_strength,
             }
@@ -642,6 +691,7 @@ class RecruiterAgent:
 
         # Build details payload
         details: Dict[str, Any] = {
+            "offer_authenticated": False,
             "domain_match": domain_match,
             "is_free_email": is_free_email,
             "phone_flagged": phone_flagged,
@@ -765,11 +815,11 @@ class RecruiterAgent:
 
         if domain_match is False:
             if is_agency:
-                details["reason_code"] = "AGENCY_MANDATE_UNCONFIRMED"
+                details["reason_code"] = "AGENCY_AFFILIATION_UNCONFIRMED" if agency_authorization_status == "SUPPORTED" else "AGENCY_MANDATE_UNCONFIRMED"
                 agency_display = clean_agency if (agency_name and clean_agency) else agency_domain
                 verdict_summary = (
                     f"Recruiter operates under third-party staffing agency '{agency_display}'. "
-                    "Agency footprint verified, but client representation mandate requires confirmation."
+                    + ("Employer partnership is supported; verify this contact and the specific offer directly with the employer." if agency_authorization_status == "SUPPORTED" else "Agency footprint verified, but client representation mandate requires confirmation.")
                 )
             else:
                 details["reason_code"] = "RECRUITER_DOMAIN_MISMATCH"
@@ -805,7 +855,7 @@ class RecruiterAgent:
             )
 
         # VERIFIED: Corporate domain aligns AND recruiter affiliation is supported by evidence
-        if domain_match is True and recruiter_affiliation_status == "SUPPORTED":
+        if domain_match is True and recruiter_affiliation_status == "SUPPORTED" and recruiter_affiliation_strength == "strong_employer_published":
             details["reason_code"] = "RECRUITER_AFFILIATION_VERIFIED"
             verdict_summary = (
                 f"Recruiter credentials and employer affiliation with '{company_name}' verified against "

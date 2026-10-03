@@ -357,9 +357,9 @@ async def test_specific_exact_contact_adverse_report_returns_high_risk(recruiter
         if "scam" in query:
             return make_serp_response([
                 {
-                    "title": "Reported Phone Scam - 415-555-2671",
+                    "title": "Reported Phone Scam - +1 415-555-2671",
                     "link": "https://scam-detector-community.example/report/4155552671",
-                    "snippet": "Caller claimed from 415-555-2671 to be hiring for Acme Corp, asking for bank transfer fee.",
+                    "snippet": "Caller claimed from +1 415-555-2671 to be hiring for Acme Corp, asking for bank transfer fee.",
                 }
             ])
         return make_serp_response([])
@@ -499,7 +499,7 @@ async def test_demo_mock_results_cannot_verify_affiliation(recruiter_agent, mock
     )
 
     assert finding.verdict != "VERIFIED"
-    assert finding.details["recruiter_affiliation"]["status"] == AssessmentStatus.UNCONFIRMED.value
+    assert finding.details["recruiter_affiliation"]["status"] == AssessmentStatus.CHECK_UNAVAILABLE.value
 
 
 # 16. Search-call limits and private logging
