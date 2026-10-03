@@ -1,15 +1,15 @@
-import re
 from typing import Optional, Dict, Any, List
-from urllib.parse import urlparse
 from app.schemas.analysis import AgentFinding, EvidenceItem
-from app.services.search.serpapi_client import SerpApiClient, SearchResult, SearchOutcome
+from app.services.search.serpapi_client import SerpApiClient, SearchResult
+from app.services.search.domain_resolver import DomainResolver, DomainResolutionState
 from app.core.logging import logger
 
 
 class CompanyAgent:
     """
     Investigates whether the claimed company exists, has an official public domain,
-    a verified careers portal, and registered business presence (e.g. MCA CIN in India).
+    an associated careers portal, and registered business presence (e.g. MCA CIN in India).
+    Uses DomainResolver for evidence-backed domain resolution.
     """
 
     def __init__(self, search_client: Optional[SerpApiClient] = None):
@@ -41,6 +41,7 @@ class CompanyAgent:
                     "provider_status": "FAILED",
                     "error": search_res.error or "Live search evidence unavailable",
                     "search_status": search_res.outcome.value if search_res.get("source") == "FAILED" else "DEMO",
+                    "official_domain_resolved": False,
                 },
             )
 
@@ -63,124 +64,83 @@ class CompanyAgent:
                 },
             )
 
-        name_token = self._normalize(company_name)
-        knowledge_graph = search_res.knowledge_graph or {}
-        organic_results = search_res.organic_results or []
+        # 3. Resolve official domain using shared DomainResolver
+        resolution = DomainResolver.resolve(company_name, search_res)
 
-        domain = knowledge_graph.get("website")
-        careers = knowledge_graph.get("careers_url")
-        evidence_list: List[EvidenceItem] = []
-
-        if domain:
-            evidence_list.append(
+        if resolution.state == DomainResolutionState.RESOLVED:
+            evidence_list: List[EvidenceItem] = [
                 EvidenceItem(
-                    source_url=domain,
-                    title=knowledge_graph.get("title", f"{company_name} Official Website"),
-                    description=f"Official domain listed in search knowledge graph for {company_name}.",
+                    source_url=item["source_url"],
+                    title=item.get("title", f"{company_name} Official Domain"),
+                    description=item.get("description", ""),
                     evidence_type="COMPANY",
-                    confidence=0.95,
+                    confidence=item.get("confidence", resolution.confidence),
                 )
-            )
-
-        acronym = "".join(w[0] for w in company_name.split() if w).lower()
-        bare_name = self._strip_legal_suffix(company_name)
-        tokens = [t for t in {name_token, bare_name} if t]
-
-        for result in organic_results:
-            link = result.get("link", "")
-            matched = any(self._domain_matches(link, t) for t in tokens) or (
-                len(acronym) >= 2 and self._domain_matches(link, acronym)
-            )
-            if not matched:
-                continue
-            title = result.get("title", "")
-            evidence_list.append(
-                EvidenceItem(
-                    source_url=link,
-                    title=title,
-                    description=result.get("snippet", ""),
-                    evidence_type="COMPANY",
-                    confidence=0.85,
+                for item in resolution.evidence
+            ]
+            if resolution.careers_url and not any(e.source_url == resolution.careers_url for e in evidence_list):
+                evidence_list.append(
+                    EvidenceItem(
+                        source_url=resolution.careers_url,
+                        title=f"{company_name} Official Careers Portal",
+                        description=f"Verified careers presence associated with '{company_name}'.",
+                        evidence_type="COMPANY",
+                        confidence=0.85,
+                    )
                 )
+
+            summary = (
+                f"Public company website{' and official careers presence' if resolution.careers_url else ''} "
+                f"confirmed for '{company_name}'; this establishes a public company footprint and does not "
+                f"authenticate submitted offers or recruiters."
             )
-            if not careers and "career" in title.lower():
-                careers = link
-            if not domain:
-                domain = link
 
-        strict_match = bool(domain)
-
-        if not domain and not evidence_list and organic_results:
-            top = organic_results[0]
-            link = top.get("link", "")
-            evidence_list.append(
-                EvidenceItem(
-                    source_url=link,
-                    title=top.get("title", ""),
-                    description=top.get("snippet", ""),
-                    evidence_type="COMPANY",
-                    confidence=0.55,
-                )
-            )
-            domain = link
-
-        # Search returned something, but nothing that belongs to this company.
-        if not strict_match:
             return AgentFinding(
                 agent_name="CompanyAgent",
-                verdict="CANNOT_VERIFY",
-                confidence=0.45,
-                summary=(
-                    f"No official website or careers page could be matched to '{company_name}'. "
-                    "Live search returned no domain bearing the company's name, so its corporate "
-                    "footprint could not be confirmed."
-                ),
+                verdict="VERIFIED",
+                confidence=resolution.confidence,
+                summary=summary,
                 evidence=evidence_list,
                 details={
-                    "official_domain": None,
-                    "careers_url": None,
+                    "official_domain": resolution.canonical_url,
+                    "careers_url": resolution.careers_url,
+                    "canonical_domain": resolution.canonical_domain,
+                    "official_domain_resolved": True,
                     "mca_status": "NOT_CHECKED",
                     "provider_status": "SUCCESS",
                     "search_status": "SUCCESS",
+                    "resolution_basis": resolution.basis,
+                    "rejected_candidates": resolution.rejected_candidates,
                 },
+            )
+
+        # Unresolved or Ambiguous: corporate footprint unconfirmed
+        if resolution.state == DomainResolutionState.AMBIGUOUS:
+            summary = (
+                f"Domain resolution for '{company_name}' is ambiguous. {resolution.basis} "
+                "External corporate footprint could not be conclusively confirmed."
+            )
+        else:
+            summary = (
+                f"No official company website or careers portal could be matched to '{company_name}'. "
+                f"{resolution.basis} External corporate footprint remains unconfirmed."
             )
 
         return AgentFinding(
             agent_name="CompanyAgent",
-            verdict="VERIFIED",
-            confidence=0.92 if careers else 0.75,
-            summary=f"Legitimate corporate footprint{' and official careers presence' if careers else ''} confirmed for '{company_name}'.",
-            evidence=evidence_list,
+            verdict="CANNOT_VERIFY",
+            confidence=resolution.confidence,
+            summary=summary,
+            evidence=[],  # Rejected candidates kept in details, not verified evidence
             details={
-                "official_domain": domain,
-                "careers_url": careers,
+                "official_domain": None,
+                "careers_url": None,
+                "canonical_domain": None,
+                "official_domain_resolved": False,
                 "mca_status": "NOT_CHECKED",
                 "provider_status": "SUCCESS",
                 "search_status": "SUCCESS",
+                "resolution_basis": resolution.basis,
+                "rejected_candidates": resolution.rejected_candidates,
             },
         )
-
-    LEGAL_SUFFIXES = (
-        "private limited", "pvt ltd", "pvt. ltd.", "limited", "ltd", "llp",
-        "incorporated", "inc", "corporation", "corp", "company", "co",
-    )
-
-    @classmethod
-    def _strip_legal_suffix(cls, name: str) -> str:
-        low = name.lower().strip()
-        for suffix in cls.LEGAL_SUFFIXES:
-            if low.endswith(" " + suffix):
-                low = low[: -(len(suffix) + 1)].strip()
-                break
-        return re.sub(r"[^a-z0-9]", "", low)
-
-    @staticmethod
-    def _normalize(name: str) -> str:
-        return re.sub(r"[^a-z0-9]", "", name.lower())
-
-    @staticmethod
-    def _domain_matches(url: str, name_token: str) -> bool:
-        if not url or not name_token:
-            return False
-        netloc = re.sub(r"[^a-z0-9]", "", urlparse(url).netloc.lower())
-        return name_token in netloc or netloc in name_token

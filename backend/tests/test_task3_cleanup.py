@@ -105,13 +105,26 @@ async def test_domain_mismatch_survives_phone_outage():
     class PartialSearch:
         async def search(self, query, **kwargs):
             if "official website" in query:
-                return SearchResult(query=query, knowledge_graph={"website": "https://example.com"})
+                return SearchResult(query=query, knowledge_graph={"title": "Example Ltd", "website": "https://example.com"})
             return SearchResult(query=query, outcome=SearchOutcome.TIMEOUT, error="Timed out")
     finding = await RecruiterAgent(PartialSearch()).investigate("Example Ltd", None, "hr@other.example", "9876543210")
     assert finding.verdict == "HIGH_RISK"
     assert finding.details["domain_match"] is False
     assert finding.details["provider_status"] == "PARTIAL"
     assert finding.evidence
+
+
+@pytest.mark.asyncio
+async def test_unsupported_knowledge_graph_without_identity_remains_unresolved():
+    """Knowledge graph website without matching title must remain unresolved (domain_match is None)."""
+    class PartialSearch:
+        async def search(self, query, **kwargs):
+            if "official website" in query:
+                return SearchResult(query=query, knowledge_graph={"website": "https://example.com"})
+            return SearchResult(query=query, outcome=SearchOutcome.TIMEOUT, error="Timed out")
+    finding = await RecruiterAgent(PartialSearch()).investigate("Example Ltd", None, "hr@other.example", "9876543210")
+    assert finding.details["domain_match"] is None
+
 
 
 @pytest.mark.asyncio

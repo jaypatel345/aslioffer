@@ -13,11 +13,6 @@ from .fixture_helpers import MockSearchClient, load_fixture_by_id
 # ===========================================================================
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(
-    strict=True,
-    raises=AssertionError,
-    reason="Defect: CompanyAgent._domain_matches treats brand name substring in lookalike domain as official, returning VERIFIED",
-)
 async def test_case_01_lookalike_domain_must_not_be_verified():
     """Case 1: A brand substring in a third-party domain (tcs-careers-portal.example) must not establish official ownership."""
     fixture = load_fixture_by_id("CASE-LOOKALIKE-DOMAIN-01")
