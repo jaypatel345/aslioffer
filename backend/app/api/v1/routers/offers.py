@@ -1,46 +1,76 @@
-import asyncio
-from typing import Optional, List
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, status
-from sqlmodel import Session, select
-from app.db.session import get_session
-from app.db.models.offer import Offer
-from app.db.models.evidence import Evidence
-from app.schemas.offer import OfferCreate, OfferRead, OfferUploadResponse
-from app.schemas.analysis import VerificationReport, RiskLevel
-from app.schemas.contract import ErrorResponse
-from app.services.extractor.entity_extractor import EntityExtractor
-from app.services.agents.company_agent import CompanyAgent
-from app.services.agents.recruiter_agent import RecruiterAgent
-from app.services.agents.salary_agent import SalaryAgent
-from app.services.agents.scam_agent import ScamAgent
-from app.services.risk.risk_engine import RiskEngine
-from app.services.risk.verdict_reasoner import VerdictReasoner
-from app.services.report.report_generator import ReportGenerator
+from datetime import timedelta, timezone
+from pathlib import PurePath
+from typing import List, Optional
+
+from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, Response, UploadFile, status
+from sqlmodel import Session
+
+from app.core.config import settings
 from app.core.logging import logger
+from app.db.models.offer import Offer
+from app.db.session import get_session
+from app.schemas.contract import CONTRACT_VERSION, CaseInput, ErrorResponse, RunSnapshot
+from app.schemas.offer import OfferRead, OfferUploadResponse
+from app.schemas.runs import ClaimPreview
+from app.services.extractor.entity_extractor import EntityExtractor
+from app.services.investigation.claim_builder import ClaimBuilder
+from app.services.privacy.access import CASE_TOKEN_HEADER, hash_case_token, new_case_token, token_matches
+from app.services.privacy.redaction import redact_case_text
+from app.services.runs import run_service
 
 router = APIRouter(tags=["Offers"])
 
 SAMPLE_TITLE_PREFIX = "Sample: "
+MAX_TITLE_CHARS = 200
 
+# Accepted uploads: extension -> (source_type, MIME sent to the extractor).
+ALLOWED_UPLOADS = {
+    ".pdf": ("pdf", "application/pdf"),
+    ".png": ("screenshot", "image/png"),
+    ".jpg": ("screenshot", "image/jpeg"),
+    ".jpeg": ("screenshot", "image/jpeg"),
+    ".webp": ("screenshot", "image/webp"),
+}
+ALLOWED_TEXT_SOURCE_TYPES = {"text", "email"}
 
-def _get_offer_or_404(session: Session, offer_id: int) -> Offer:
-    """Return the requested offer or raise 404. Never substitutes another case."""
-    offer = session.get(Offer, offer_id)
-    if offer is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Offer {offer_id} not found.")
-    return offer
+NOT_FOUND = {404: {"model": ErrorResponse}}
 
 extractor = EntityExtractor()
-company_agent = CompanyAgent()
-recruiter_agent = RecruiterAgent()
-salary_agent = SalaryAgent()
-scam_agent = ScamAgent()
-risk_engine = RiskEngine()
-verdict_reasoner = VerdictReasoner()
-report_generator = ReportGenerator()
 
 
-@router.post("/offers/upload", response_model=OfferUploadResponse, status_code=status.HTTP_201_CREATED)
+def get_case(
+    id: int,
+    session: Session = Depends(get_session),
+    x_case_token: Optional[str] = Header(None, alias=CASE_TOKEN_HEADER),
+) -> Offer:
+    """The requested case, or 404. A missing or wrong token is the same 404 as an
+    unknown ID, so neither case existence nor another case is ever revealed."""
+    offer = session.get(Offer, id)
+    if offer is None or not token_matches(x_case_token, offer.access_token_hash):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Offer {id} not found.")
+    return offer
+
+
+def _too_large(detail: str) -> HTTPException:
+    return HTTPException(status_code=413, detail=detail)
+
+
+async def _read_bounded(file: UploadFile) -> bytes:
+    data = await file.read(settings.MAX_UPLOAD_BYTES + 1)
+    if len(data) > settings.MAX_UPLOAD_BYTES:
+        raise _too_large(f"File is larger than {settings.MAX_UPLOAD_BYTES // (1024 * 1024)} MB.")
+    if not data:
+        raise HTTPException(status_code=400, detail="The uploaded file is empty.")
+    return data
+
+
+@router.post(
+    "/offers/upload",
+    response_model=OfferUploadResponse,
+    status_code=status.HTTP_201_CREATED,
+    responses={400: {"model": ErrorResponse}, 413: {"model": ErrorResponse},
+               415: {"model": ErrorResponse}, 422: {"model": ErrorResponse}},
+)
 async def upload_offer(
     title: Optional[str] = Form(None),
     source_type: str = Form("text"),
@@ -50,29 +80,38 @@ async def upload_offer(
     session: Session = Depends(get_session),
 ):
     """
-    Upload an offer letter (PDF, screenshot, email text, or direct message).
-    Extracts initial text and persists an Offer record ready for investigation.
+    Upload an offer letter (PDF or image) or paste an email/message.
+
+    Returns the case ID and a one-time ``access_token``; every later request for
+    the case must send it as the ``X-Case-Token`` header. No search runs here.
 
     ``sample=true`` marks a case started from a built-in preset: it is investigated
     like any other case but its title is prefixed with "Sample: " so it can never
     be mistaken for a user's own offer.
     """
     content = raw_content or ""
-    offer_title = title or "Job Offer Verification"
+    offer_title = (title or "Job Offer Verification").strip()[:MAX_TITLE_CHARS] or "Job Offer Verification"
+    if source_type not in ALLOWED_TEXT_SOURCE_TYPES:
+        source_type = "text"
 
     if file:
-        file_bytes = await file.read()
-        filename = file.filename or "uploaded_file"
-        mime = file.content_type or ("application/pdf" if filename.lower().endswith(".pdf") else "image/png")
-        source_type = "pdf" if filename.lower().endswith(".pdf") else "screenshot"
-        offer_title = title or f"Offer from {filename}"
+        filename = PurePath(file.filename or "upload").name
+        suffix = PurePath(filename).suffix.lower()
+        if suffix not in ALLOWED_UPLOADS:
+            raise HTTPException(
+                status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+                detail="Unsupported file type. Upload a PDF, PNG, JPG or WEBP file, or paste the text.",
+            )
+        source_type, mime = ALLOWED_UPLOADS[suffix]
+        file_bytes = await _read_bounded(file)
+        offer_title = (title or f"Offer from {filename}")[:MAX_TITLE_CHARS]
         reason = None
         try:
             doc_result = await extractor.extract_from_document(file_bytes, mime)
             content = (doc_result.get("ocr_text") or "").strip()
             reason = doc_result.get("error")
         except Exception as e:
-            logger.warning("Document extraction failed (%s)", str(e))
+            logger.warning("Document extraction failed (%s)", type(e).__name__)
             content = ""
             reason = extractor._describe_failure(e)
 
@@ -85,115 +124,101 @@ async def upload_offer(
                 + (reason or "The file format could not be parsed. Paste the message text instead."),
             )
 
+    content = content.strip()
     if not content:
         raise HTTPException(status_code=400, detail="Either file or raw_content must be provided.")
+    if len(content) > settings.MAX_TEXT_CHARS:
+        raise _too_large(
+            f"Offer text is longer than {settings.MAX_TEXT_CHARS:,} characters. Paste only the offer itself."
+        )
 
     if sample and not offer_title.startswith(SAMPLE_TITLE_PREFIX):
         offer_title = SAMPLE_TITLE_PREFIX + offer_title
 
+    token = new_case_token()
     new_offer = Offer(
         title=offer_title,
         source_type=source_type,
         raw_content=content,
         status="PENDING",
+        access_token_hash=hash_case_token(token),
     )
     session.add(new_offer)
     session.commit()
     session.refresh(new_offer)
 
-    logger.info("Created new offer record with ID %d", new_offer.id)
+    logger.info("Created case %d (%s, %d chars)", new_offer.id, source_type, len(content))
 
+    created = new_offer.created_at
+    if created.tzinfo is None:
+        created = created.replace(tzinfo=timezone.utc)
     return OfferUploadResponse(
         offer_id=new_offer.id,
         title=new_offer.title,
         status=new_offer.status,
-        message="Offer received successfully. Ready for agent investigation.",
+        message="Offer received. Review the extracted claims, then start the investigation.",
+        access_token=token,
+        expires_at=created + timedelta(days=settings.CASE_RETENTION_DAYS),
     )
 
 
-@router.get("/offers/{id}", response_model=OfferRead, responses={404: {"model": ErrorResponse}})
-async def get_offer(id: int, session: Session = Depends(get_session)):
+@router.get("/offers/{id}", response_model=OfferRead, responses=NOT_FOUND)
+async def get_offer(offer: Offer = Depends(get_case)):
     """Retrieve an offer by ID."""
-    return _get_offer_or_404(session, id)
+    return offer
 
 
-@router.get("/offers/{id}/report", response_model=VerificationReport, responses={404: {"model": ErrorResponse}})
-async def get_offer_report(id: int, session: Session = Depends(get_session)):
+@router.delete("/offers/{id}", status_code=status.HTTP_204_NO_CONTENT, responses=NOT_FOUND)
+async def delete_offer(offer: Offer = Depends(get_case), session: Session = Depends(get_session)):
+    """Permanently delete the case: offer text, claims, runs and reports."""
+    run_service.delete_case(session, offer)
+    logger.info("Case %d deleted by its owner", offer.id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+def build_claim_preview(offer: Offer) -> ClaimPreview:
+    text = redact_case_text(offer.raw_content)
+    case_input = CaseInput(
+        contract_version=CONTRACT_VERSION,
+        case_id=offer.id,
+        run_id=f"preview_{offer.id}",
+        source_type=offer.source_type if offer.source_type in ("pdf", "screenshot", "email", "text") else "text",
+        redacted_text=text,
+    )
+    claims, _, _ = ClaimBuilder().build_claims(case_input)
+    return ClaimPreview(case_id=offer.id, text=text, claims=claims)
+
+
+@router.get("/offers/{id}/claims", response_model=ClaimPreview, responses=NOT_FOUND)
+async def get_claims(offer: Offer = Depends(get_case)):
     """
-    Retrieve or compute the forensic investigation report for an offer.
-    Runs extraction, agents, risk engine, and compiles verifiable findings.
-    Unknown offer IDs return 404 before any extraction or search runs.
+    Claims extracted from the offer for the user to review before investigating.
+    Local and deterministic: no search or hosted-model call is made.
     """
-    # A missing case is a 404 — never a built-in sample letter analysed in its place.
-    offer = _get_offer_or_404(session, id)
-    raw_content = offer.raw_content
-    offer_title = offer.title
+    return build_claim_preview(offer)
 
-    # Step 1: Entity Extraction (Gemini structured extraction with regex fallback)
-    extracted_data = await extractor.extract_entities(raw_content)
-    entities = extracted_data.to_extracted_entities()
 
-    # Step 2: Investigation Agents — run concurrently; they share no state and
-    # each spends nearly all its time waiting on SerpApi.
-    company_name = entities.company_name or "Unknown Company"
-    finding_comp, finding_rec, finding_sal, finding_scam = await asyncio.gather(
-        company_agent.investigate(company_name),
-        recruiter_agent.investigate(
-            company_name=company_name,
-            recruiter_name=entities.recruiter_name,
-            recruiter_email=entities.recruiter_email,
-            recruiter_phone=entities.recruiter_phone,
-            agency_name=getattr(entities, "agency_name", None),
-        ),
-        salary_agent.investigate(
-            company_name=company_name,
-            role_title=entities.role_title,
-            offered_salary=entities.offered_salary,
-        ),
-        scam_agent.investigate(
-            company_name=company_name,
-            demanded_fee=entities.demanded_fee,
-            payment_method=entities.payment_method,
-            flags=entities.flags,
-            raw_text=raw_content,
-        ),
-    )
+@router.get(
+    "/offers/{id}/report",
+    response_model=RunSnapshot,
+    responses={404: {"model": ErrorResponse}, 409: {"model": ErrorResponse}},
+)
+async def get_offer_report(offer: Offer = Depends(get_case), session: Session = Depends(get_session)):
+    """
+    The latest finished report for this case (a COMPLETED or PARTIAL RunSnapshot).
+    Reads the stored snapshot only; it never starts extraction or search.
+    409 if the case exists but has no report yet.
+    """
+    row = run_service.latest_report_run(session, offer.id)
+    if row is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Offer {offer.id} has no finished report yet. Start an investigation first.",
+        )
+    return run_service.to_snapshot(row)
 
-    findings = [finding_comp, finding_rec, finding_sal, finding_scam]
 
-    # Step 3: Risk Engine (Deterministic score calculation)
-    risk_score, initial_risk_level, red_flags, green_flags = risk_engine.compute_risk(findings)
-
-    # Step 4: Verdict Reasoner (Evidence-aware verdict determination)
-    verdict_result = verdict_reasoner.evaluate(
-        company_result=finding_comp,
-        recruiter_result=finding_rec,
-        salary_result=finding_sal,
-        scam_result=finding_scam,
-        initial_risk_score=risk_score,
-        initial_risk_level=initial_risk_level,
-    )
-    final_verdict = verdict_result.verdict
-
-    # Step 5: Update offer status in DB
-    offer.risk_score = risk_score
-    offer.risk_level = final_verdict.value
-    offer.status = "COMPLETED"
-    session.add(offer)
-    session.commit()
-
-    # Step 6: Generate Report
-    report = report_generator.generate(
-        offer_id=id,
-        title=offer_title,
-        risk_score=risk_score,
-        risk_level=final_verdict,
-        extracted_entities=entities,
-        findings=findings,
-        red_flags=red_flags,
-        green_flags=green_flags,
-        reason_details=verdict_result.reason_details,
-        structured_assessment=verdict_result.structured_assessment,
-    )
-
-    return report
+@router.get("/offers/{id}/runs", response_model=List[RunSnapshot], responses=NOT_FOUND)
+async def get_offer_runs(offer: Offer = Depends(get_case), session: Session = Depends(get_session)):
+    """Every run for this case, newest version first. Read-only."""
+    return [run_service.to_snapshot(r) for r in run_service.list_runs(session, offer.id)]

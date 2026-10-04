@@ -14,9 +14,7 @@ class OfferRead(BaseModel):
     title: str
     source_type: str
     raw_content: str
-    risk_score: Optional[float] = None
     status: str
-    risk_level: Optional[str] = None
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
@@ -27,3 +25,7 @@ class OfferUploadResponse(BaseModel):
     title: str
     status: str
     message: str
+    # Returned once. Send it as the X-Case-Token header on every request for this
+    # case; it is not stored in readable form and cannot be recovered.
+    access_token: str
+    expires_at: datetime

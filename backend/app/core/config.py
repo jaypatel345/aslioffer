@@ -59,6 +59,17 @@ class Settings(BaseSettings):
     SEARCH_TOTAL_TIMEOUT_SECONDS: float = Field(default=25.0, gt=0, le=120)
     SEARCH_DEMO_MODE: bool = False
 
+    # Run service (J3)
+    # Hard ceiling on one investigation run, on top of the investigator's own
+    # search deadline. A run that exceeds it is marked FAILED, not left RUNNING.
+    RUN_TIMEOUT_SECONDS: float = Field(default=90.0, gt=0, le=600)
+
+    # Upload and privacy controls (J6)
+    MAX_UPLOAD_BYTES: int = Field(default=5 * 1024 * 1024, gt=0)
+    MAX_TEXT_CHARS: int = Field(default=20_000, gt=0)
+    # Cases (offer text, claims, reports) are purged this many days after upload.
+    CASE_RETENTION_DAYS: int = Field(default=7, ge=1, le=365)
+
     # Gemini AI Configuration
     # Groq is tried before Gemini for document reading: its free tier allows
     # 30 requests/minute and 1000/day, where Gemini's exhausted every model in
