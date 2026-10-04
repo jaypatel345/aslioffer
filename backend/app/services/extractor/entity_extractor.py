@@ -1,18 +1,29 @@
+import io
 import re
 from typing import Optional, Dict, Any, List
 from app.schemas.analysis import ExtractedEntities, ExtractedData
 from app.services.ai.gemini_client import GeminiClient
 from app.services.ai.groq_client import GroqClient
+from app.services.extractor.claim_models import (
+    Claim,
+    ClaimKind,
+    ExtractionResult,
+    ExtractionStatus,
+    ConfidenceTier,
+    SourceSpan,
+    UnresolvedAmbiguity,
+    ExtractionWarning,
+)
+from app.services.extractor.grounded_parser import GroundedEntityParser
+from app.services.agents.scam_classifier import sanitize_and_redact_secrets
 from app.core.logging import logger
 
 
 class EntityExtractor:
     """
     Extracts key entities from offer letters, screenshots, recruiter messages, or emails.
-    Document reading tries Groq vision first, then Gemini. Groq's free tier is
-    far more forgiving, and Gemini's rate limit was exhausting the whole model
-    chain on a single screenshot.
-    Entity extraction from plain text uses Gemini, then deterministic regex.
+    Supports both claim-based extraction (contract v1.0.1) and legacy ExtractedData adapters.
+    Document reading tries safe local text extraction for PDFs, then Groq vision, then Gemini.
     """
 
     def __init__(
@@ -22,32 +33,41 @@ class EntityExtractor:
     ):
         self.gemini_client = gemini_client or GeminiClient()
         self.groq_client = groq_client or GroqClient()
+        self.parser = GroundedEntityParser()
+
+    def extract_claims(self, text: str, source_type: str = "text") -> ExtractionResult:
+        """
+        Extracts validated, contract v1.0.1 compliant claims with grounded provenance,
+        semantic role attribution, and explicit ambiguity records.
+        """
+        return self.parser.parse(text, source_type=source_type)
 
     async def extract_entities(self, text: str) -> ExtractedData:
         """
         Extracts structured ExtractedData from text using Gemini with automatic regex fallback.
         Handles timeout, invalid JSON, rate limit, and API errors transparently.
+        Sanitizes text before passing to external models and validates output grounding.
         """
+        sanitized = sanitize_and_redact_secrets(text or "")
         if self.gemini_client and self.gemini_client.api_key:
             try:
-                logger.info("Attempting Gemini entity extraction (%d chars)", len(text))
-                data = await self.gemini_client.extract_entities(text)
+                logger.info("Attempting Gemini entity extraction (%d chars)", len(sanitized))
+                data = await self.gemini_client.extract_entities(sanitized)
+                # Model grounding check: reject ungrounded hallucinations
+                if data.company and data.company.lower() not in sanitized.lower():
+                    logger.warning("Gemini proposed ungrounded company '%s'; falling back to deterministic extraction.", data.company)
+                    return self.extract_regex(sanitized)
+                data.raw_text = sanitized
                 return self._backfill_salary_fields(data)
             except Exception as e:
-                logger.warning("Gemini extraction failed (%s). Falling back to regex extractor.", str(e))
+                logger.warning("Gemini extraction failed (%s). Falling back to regex extractor.", type(e).__name__)
 
         logger.info("Using regex extraction pipeline")
-        return self.extract_regex(text)
+        return self.extract_regex(sanitized)
 
     def _backfill_salary_fields(self, data: ExtractedData) -> ExtractedData:
         """
         Make the local parser authoritative for salary_amount / salary_period.
-
-        Gemini is inconsistent about these: for "₹8 LPA" it returns None on one
-        call and 800000.0 (absolute rupees) on the next, while the regex path
-        yields 8.0 with period "LPA". Two conventions for one field means nothing
-        downstream can read it safely, so derive both locally whenever the string
-        parses, and keep whatever Gemini gave only when it does not.
         """
         if data.salary:
             _, amount, period = self._detect_salary(data.salary)
@@ -57,10 +77,28 @@ class EntityExtractor:
                 data.salary_period = period
         return data
 
+    @staticmethod
+    def _extract_pdf_text_local(file_bytes: bytes) -> str:
+        """
+        Privacy-preserving local extraction of PDF text using pypdf without external network calls.
+        """
+        try:
+            import pypdf
+            reader = pypdf.PdfReader(io.BytesIO(file_bytes))
+            pages = []
+            for page in reader.pages:
+                t = page.extract_text() or ""
+                if t.strip():
+                    pages.append(t.strip())
+            return "\n\n".join(pages).strip()
+        except Exception as e:
+            logger.warning("Local PDF extraction failed: %s", type(e).__name__)
+            return ""
+
     async def extract_from_document(self, file_bytes: bytes, mime_type: str) -> Dict[str, Any]:
         """
         Extracts text (OCR) and structured entities from PDF or image documents.
-        Uses Gemini multimodal vision with fallback to local text parsing.
+        Prefers privacy-preserving local text reading for PDFs, falling back to vision models.
         Returns:
             {
                 "ocr_text": str,
@@ -68,6 +106,27 @@ class EntityExtractor:
             }
         """
         failures: List[str] = []
+
+        # Privacy & safety: Refuse external vision calls on unsupported/binary formats
+        norm_mime = (mime_type or "").lower().split(";")[0].strip()
+        supported_mimes = {"application/pdf", "image/png", "image/jpeg", "image/jpg", "image/webp"}
+        if norm_mime not in supported_mimes:
+            logger.warning("Unsupported document format '%s'; refusing external vision call.", norm_mime)
+            return {
+                "ocr_text": "",
+                "entities": self.extract_regex(""),
+                "error": f"Unsupported document format '{norm_mime}'. Please upload a PDF or image, or paste text.",
+            }
+
+        # Local PDF extraction first (privacy-preserving, no external network call)
+        if norm_mime == "application/pdf":
+            local_pdf_text = self._extract_pdf_text_local(file_bytes)
+            if local_pdf_text and len(local_pdf_text.strip()) > 20:
+                sanitized_ocr = sanitize_and_redact_secrets(local_pdf_text)
+                return {
+                    "ocr_text": sanitized_ocr,
+                    "entities": self.extract_regex(sanitized_ocr),
+                }
 
         # Groq first: higher free-tier limits, and fast. It only accepts raster
         # images, so PDFs fall straight through to Gemini.
@@ -146,82 +205,12 @@ class EntityExtractor:
 
     def extract_regex(self, text: str) -> ExtractedData:
         """
-        Deterministic regex/heuristic extraction returning strongly-typed ExtractedData.
+        Deterministic regex/heuristic extraction returning strongly-typed ExtractedData
+        backed by the grounded claim extraction parser.
         """
-        logger.info("Running deterministic regex extraction on %d chars", len(text))
-
-        # Email regex
-        email_match = re.search(r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+", text)
-        recruiter_email = email_match.group(0).rstrip(".,;:)") if email_match else None
-
-        # Phone regex (Indian format standard)
-        phone_match = re.search(r"(?:\+91[\-\s]?)?[6789]\d{9}", text)
-        recruiter_phone = phone_match.group(0) if phone_match else None
-
-        # Company detection
-        company_name = self._detect_company(text)
-
-        # Role detection
-        job_role = self._detect_role(text)
-
-        # Recruiter name detection
-        recruiter_name = self._detect_recruiter(text)
-
-        # Salary detection
-        salary_str, salary_amount, salary_period = self._detect_salary(text)
-
-        # Fee or deposit detection
-        demanded_fee, is_reg_fee = self._detect_fee(text)
-
-        # Payment method detection
-        payment_method = self._detect_payment_method(text)
-
-        # Website & Address detection
-        website = self._detect_website(text)
-        address = self._detect_address(text)
-
-        # Joining date detection
-        joining_date = self._detect_joining_date(text)
-
-        payment_request_detected = bool(demanded_fee)
-
-        # Flags identified
-        flags: List[str] = []
-        if payment_request_detected:
-            flags.append("DEMANDS_UPFRONT_FEE")
-            if is_reg_fee:
-                flags.append("REGISTRATION_FEE_REQUESTED")
-
-        if payment_method and payment_method.upper() in ["UPI", "GPAY", "PHONEPE", "PAYTM"]:
-            flags.append("UPI_PAYMENT_REQUESTED")
-
-        if recruiter_email:
-            free_domains = ["gmail.com", "outlook.com", "yahoo.com", "hotmail.com"]
-            domain = recruiter_email.split("@")[-1].lower() if "@" in recruiter_email else ""
-            if domain in free_domains:
-                flags.append("PUBLIC_EMAIL_DOMAIN_USED")
-
-        if "telegram" in text.lower():
-            flags.append("TELEGRAM_CONTACT_SUSPICIOUS")
-
-        return ExtractedData(
-            company=company_name,
-            recruiter_name=recruiter_name,
-            recruiter_email=recruiter_email,
-            recruiter_phone=recruiter_phone,
-            job_role=job_role,
-            salary=salary_str,
-            salary_amount=salary_amount,
-            salary_period=salary_period,
-            joining_date=joining_date,
-            address=address,
-            website=website,
-            payment_request_detected=payment_request_detected,
-            payment_amount=demanded_fee,
-            payment_method=payment_method,
-            flags=flags,
-            raw_text=text,
-        )
+        logger.info("Running deterministic grounded regex extraction on %d chars", len(text))
+        result = self.extract_claims(text)
+        return result.to_extracted_data()
 
     # Brand mentions that are about the tooling, not the employer. "Google Meet"
     # in a scam email made every agent investigate Google and return VERIFIED.

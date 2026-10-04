@@ -51,7 +51,7 @@ class ExtractedData(BaseModel):
             recruiter_phone=self.recruiter_phone,
             role_title=self.job_role,
             offered_salary=self.salary,
-            location=self.address or "Remote / India",
+            location=self.address,
             demanded_fee=self.payment_amount if self.payment_request_detected else None,
             payment_method=self.payment_method,
             flags=list(self.flags),

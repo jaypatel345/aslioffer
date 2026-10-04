@@ -144,9 +144,9 @@ UNLOCK_EARNINGS_PATTERNS = [
 # Credential / OTP / password theft terminology
 CREDENTIAL_THEFT_PATTERNS = [
     r'\b(?:share|provide|send|forward|submit)\s+(?:your\s+)?(?:bank\s+)?(?:verification\s+)?otp\b',
-    r'\b(?:share|provide|send|forward|submit)\s+(?:your\s+)?(?:(?:net[- ]banking|login|account)\s+)?password\b',
-    r'\b(?:share|provide|send|forward|submit)\s+(?:your\s+)?(?:atm\s+)?pin\b',
-    r'\bshare\s+your\s+bank\s+otp\s+and\s+net[- ]banking\b',
+    r'\b(?:share|provide|send|forward|submit)\s+(?:your\s+)?(?:(?:net[- ]?banking|login|account)\s+)?password\b',
+    r'\b(?:share|provide|send|forward|submit)\s+(?:your\s+)?(?:(?:atm|debit\s+card|credit\s+card|card)\s+)?pin\b',
+    r'\bshare\s+your\s+bank\s+otp\s+and\s+net[- ]?banking\b',
     r'\botp\s+and\s+.*?\bpassword\s+immediately\s+with\s+hr\b',
     r'\bshare\s+.*?\botp\b.*?\bwith\s+(?:hr|recruiter|payroll|clearing\s+agent)\b',
 ]

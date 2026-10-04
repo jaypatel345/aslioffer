@@ -284,11 +284,6 @@ def test_case_10_sparse_employer_must_not_be_condemned_as_high_risk():
 # 5. Entity Extraction Regressions
 # ===========================================================================
 
-@pytest.mark.xfail(
-    strict=True,
-    raises=AssertionError,
-    reason="Defect: EntityExtractor regex assigns candidate email as recruiter email when candidate email appears first",
-)
 def test_case_15_candidate_and_recruiter_email_role_separation():
     """Case 15: If candidate email appears before recruiter email, regex extractor must not assign candidate email to recruiter."""
     extractor = EntityExtractor()
@@ -297,16 +292,10 @@ def test_case_15_candidate_and_recruiter_email_role_separation():
     extracted = extractor.extract_regex(text)
 
     # Desired behavior: Recruiter email is talent.acquisition@tata-elxsi.example, NOT candidate.ananya@gmail.com
-    # Current buggy behavior: First email matched is candidate.ananya@gmail.com, triggering PUBLIC_EMAIL_DOMAIN_USED flag
     assert extracted.recruiter_email == fixture["structured_input"]["recruiter_email"]
     assert "PUBLIC_EMAIL_DOMAIN_USED" not in extracted.flags
 
 
-@pytest.mark.xfail(
-    strict=True,
-    raises=AssertionError,
-    reason="Defect: EntityExtractor regex extracts 'Google' as company due to meeting URL/platform mention instead of actual employer V-Guard",
-)
 def test_case_16_company_extraction_trap_platform_mention():
     """Case 16: Meeting platform mentions (Google Meet) should not displace the actual employer name."""
     extractor = EntityExtractor()
