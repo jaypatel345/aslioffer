@@ -1,0 +1,283 @@
+{
+  "contract_version": "1.0.0",
+  "run_id": "run_01J9X2IMPERSONATION",
+  "case_id": 42,
+  "version": 1,
+  "previous_run_id": null,
+  "status": "COMPLETED",
+  "created_at": "2026-10-04T06:01:04Z",
+  "started_at": "2026-10-04T06:01:05Z",
+  "finished_at": "2026-10-04T06:01:18Z",
+  "events": [
+    {
+      "run_id": "run_01J9X2IMPERSONATION",
+      "sequence": 0,
+      "step": "extract_claims",
+      "status": "COMPLETED",
+      "public_message": "Read 4 claims from the offer.",
+      "timestamp": "2026-10-04T06:01:06Z"
+    },
+    {
+      "run_id": "run_01J9X2IMPERSONATION",
+      "sequence": 1,
+      "step": "resolve_employer_domain",
+      "status": "COMPLETED",
+      "public_message": "Found the employer's official website.",
+      "timestamp": "2026-10-04T06:01:12Z"
+    },
+    {
+      "run_id": "run_01J9X2IMPERSONATION",
+      "sequence": 2,
+      "step": "follow_up_sender_conflict",
+      "status": "COMPLETED",
+      "public_message": "Employer says it recruits only from its own domain and never charges fees.",
+      "timestamp": "2026-10-04T06:01:15Z"
+    },
+    {
+      "run_id": "run_01J9X2IMPERSONATION",
+      "sequence": 3,
+      "step": "role_listing_search",
+      "status": "COMPLETED",
+      "public_message": "No public listing found for this role.",
+      "timestamp": "2026-10-04T06:01:17Z"
+    },
+    {
+      "run_id": "run_01J9X2IMPERSONATION",
+      "sequence": 4,
+      "step": "assess",
+      "status": "COMPLETED",
+      "public_message": "Investigation complete.",
+      "timestamp": "2026-10-04T06:01:18Z"
+    }
+  ],
+  "report": {
+    "contract_version": "1.0.0",
+    "run_id": "run_01J9X2IMPERSONATION",
+    "demo_mode": false,
+    "claims": [
+      {
+        "claim_id": "c1",
+        "kind": "employer",
+        "value": "Nimbus Infotech Ltd",
+        "source_quote": "Nimbus Infotech Ltd",
+        "start_offset": 33,
+        "end_offset": 52,
+        "page": null,
+        "extraction_status": "EXTRACTED"
+      },
+      {
+        "claim_id": "c2",
+        "kind": "sender_email",
+        "value": "priya.nimbushr@gmail.com",
+        "source_quote": "priya.nimbushr@gmail.com",
+        "start_offset": 322,
+        "end_offset": 346,
+        "page": null,
+        "extraction_status": "EXTRACTED"
+      },
+      {
+        "claim_id": "c3",
+        "kind": "payment_request",
+        "value": "INR 15,000 refundable laptop security fee via UPI to nimbus.onboarding@okaxis",
+        "source_quote": "deposit a refundable laptop security fee of INR 15,000 via UPI to nimbus.onboarding@okaxis",
+        "start_offset": 190,
+        "end_offset": 280,
+        "page": null,
+        "extraction_status": "EXTRACTED"
+      },
+      {
+        "claim_id": "c4",
+        "kind": "role",
+        "value": "Graduate Engineer Trainee",
+        "source_quote": "Graduate Engineer Trainee",
+        "start_offset": 86,
+        "end_offset": 111,
+        "page": null,
+        "extraction_status": "EXTRACTED"
+      }
+    ],
+    "assessed_claims": [
+      {
+        "claim_id": "c1",
+        "status": "SUPPORTED",
+        "explanation": "An official employer domain (nimbusinfotech.example) was resolved from independent results. This shows the employer exists; it does not show this letter came from it.",
+        "evidence_ids": [
+          "e1"
+        ],
+        "reason_codes": [
+          "OFFICIAL_DOMAIN_RESOLVED"
+        ]
+      },
+      {
+        "claim_id": "c2",
+        "status": "CONTRADICTED",
+        "explanation": "The sender uses a free webmail address, while the employer's careers page says recruitment email comes only from @nimbusinfotech.example.",
+        "evidence_ids": [
+          "e2",
+          "e4"
+        ],
+        "reason_codes": [
+          "SENDER_DOMAIN_MISMATCH",
+          "FREE_WEBMAIL_SENDER"
+        ]
+      },
+      {
+        "claim_id": "c3",
+        "status": "CONTRADICTED",
+        "explanation": "The letter demands a payment to unlock joining. The employer's published policy says it never charges candidates.",
+        "evidence_ids": [
+          "e3",
+          "e5"
+        ],
+        "reason_codes": [
+          "UPFRONT_PAYMENT_DEMAND",
+          "EMPLOYER_NO_FEE_POLICY"
+        ]
+      },
+      {
+        "claim_id": "c4",
+        "status": "UNRESOLVED",
+        "explanation": "No public listing for this role was found. Roles can be unlisted or expired, so this is neither support nor a warning.",
+        "evidence_ids": [],
+        "reason_codes": [
+          "NO_PUBLIC_LISTING_FOUND"
+        ]
+      }
+    ],
+    "evidence": [
+      {
+        "evidence_id": "e1",
+        "claim_id": "c1",
+        "source_kind": "SEARCH_SNIPPET",
+        "source_url": "https://www.nimbusinfotech.example/",
+        "title": "Nimbus Infotech Ltd — Official Website",
+        "quote_or_snippet": "Nimbus Infotech Ltd is an IT services company headquartered in Pune.",
+        "retrieved_at": "2026-10-04T06:01:12Z",
+        "query": "Nimbus Infotech Ltd official website",
+        "engine": "google",
+        "search_id": "serp_6700a1b2c3",
+        "retrieval_status": "LIVE",
+        "source_tier": "OFFICIAL_EMPLOYER",
+        "relation": "SUPPORTS"
+      },
+      {
+        "evidence_id": "e2",
+        "claim_id": "c2",
+        "source_kind": "SEARCH_SNIPPET",
+        "source_url": "https://careers.nimbusinfotech.example/fraud-alert",
+        "title": "Recruitment Fraud Alert | Nimbus Careers",
+        "quote_or_snippet": "Nimbus never asks candidates for money. Our recruiters write only from @nimbusinfotech.example addresses.",
+        "retrieved_at": "2026-10-04T06:01:15Z",
+        "query": "Nimbus Infotech recruitment fraud email domain fee",
+        "engine": "google",
+        "search_id": "serp_6700a1b2d4",
+        "retrieval_status": "LIVE",
+        "source_tier": "OFFICIAL_EMPLOYER",
+        "relation": "CONTRADICTS"
+      },
+      {
+        "evidence_id": "e3",
+        "claim_id": "c3",
+        "source_kind": "DOCUMENT",
+        "source_url": null,
+        "title": "Payment demand in the offer text",
+        "quote_or_snippet": "deposit a refundable laptop security fee of INR 15,000 via UPI to nimbus.onboarding@okaxis within 24 hours",
+        "retrieved_at": "2026-10-04T06:01:05Z",
+        "query": null,
+        "engine": null,
+        "search_id": null,
+        "retrieval_status": "LIVE",
+        "source_tier": "OFFER_DOCUMENT",
+        "relation": "CONTEXT"
+      },
+      {
+        "evidence_id": "e4",
+        "claim_id": "c2",
+        "source_kind": "DOCUMENT",
+        "source_url": null,
+        "title": "Sender address in the offer text",
+        "quote_or_snippet": "contact HR: priya.nimbushr@gmail.com",
+        "retrieved_at": "2026-10-04T06:01:05Z",
+        "query": null,
+        "engine": null,
+        "search_id": null,
+        "retrieval_status": "LIVE",
+        "source_tier": "OFFER_DOCUMENT",
+        "relation": "CONTEXT"
+      },
+      {
+        "evidence_id": "e5",
+        "claim_id": "c3",
+        "source_kind": "SEARCH_SNIPPET",
+        "source_url": "https://careers.nimbusinfotech.example/fraud-alert",
+        "title": "Recruitment Fraud Alert | Nimbus Careers",
+        "quote_or_snippet": "Nimbus never asks candidates for money.",
+        "retrieved_at": "2026-10-04T06:01:15Z",
+        "query": "Nimbus Infotech recruitment fraud email domain fee",
+        "engine": "google",
+        "search_id": "serp_6700a1b2d4",
+        "retrieval_status": "LIVE",
+        "source_tier": "OFFICIAL_EMPLOYER",
+        "relation": "CONTRADICTS"
+      }
+    ],
+    "overall_outcome": "HIGH_RISK",
+    "authenticity_status": "UNCONFIRMED",
+    "coverage": {
+      "checked_claims": 4,
+      "total_claims": 4,
+      "unresolved_claims": 1,
+      "failed_checks": 0
+    },
+    "recommended_actions": [
+      "Do not pay the requested fee.",
+      "Confirm the offer through the employer's own careers portal, not the contact details in the letter.",
+      "Report the UPI ID and sender address at cybercrime.gov.in or call 1930."
+    ],
+    "confirmation_route": {
+      "channel": "careers_portal",
+      "destination": "https://careers.nimbusinfotech.example/fraud-alert",
+      "evidence_id": "e2",
+      "draft_message": "Hello, I received an offer for Graduate Engineer Trainee (Ref: NIT-GET-2026-114) from priya.nimbushr@gmail.com asking for an INR 15,000 deposit. Could you confirm whether this offer was issued by Nimbus Infotech?"
+    },
+    "tool_trace": [
+      {
+        "step": "resolve_employer_domain",
+        "tool": "serpapi.google",
+        "query": "Nimbus Infotech Ltd official website",
+        "reason": "Resolve the employer's official domain before checking any contact details.",
+        "status": "COMPLETED",
+        "started_at": "2026-10-04T06:01:10Z",
+        "duration_ms": 1840,
+        "evidence_ids": [
+          "e1"
+        ]
+      },
+      {
+        "step": "follow_up_sender_conflict",
+        "tool": "serpapi.google",
+        "query": "Nimbus Infotech recruitment fraud email domain fee",
+        "reason": "Sender domain gmail.com conflicts with resolved domain nimbusinfotech.example; searching the employer's recruitment policy.",
+        "status": "COMPLETED",
+        "started_at": "2026-10-04T06:01:13Z",
+        "duration_ms": 1610,
+        "evidence_ids": [
+          "e2",
+          "e5"
+        ]
+      },
+      {
+        "step": "role_listing_search",
+        "tool": "serpapi.google_jobs",
+        "query": "Graduate Engineer Trainee Nimbus Infotech",
+        "reason": "Look for a public vacancy matching the claimed role.",
+        "status": "COMPLETED",
+        "started_at": "2026-10-04T06:01:15Z",
+        "duration_ms": 2050,
+        "evidence_ids": []
+      }
+    ],
+    "errors": []
+  },
+  "errors": []
+}

@@ -1,0 +1,22 @@
+{
+  "contract_version": "1.0.0",
+  "case_id": 42,
+  "run_id": "run_01J9X2IMPERSONATION",
+  "source_type": "text",
+  "redacted_text": "Dear Candidate, Congratulations! Nimbus Infotech Ltd has selected you for the role of Graduate Engineer Trainee (Ref: NIT-GET-2026-114). Your CTC is INR 6.5 LPA. To block your joining slot, deposit a refundable laptop security fee of INR 15,000 via UPI to [UPI_ID_1] within 24 hours. For queries contact HR: [EMAIL_1]",
+  "confirmed_claims": [
+    {
+      "claim_id": "c1",
+      "kind": "employer",
+      "value": "Nimbus Infotech Ltd",
+      "extraction_status": "USER_CONFIRMED"
+    },
+    {
+      "claim_id": "c4",
+      "kind": "role",
+      "value": "Graduate Engineer Trainee",
+      "extraction_status": "USER_CONFIRMED"
+    }
+  ],
+  "demo_mode": false
+}
