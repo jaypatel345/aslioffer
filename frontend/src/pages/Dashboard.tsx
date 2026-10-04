@@ -41,10 +41,10 @@ export const Dashboard: React.FC = () => {
             <ArrowRight className="w-4 h-4" />
           </Link>
           <Link
-            to="/offers/101/report"
+            to="/samples/impersonation"
             className="px-6 py-3.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-900 font-medium text-sm transition-colors flex items-center gap-2"
           >
-            <span>View Sample Forensic Report</span>
+            <span>View Illustrative Sample Report</span>
             <ExternalLink className="w-3.5 h-3.5 text-slate-500" />
           </Link>
         </div>
@@ -124,7 +124,7 @@ export const Dashboard: React.FC = () => {
           <div>
             <h2 className="text-xl font-bold text-slate-900">Sample Offer Verifications</h2>
             <p className="text-xs text-slate-500 mt-0.5">
-              Explore how AsliOffer categorizes genuine and fraudulent employment communications
+              Hand-written examples of the report layout — not live investigations
             </p>
           </div>
           <Link
@@ -141,8 +141,8 @@ export const Dashboard: React.FC = () => {
           <div className="glass-card rounded-2xl p-6 border-slate-200 hover:border-slate-300 transition-all flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between mb-3">
-                <span className="text-xs text-slate-500 font-mono">ID #101 • PDF Offer</span>
-                <RiskBadge level="HIGH_RISK" score={0.94} showScore />
+                <span className="text-xs text-slate-500 font-mono">Illustrative sample</span>
+                <RiskBadge level="HIGH_RISK" />
               </div>
               <h3 className="text-base font-bold text-slate-900 mb-1">
                 TCS Associate Software Engineer Offer
@@ -162,7 +162,7 @@ export const Dashboard: React.FC = () => {
             <div className="mt-5 pt-4 border-t border-slate-200/80 flex items-center justify-between">
               <span className="text-xs text-slate-500">4 Evidence Points</span>
               <Link
-                to="/offers/101/report"
+                to="/samples/impersonation"
                 className="text-xs font-semibold text-rose-600 hover:text-rose-700 flex items-center gap-1"
               >
                 <span>View Full Audit</span>
@@ -175,8 +175,8 @@ export const Dashboard: React.FC = () => {
           <div className="glass-card rounded-2xl p-6 border-slate-200 hover:border-slate-300 transition-all flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between mb-3">
-                <span className="text-xs text-slate-500 font-mono">ID #102 • Email Offer</span>
-                <RiskBadge level="VERIFIED" score={0.12} showScore />
+                <span className="text-xs text-slate-500 font-mono">Illustrative sample</span>
+                <RiskBadge level="VERIFIED" />
               </div>
               <h3 className="text-base font-bold text-slate-900 mb-1">
                 Infosys Systems Engineer Specialist Offer
@@ -196,7 +196,7 @@ export const Dashboard: React.FC = () => {
             <div className="mt-5 pt-4 border-t border-slate-200/80 flex items-center justify-between">
               <span className="text-xs text-slate-500">4 Evidence Points</span>
               <Link
-                to="/offers/102/report"
+                to="/samples/corporate-domain"
                 className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 flex items-center gap-1"
               >
                 <span>View Full Audit</span>

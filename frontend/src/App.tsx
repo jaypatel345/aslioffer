@@ -4,6 +4,7 @@ import { Navbar } from './components/Navbar';
 import { Dashboard } from './pages/Dashboard';
 import { Upload } from './pages/Upload';
 import { OfferReport } from './pages/OfferReport';
+import { SampleReport } from './pages/SampleReport';
 import { ShieldCheck, PhoneCall, ExternalLink } from 'lucide-react';
 
 export const App: React.FC = () => {
@@ -17,6 +18,7 @@ export const App: React.FC = () => {
             <Route path="/" element={<Dashboard />} />
             <Route path="/upload" element={<Upload />} />
             <Route path="/offers/:id/report" element={<OfferReport />} />
+            <Route path="/samples/:key" element={<SampleReport />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>
