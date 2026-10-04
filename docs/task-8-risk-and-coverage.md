@@ -82,7 +82,7 @@ graph TD
 
 ## 4. Explicit Check-Level Coverage & Denominator Policy
 
-Coverage is tracked across 7 concrete investigation checks in [`CheckCoverageItem`](../backend/app/services/risk/assessment_models.py):
+Coverage is tracked across 7 aggregate investigation checks in [`CheckCoverageItem`](../backend/app/services/risk/assessment_models.py):
 
 | Check ID | Check Name | Performing Agent | Applicable When |
 | :--- | :--- | :--- | :--- |
@@ -99,12 +99,13 @@ Coverage is tracked across 7 concrete investigation checks in [`CheckCoverageIte
   - A completed empty search is `completed` with `no_match` resolution; it is **not** evidence of legitimacy.
   - Provider timeouts, rate limits, and auth failures are `unavailable`.
   - Demo results (`search_source == "DEMO"`) are excluded from public verification evidence (`unavailable`).
-  - Local document scan remains `completed` even if external SerpApi searches fail.
+  - Local document scan requires explicit `local_scan_completed=True`; external failures do not erase that completion. Missing execution metadata must not fabricate completion.
 - **Resolution Status**: `supported`, `no_match`, `unconfirmed`, `conflicting`.
 
 ### Completion Ratio Definition
 $$\text{completion\_ratio} = \frac{\text{completed\_checks}}{\text{applicable\_checks}} \quad (\text{0.0 if } \text{applicable\_checks} = 0)$$
-- Count **applicable checks**, not sources, raw URLs, or agents.
+- Count **applicable checks**, not sources, raw URLs, or agents. When recorded company/payment or phone/email subchecks exist, count those child checks instead of their aggregate parent. `parent_check_id` links each child to its parent; partial failures remain visible individually.
+- `not_checked_checks` counts applicable checks with no recorded execution. Applicable unavailable or unexecuted checks prevent a clean outcome.
 - Genuinely optional checks (e.g. agency mandate when no agency was involved, or salary benchmark for monthly stipends) are marked `not_applicable` and excluded from the denominator.
 - Missing essential employer or recruiter information is marked `not_checked` with `applicability=True`, preserving visible gaps in coverage.
 - The ratio is explicitly **not** described as an authenticity confidence metric.
@@ -172,3 +173,13 @@ When updating the UI, Jay should display the three dimensions separately:
 
 - **Task 9 Scope**: Owns comprehensive report wording cleanup, full narrative adjustments, and detailed action recommendations across all forensic scenarios.
 - **Task 10 Scope**: Owns the unified pipeline orchestrator, adaptive search retry strategies, database schema redesign, and asynchronous background worker integration.
+
+## 9. Task 8 Cleanup Rules
+
+- Structured local signal assessments take precedence over stale agent verdicts and flags. A strong local signal requires an active risk-contributing assessment with a source quote, or grounded document evidence for legacy findings. UPI payment concerns alone remain review concerns.
+- Recruiter coverage reads the actual `adverse_contact_reports`, `recruiter_affiliation`, and agency dimension metadata, including nested evidence strength. Partial provider failures cannot become clean completed checks.
+- Exact duplicate findings do not change the assessment. Conflicting findings from the same agent are selected deterministically and produce an explicit review concern; they cannot silently produce a clean result based on input order.
+- Public DEMO/MOCK results do not support assessment evidence. Evidence deduplication preserves distinct observations and meaningful URL query parameters while removing tracking parameters.
+- Reports recompute outcome, warning index, and flags from findings so stale caller-supplied values cannot contradict structured assessment. Verdict reasoning follows the same outcome policy.
+- Legacy verdict confidence remains an uncalibrated compatibility field: `CANNOT_VERIFY` uses 0.0 without evidence or 0.35 with evidence, independent of source count. It must not be displayed as an authenticity probability.
+- Validation: `python -m pytest backend/tests/ -q`; regression cases are in `backend/tests/test_task8_cleanup.py`.

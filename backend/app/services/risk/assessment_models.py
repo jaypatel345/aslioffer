@@ -51,6 +51,7 @@ class WarningSignal(BaseModel):
 
 class CheckCoverageItem(BaseModel):
     check_id: str
+    parent_check_id: Optional[str] = None
     check_name: str
     agent_name: str
     execution_status: ExecutionStatus
@@ -67,10 +68,11 @@ class CoverageSummary(BaseModel):
     applicable_checks: int
     completed_checks: int
     unavailable_checks: int
+    not_checked_checks: int = 0
     not_applicable_checks: int
     completion_ratio: float = Field(
         ...,
-        description="completed_checks / applicable_checks (0.0 if applicable_checks == 0). Not an authenticity confidence metric.",
+        ge=0.0, le=1.0, description="completed_checks / applicable_checks (0.0 if applicable_checks == 0). Not an authenticity confidence metric.",
     )
     unresolved_issues: List[str] = Field(default_factory=list)
 
@@ -79,7 +81,7 @@ class StructuredAssessment(BaseModel):
     overall_outcome: OverallOutcome
     authenticity_status: AuthenticityStatus = AuthenticityStatus.UNCONFIRMED
     warning_strength: float = Field(
-        ...,
+        ..., ge=0.0, le=1.0,
         description="Uncalibrated warning index between 0.0 and 1.0 (0.0 means no supported warning signals found). Never a fraud probability.",
     )
     warning_band: WarningBand

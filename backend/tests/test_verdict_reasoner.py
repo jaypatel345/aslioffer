@@ -56,6 +56,7 @@ def test_verified_offer(reasoner):
         verdict="VERIFIED",
         confidence=0.95,
         summary="No advance fee requests detected.",
+        details={"local_scan_completed": True, "provider_status": "SUCCESS", "search_status": "ZERO_RESULTS"},
         evidence=[
             EvidenceItem(source_url="https://cybercrime.gov.in", title="Clean", description="No flags", evidence_type="SCAM_REPORT", confidence=0.95)
         ]
@@ -101,7 +102,7 @@ def test_obvious_scam(reasoner):
         confidence=0.99,
         summary="Critical scam markers identified! Upfront fee demand (INR 15,000) detected.",
         evidence=[
-            EvidenceItem(source_url="https://cybercrime.gov.in", title="Advance fee", description="Illegal deposit", evidence_type="SCAM_REPORT", confidence=0.99)
+            EvidenceItem(source_url="document://submitted-offer", title="Advance fee", description="Pay INR 15000 laptop deposit before joining", evidence_type="SCAM_REPORT", confidence=0.99)
         ]
     )
 
@@ -161,6 +162,7 @@ def test_legitimate_startup(reasoner):
         verdict="VERIFIED",
         confidence=0.90,
         summary="No advance fee requests detected.",
+        details={"local_scan_completed": True, "provider_status": "SUCCESS", "search_status": "ZERO_RESULTS"},
         evidence=[]
     )
 
@@ -219,6 +221,7 @@ def test_mixed_evidence_salary_outlier(reasoner):
         verdict="VERIFIED",
         confidence=0.90,
         summary="No advance fee detected",
+        details={"local_scan_completed": True, "provider_status": "SUCCESS", "search_status": "ZERO_RESULTS"},
         evidence=[]
     )
 
@@ -251,7 +254,7 @@ def test_cannot_verify_when_evidence_count_is_one(reasoner):
     )
     rec = AgentFinding(agent_name="RecruiterAgent", verdict="VERIFIED", confidence=0.80, summary="Email matches", evidence=[])
     sal = AgentFinding(agent_name="SalaryAgent", verdict="VERIFIED", confidence=0.80, summary="Salary normal", evidence=[])
-    scam = AgentFinding(agent_name="ScamAgent", verdict="VERIFIED", confidence=0.80, summary="No fee", evidence=[])
+    scam = AgentFinding(agent_name="ScamAgent", verdict="VERIFIED", confidence=0.80, summary="No fee", evidence=[], details={"local_scan_completed": True, "provider_status": "SUCCESS", "search_status": "ZERO_RESULTS"})
 
     result = reasoner.evaluate(
         company_result=comp,
@@ -270,7 +273,7 @@ def test_no_evidence_available(reasoner):
     comp = AgentFinding(agent_name="CompanyAgent", verdict="UNVERIFIED", confidence=0.3, summary="Nothing found", evidence=[])
     rec = AgentFinding(agent_name="RecruiterAgent", verdict="UNVERIFIED", confidence=0.3, summary="Nothing found", evidence=[])
     sal = AgentFinding(agent_name="SalaryAgent", verdict="VERIFIED", confidence=0.8, summary="Normal", evidence=[])
-    scam = AgentFinding(agent_name="ScamAgent", verdict="VERIFIED", confidence=0.8, summary="No fee", evidence=[])
+    scam = AgentFinding(agent_name="ScamAgent", verdict="VERIFIED", confidence=0.8, summary="No fee", evidence=[], details={"local_scan_completed": True, "provider_status": "SUCCESS", "search_status": "ZERO_RESULTS"})
 
     result = reasoner.evaluate(
         company_result=comp,
@@ -302,7 +305,7 @@ def test_documented_confidence_formula(reasoner):
     comp = AgentFinding(agent_name="CompanyAgent", verdict="VERIFIED", confidence=0.80, summary="Comp", evidence=[ev1])
     rec = AgentFinding(agent_name="RecruiterAgent", verdict="VERIFIED", confidence=0.80, summary="Rec", evidence=[ev2])
     sal = AgentFinding(agent_name="SalaryAgent", verdict="VERIFIED", confidence=0.80, summary="Sal", evidence=[])
-    scam = AgentFinding(agent_name="ScamAgent", verdict="VERIFIED", confidence=0.80, summary="Scam", evidence=[])
+    scam = AgentFinding(agent_name="ScamAgent", verdict="VERIFIED", confidence=0.80, summary="Scam", evidence=[], details={"local_scan_completed": True, "provider_status": "SUCCESS", "search_status": "ZERO_RESULTS"})
 
     result = reasoner.evaluate(
         company_result=comp,

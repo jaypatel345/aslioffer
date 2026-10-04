@@ -43,7 +43,15 @@ class ReportGenerator:
         logger.info("ReportGenerator compiling report for offer_id=%d (risk_level=%s)", offer_id, risk_level.value)
 
         # Derive or use provided structured assessment
-        assessment = structured_assessment or AssessmentEngine().assess(findings)
+        assessment = AssessmentEngine().assess(findings)
+        risk_score = assessment.warning_strength
+        risk_level = {OverallOutcome.HIGH_RISK: RiskLevel.HIGH_RISK,
+                      OverallOutcome.NEEDS_REVIEW: RiskLevel.NEEDS_REVIEW,
+                      OverallOutcome.CANNOT_VERIFY: RiskLevel.CANNOT_VERIFY,
+                      OverallOutcome.NO_STRONG_RISK_SIGNALS: RiskLevel.VERIFIED}[assessment.overall_outcome]
+        red_flags = [s.description for s in assessment.supported_warning_signals + assessment.review_only_concerns]
+        from app.services.risk.risk_engine import RiskEngine
+        _, _, _, green_flags = RiskEngine().compute_risk(findings)
 
         company_name = extracted_entities.company_name or "Company"
 

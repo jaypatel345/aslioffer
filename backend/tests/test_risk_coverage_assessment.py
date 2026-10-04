@@ -282,7 +282,7 @@ def test_agency_identity_supported_but_mandate_unresolved(engine):
             },
         ),
         AgentFinding(agent_name="SalaryAgent", verdict="VERIFIED", confidence=0.80, summary="Normal pay", evidence=[]),
-        AgentFinding(agent_name="ScamAgent", verdict="VERIFIED", confidence=0.90, summary="Clean", evidence=[]),
+        AgentFinding(agent_name="ScamAgent", verdict="VERIFIED", confidence=0.90, summary="Clean", evidence=[], details={"local_scan_completed": True, "provider_status": "SUCCESS", "search_status": "ZERO_RESULTS"}),
     ]
 
     assessment = engine.assess(findings)
@@ -317,7 +317,7 @@ def test_matched_employer_domain_without_recruiter_affiliation(engine):
             },
         ),
         AgentFinding(agent_name="SalaryAgent", verdict="VERIFIED", confidence=0.80, summary="Normal", evidence=[]),
-        AgentFinding(agent_name="ScamAgent", verdict="VERIFIED", confidence=0.90, summary="Clean", evidence=[]),
+        AgentFinding(agent_name="ScamAgent", verdict="VERIFIED", confidence=0.90, summary="Clean", evidence=[], details={"local_scan_completed": True, "provider_status": "SUCCESS", "search_status": "ZERO_RESULTS"}),
     ]
 
     assessment = engine.assess(findings)
@@ -523,7 +523,7 @@ def test_findings_reordered_without_changing_result(engine):
     f_comp = AgentFinding(agent_name="CompanyAgent", verdict="VERIFIED", confidence=0.9, summary="Comp", evidence=[EvidenceItem(source_url="https://a.com", title="A", description="A", evidence_type="COMPANY", confidence=0.9)])
     f_rec = AgentFinding(agent_name="RecruiterAgent", verdict="NEEDS_REVIEW", confidence=0.8, summary="Free email", evidence=[], details={"is_free_email": True})
     f_sal = AgentFinding(agent_name="SalaryAgent", verdict="VERIFIED", confidence=0.8, summary="Sal", evidence=[])
-    f_scam = AgentFinding(agent_name="ScamAgent", verdict="VERIFIED", confidence=0.9, summary="Scam", evidence=[])
+    f_scam = AgentFinding(agent_name="ScamAgent", verdict="VERIFIED", confidence=0.9, summary="Scam", evidence=[], details={"local_scan_completed": True, "provider_status": "SUCCESS", "search_status": "ZERO_RESULTS"})
 
     order_1 = [f_comp, f_rec, f_sal, f_scam]
     order_2 = [f_scam, f_sal, f_rec, f_comp]
@@ -566,7 +566,7 @@ def test_consistent_results_from_risk_engine_verdict_reasoner_and_report():
     comp = AgentFinding(agent_name="CompanyAgent", verdict="VERIFIED", confidence=0.95, summary="Infosys exists", evidence=[EvidenceItem(source_url="https://infosys.com", title="Site", description="Valid", evidence_type="COMPANY", confidence=0.95)])
     rec = AgentFinding(agent_name="RecruiterAgent", verdict="VERIFIED", confidence=0.90, summary="Infosys email", evidence=[EvidenceItem(source_url="https://infosys.com", title="MX", description="Aligns", evidence_type="RECRUITER", confidence=0.90)])
     sal = AgentFinding(agent_name="SalaryAgent", verdict="VERIFIED", confidence=0.85, summary="Pay matches", evidence=[])
-    scam = AgentFinding(agent_name="ScamAgent", verdict="VERIFIED", confidence=0.95, summary="Clean", evidence=[])
+    scam = AgentFinding(agent_name="ScamAgent", verdict="VERIFIED", confidence=0.95, summary="Clean", evidence=[], details={"local_scan_completed": True, "provider_status": "SUCCESS", "search_status": "ZERO_RESULTS"})
 
     findings = [comp, rec, sal, scam]
 
@@ -628,7 +628,7 @@ def test_no_strong_risk_signals_carries_authenticity_unconfirmed(engine):
         AgentFinding(agent_name="CompanyAgent", verdict="VERIFIED", confidence=0.9, summary="Comp", evidence=[EvidenceItem(source_url="https://google.com", title="Site", description="Site", evidence_type="COMPANY", confidence=0.9)]),
         AgentFinding(agent_name="RecruiterAgent", verdict="VERIFIED", confidence=0.9, summary="Rec", evidence=[EvidenceItem(source_url="https://google.com", title="Domain", description="Domain", evidence_type="RECRUITER", confidence=0.9)]),
         AgentFinding(agent_name="SalaryAgent", verdict="VERIFIED", confidence=0.8, summary="Sal", evidence=[]),
-        AgentFinding(agent_name="ScamAgent", verdict="VERIFIED", confidence=0.9, summary="Scam", evidence=[]),
+        AgentFinding(agent_name="ScamAgent", verdict="VERIFIED", confidence=0.9, summary="Scam", evidence=[], details={"local_scan_completed": True, "provider_status": "SUCCESS", "search_status": "ZERO_RESULTS"}),
     ]
 
     assessment = engine.assess(findings)

@@ -61,11 +61,12 @@ class VerdictReasoner:
         # Deduplicate evidence items
         seen_keys = set()
         deduped_evidence: List[EvidenceItem] = []
-        for f in findings:
+        safe_findings, _ = self.engine._normalize_findings(findings)
+        for f in safe_findings:
             for ev in f.evidence:
                 canon_url = canonicalize_url(ev.source_url)
                 title_key = (ev.title or "").strip().lower()
-                key = (canon_url, title_key)
+                key = (canon_url, title_key, ev.description, ev.evidence_type)
                 if key not in seen_keys:
                     seen_keys.add(key)
                     deduped_evidence.append(ev)
@@ -86,13 +87,10 @@ class VerdictReasoner:
         # Repeated sources or duplicated findings do not inflate confidence.
         if verdict == RiskLevel.HIGH_RISK:
             confidence = 0.95
-        elif initial_risk_level == RiskLevel.CANNOT_VERIFY and not assessment.supported_warning_signals:
-            verdict = RiskLevel.CANNOT_VERIFY
-            confidence = 0.0 if evidence_count == 0 else round(min(evidence_count * 0.15, 0.45), 2)
         elif verdict == RiskLevel.NEEDS_REVIEW:
             confidence = 0.85
         elif verdict == RiskLevel.CANNOT_VERIFY:
-            confidence = 0.0 if evidence_count == 0 else round(min(evidence_count * 0.15, 0.45), 2)
+            confidence = 0.0 if evidence_count == 0 else 0.35
         else:  # VERIFIED / NO_STRONG_RISK_SIGNALS
             # Sufficient applicable checks completed cleanly
             ratio = assessment.coverage_summary.completion_ratio
@@ -231,8 +229,8 @@ class VerdictReasoner:
                     evidence_items.append(EvidenceItem(**ev))
             return AgentFinding(
                 agent_name=finding_input.get("agent_name", agent_name),
-                verdict=finding_input.get("verdict", "VERIFIED"),
-                confidence=float(finding_input.get("confidence", 0.8)),
+                verdict=finding_input.get("verdict", "CANNOT_VERIFY"),
+                confidence=float(finding_input.get("confidence", 0.0)),
                 summary=finding_input.get("summary", ""),
                 evidence=evidence_items,
                 details=finding_input.get("details", {}),

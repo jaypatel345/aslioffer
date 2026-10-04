@@ -443,7 +443,7 @@ async def test_correct_final_reason_codes_and_needs_review_propagation():
         verdict="HIGH_RISK",
         confidence=0.98,
         summary="Critical threat: Explicit solicitation of bank OTP and account passwords.",
-        evidence=[],
+        evidence=[{"source_url": "document://submitted-offer", "title": "Explicit credential demand", "description": "Share your bank OTP with HR", "evidence_type": "SCAM_REPORT", "confidence": 0.98}],
         details={
             "risk_signals": ["CREDENTIAL_THEFT_DEMAND"],
             "reason_code": "CREDENTIAL_THEFT_DETECTED",
@@ -466,7 +466,7 @@ async def test_correct_final_reason_codes_and_needs_review_propagation():
         verdict="HIGH_RISK",
         confidence=0.98,
         summary="Advance payment required to release earned funds.",
-        evidence=[],
+        evidence=[{"source_url": "document://submitted-offer", "title": "Unlock demand", "description": "Recharge your wallet to withdraw earnings", "evidence_type": "SCAM_REPORT", "confidence": 0.98}],
         details={
             "risk_signals": ["UNLOCK_PAYMENT_DEMAND"],
             "reason_code": "UNLOCK_PAYMENT_DETECTED",
@@ -489,7 +489,7 @@ async def test_correct_final_reason_codes_and_needs_review_propagation():
     )
     res_review = reasoner.evaluate(comp, rec, sal, scam_review, 0.20, RiskLevel.CANNOT_VERIFY)
     # When insufficient evidence makes overall verdict CANNOT_VERIFY, ScamAgent explanation must remain visible
-    assert res_review.verdict == RiskLevel.CANNOT_VERIFY
+    assert res_review.verdict == RiskLevel.NEEDS_REVIEW
     assert any("Telegram" in r for r in res_review.reasons)
     assert any(d.code == "TELEGRAM_UNVERIFIED_CHANNEL" for d in res_review.reason_details)
 

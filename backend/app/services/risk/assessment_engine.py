@@ -1,4 +1,5 @@
 import re
+import json
 import urllib.parse
 from typing import List, Dict, Any, Optional, Set, Tuple
 
@@ -36,7 +37,8 @@ def canonicalize_url(url: Optional[str]) -> str:
             netloc = netloc[4:]
         path = parsed.path.rstrip("/")
         # Omit tracking query params
-        return urllib.parse.urlunsplit((parsed.scheme.lower(), netloc, path, "", ""))
+        query = urllib.parse.urlencode(sorted((k, v) for k, v in urllib.parse.parse_qsl(parsed.query, keep_blank_values=True) if not k.lower().startswith("utm_") and k.lower() not in {"gclid", "fbclid"}))
+        return urllib.parse.urlunsplit((parsed.scheme.lower(), netloc, path, query, ""))
     except Exception:
         return clean.lower()
 
@@ -86,6 +88,8 @@ class AssessmentEngine:
         """
         logger.info("AssessmentEngine evaluating %d findings", len(findings))
 
+        findings, duplicate_conflicts = self._normalize_findings(findings)
+
         # 1. Deduplicate Evidence and track sources
         unique_evidence, unique_urls = self._deduplicate_evidence(findings)
 
@@ -94,6 +98,17 @@ class AssessmentEngine:
 
         # 3. Extract Supported Warning Signals vs. Review Concerns vs. Gaps
         strong_signals, review_concerns, unresolved_issues = self._extract_signals_and_gaps(findings, checks)
+
+        if duplicate_conflicts:
+            unresolved_issues.extend(duplicate_conflicts)
+            review_concerns.append(WarningSignal(
+                code="CONFLICTING_AGENT_FINDINGS", severity=WarningSeverity.REVIEW_CONCERN,
+                title="Conflicting results from the same agent", description="; ".join(duplicate_conflicts),
+                source_agent="AssessmentEngine", evidence_refs=[],
+            ))
+        strong_signals.sort(key=lambda signal: signal.code)
+        review_concerns.sort(key=lambda signal: signal.code)
+        unresolved_issues = sorted(set(unresolved_issues))
 
         # 4. Determine Overall Outcome following strict precedence
         overall_outcome, policy_explanation = self._determine_overall_outcome(
@@ -133,8 +148,30 @@ class AssessmentEngine:
             policy_explanation=policy_explanation,
         )
 
+    def _normalize_findings(self, findings):
+        groups = {}
+        for finding in findings:
+            key = json.dumps(finding.model_dump(mode="json"), sort_keys=True)
+            groups.setdefault(finding.agent_name, {})[key] = finding
+        normalized, conflicts = [], []
+        priority = {"HIGH_RISK": 0, "NEEDS_REVIEW": 1, "CANNOT_VERIFY": 2, "UNVERIFIED": 2, "VERIFIED": 3}
+        for agent, group in sorted(groups.items()):
+            ordered = sorted(group.items(), key=lambda entry: (priority.get(entry[1].verdict, 2), entry[0]))
+            selected = ordered[0][1].model_copy(deep=True)
+            if len(group) > 1:
+                conflicts.append(f"{agent} returned differing findings; no arbitrary last-result selection was used.")
+            details = selected.details
+            subqueries = list(details.get("checks", {}).values())
+            demo = (details.get("search_source") in {"DEMO", "MOCK"}
+                    or details.get("search_status") in {"DEMO", "MOCK"}
+                    or bool(subqueries and all(q.get("search_source") in {"DEMO", "MOCK"} for q in subqueries)))
+            if demo:
+                selected.evidence = [e for e in selected.evidence if e.source_url.startswith("document://")]
+            normalized.append(selected)
+        return normalized, conflicts
+
     def _deduplicate_evidence(self, findings: List[AgentFinding]) -> Tuple[List[EvidenceItem], Set[str]]:
-        seen_keys: Set[Tuple[str, str]] = set()
+        seen_keys: Set[Tuple[str, str, str, str]] = set()
         unique_items: List[EvidenceItem] = []
         unique_urls: Set[str] = set()
 
@@ -142,7 +179,7 @@ class AssessmentEngine:
             for ev in f.evidence:
                 canon_url = canonicalize_url(ev.source_url)
                 title_key = (ev.title or "").strip().lower()
-                key = (canon_url, title_key)
+                key = (canon_url, title_key, ev.description, ev.evidence_type)
                 if key not in seen_keys:
                     seen_keys.add(key)
                     unique_items.append(ev)
@@ -176,6 +213,68 @@ class AssessmentEngine:
         # Check 7: COMPENSATION_BENCHMARK (SalaryAgent)
         checks.append(self._check_compensation_benchmark(agent_map.get("SalaryAgent")))
 
+        for check in checks:
+            finding = agent_map.get(check.agent_name)
+            if not finding or not check.applicability or check.check_id == "LOCAL_DOCUMENT_SCAN":
+                continue
+            details = finding.details or {}
+            dims = details.get("assessment_dimensions", {})
+            mapping = {"RECRUITER_CONTACT_REPUTATION": "adverse_contact_reports",
+                       "RECRUITER_AFFILIATION_CHECK": "recruiter_affiliation",
+                       "AGENCY_AUTHORIZATION_CHECK": "agency_authorization"}
+            dimension = dims.get(mapping.get(check.check_id, ""), {})
+            flat_statuses = {"RECRUITER_CONTACT_REPUTATION": "adverse_reports_status", "RECRUITER_AFFILIATION_CHECK": "recruiter_affiliation_status", "AGENCY_AUTHORIZATION_CHECK": "agency_authorization_status"}
+            status = dimension.get("status") or details.get(flat_statuses.get(check.check_id, ""))
+            if dimension.get("source_urls"):
+                check.evidence_refs = sorted(set(canonicalize_url(url) for url in dimension["source_urls"]))
+            if status in {"CHECK_UNAVAILABLE", "NOT_CHECKED"}:
+                check.execution_status = ExecutionStatus.UNAVAILABLE if status == "CHECK_UNAVAILABLE" else ExecutionStatus.NOT_CHECKED
+                check.resolution_status = ResolutionStatus.UNCONFIRMED
+                check.remaining_uncertainty = dimension.get("explanation") or "Check did not establish a result."
+                check.failure_reason = check.remaining_uncertainty if status == "CHECK_UNAVAILABLE" else None
+            elif details.get("search_source") in {"DEMO", "MOCK"}:
+                check.execution_status = ExecutionStatus.UNAVAILABLE
+                check.resolution_status = ResolutionStatus.UNCONFIRMED
+                check.evidence_refs = []
+                check.failure_reason = "Demo/mock synthetic results cannot establish live verification."
+            elif details.get("provider_status") == "NOT_CHECKED":
+                check.execution_status = ExecutionStatus.NOT_CHECKED
+                check.resolution_status = ResolutionStatus.UNCONFIRMED
+            elif not details and not finding.evidence:
+                check.execution_status = ExecutionStatus.NOT_CHECKED
+                check.resolution_status = ResolutionStatus.UNCONFIRMED
+                check.remaining_uncertainty = "Legacy verdict lacks evidence of check execution."
+
+        # Preserve execution of real subqueries without counting aggregate and
+        # child records twice in coverage. Missing queries are never invented.
+        for agent_name, prefixes in (("ScamAgent", {"company_reports": "EXTERNAL_SCAM_REPORTS", "payment_reports": "EXTERNAL_SCAM_REPORTS"}),
+                                     ("RecruiterAgent", {"phone_reports": "RECRUITER_CONTACT_REPUTATION", "email_reports": "RECRUITER_CONTACT_REPUTATION"})):
+            finding = agent_map.get(agent_name)
+            for name, query in (finding.details.get("checks", {}) if finding else {}).items():
+                if name not in prefixes:
+                    continue
+                parent = prefixes[name]
+                synthetic = query.get("search_source") in {"DEMO", "MOCK"}
+                failed = synthetic or query.get("provider_status") == "FAILED" or query.get("search_status") in {"TIMEOUT", "RATE_LIMIT", "AUTH_FAILURE", "PROVIDER_FAILURE", "DEMO"}
+                completed = query.get("provider_status") == "SUCCESS" and not failed
+                checks.append(CheckCoverageItem(
+                    check_id=parent + ":" + name, parent_check_id=parent,
+                    check_name=name.replace("_", " "), agent_name=agent_name,
+                    applicability=True,
+                    execution_status=ExecutionStatus.UNAVAILABLE if failed else ExecutionStatus.COMPLETED if completed else ExecutionStatus.NOT_CHECKED,
+                    resolution_status=ResolutionStatus.SUPPORTED if completed and (query.get("phone_flagged") or query.get("email_flagged")) else ResolutionStatus.NO_MATCH if completed else ResolutionStatus.UNCONFIRMED,
+                    failure_reason=query.get("error") or "Search unavailable" if failed else None,
+                ))
+        for parent_id in {c.parent_check_id for c in checks if c.parent_check_id}:
+            children = [c for c in checks if c.parent_check_id == parent_id]
+            parent = next(c for c in checks if c.check_id == parent_id)
+            if any(c.execution_status == ExecutionStatus.UNAVAILABLE for c in children):
+                parent.execution_status = ExecutionStatus.UNAVAILABLE
+                parent.failure_reason = "One or more actual subqueries were unavailable."
+            elif any(c.execution_status == ExecutionStatus.NOT_CHECKED for c in children):
+                parent.execution_status = ExecutionStatus.NOT_CHECKED
+            else:
+                parent.execution_status = ExecutionStatus.COMPLETED
         return checks
 
     def _check_local_document_scan(self, finding: Optional[AgentFinding]) -> CheckCoverageItem:
@@ -192,7 +291,7 @@ class AssessmentEngine:
             )
 
         details = finding.details or {}
-        local_completed = details.get("local_scan_completed", True)
+        local_completed = details.get("local_scan_completed", False)
         active_signals = details.get("risk_signals", [])
         has_active_demands = bool(
             details.get("fee_detected")
@@ -202,6 +301,11 @@ class AssessmentEngine:
             or any(s in self.STRONG_ADVERSE_CODES for s in active_signals)
             or finding.verdict == "HIGH_RISK"
         )
+        if "signal_assessments" in details:
+            has_active_demands = any(a.get("modality") == "active_demand" and a.get("contributes_to_verdict")
+                                     and a.get("source_quote") for a in details["signal_assessments"])
+        elif not any(e.source_url.startswith("document://") for e in finding.evidence):
+            has_active_demands = False
         is_ambiguous = finding.verdict == "NEEDS_REVIEW"
 
         if local_completed:
@@ -434,7 +538,7 @@ class AssessmentEngine:
             )
 
         dims = details.get("assessment_dimensions", {})
-        adv_dim = dims.get("adverse_reports", {}) or details.get("adverse_reports", {})
+        adv_dim = dims.get("adverse_contact_reports", {}) or dims.get("adverse_reports", {}) or details.get("adverse_contact_reports", {}) or details.get("adverse_reports", {})
         adv_status = adv_dim.get("status")
         phone_flagged = bool(details.get("phone_flagged") or adv_dim.get("phone_flagged"))
         email_flagged = bool(details.get("email_flagged") or adv_dim.get("email_flagged"))
@@ -506,8 +610,9 @@ class AssessmentEngine:
         dom_dim = dims.get("domain_alignment", {})
         is_free_email = bool(details.get("is_free_email") or dom_dim.get("is_free_email"))
         domain_match = details.get("domain_match") if "domain_match" in details else dom_dim.get("domain_match")
-        affiliation_status = details.get("recruiter_affiliation_status")
-        affiliation_strength = details.get("recruiter_affiliation_strength")
+        affiliation_dim = dims.get("recruiter_affiliation", {})
+        affiliation_status = affiliation_dim.get("status") or details.get("recruiter_affiliation_status")
+        affiliation_strength = affiliation_dim.get("evidence_strength") or details.get("recruiter_affiliation_strength")
         provider_status = details.get("provider_status", "SUCCESS")
 
         evidence_urls = [canonicalize_url(e.source_url) for e in finding.evidence]
@@ -727,7 +832,21 @@ class AssessmentEngine:
         if scam:
             s_details = scam.details or {}
             risk_signals = s_details.get("risk_signals", [])
-            s_evidence = [canonicalize_url(e.source_url) for e in scam.evidence]
+            if "signal_assessments" in s_details:
+                active = [a for a in s_details["signal_assessments"]
+                          if a.get("modality") == "active_demand" and a.get("contributes_to_verdict") and a.get("source_quote")]
+                risk_signals = [a.get("signal_code") for a in active]
+                s_details = dict(s_details)
+                s_details.update(otp_requested=False, password_requested=False, fee_detected=False, unlock_earnings_detected=False)
+                s_details["reason_code"] = None
+            s_evidence = [canonicalize_url(e.source_url) for e in scam.evidence if e.source_url.startswith("document://")]
+
+            if "signal_assessments" not in s_details and not any(e.source_url.startswith("document://") for e in scam.evidence):
+                risk_signals = []
+                s_details = dict(s_details)
+                s_details.update(otp_requested=False, password_requested=False, fee_detected=False, unlock_earnings_detected=False)
+                if s_details.get("reason_code") in self.STRONG_ADVERSE_CODES:
+                    s_details["reason_code"] = None
 
             # Credential theft
             if (
@@ -826,7 +945,7 @@ class AssessmentEngine:
                     )
 
             # Generic ScamAgent fallback for older findings
-            if scam.verdict == "HIGH_RISK":
+            if scam.verdict == "HIGH_RISK" and not strong_signals and "signal_assessments" not in s_details and any(e.source_url.startswith("document://") for e in scam.evidence):
                 s_sum = (scam.summary or "").lower()
                 if any(w in s_sum for w in ("fee", "deposit", "charge", "upfront")):
                     code = "ADVANCE_FEE_DETECTED"
@@ -838,9 +957,9 @@ class AssessmentEngine:
                     code = "UNLOCK_PAYMENT_DETECTED"
                     title = "Payment to Unlock Earnings Demanded"
                 else:
-                    code = s_details.get("reason_code") or "SCAM_SIGNAL_DETECTED"
-                    title = "Critical Scam Markers Detected"
-                if code not in seen_strong_codes:
+                    code = s_details.get("reason_code") or "UNSUPPORTED_LEGACY_WARNING"
+                    title = "Legacy warning requires confirmation"
+                if code in self.STRONG_ADVERSE_CODES and code not in seen_strong_codes:
                     seen_strong_codes.add(code)
                     strong_signals.append(
                         WarningSignal(
@@ -871,11 +990,12 @@ class AssessmentEngine:
         rec = agent_map.get("RecruiterAgent")
         if rec:
             r_details = rec.details or {}
-            r_evidence = [canonicalize_url(e.source_url) for e in rec.evidence]
+            adverse_dimension = r_details.get("assessment_dimensions", {}).get("adverse_contact_reports", {})
+            r_evidence = adverse_dimension.get("source_urls") or [canonicalize_url(e.source_url) for e in rec.evidence if e.source_url.startswith(("https://", "http://"))]
             r_reason = r_details.get("reason_code")
 
             # Adverse contact reports (Strong adverse)
-            if r_details.get("phone_flagged") or r_reason == "ADVERSE_PHONE_REPORT":
+            if (r_details.get("phone_flagged") or r_reason == "ADVERSE_PHONE_REPORT") and any(e.source_url.startswith(("http://", "https://")) for e in rec.evidence) and r_details.get("search_source") not in {"DEMO", "MOCK"}:
                 code = "ADVERSE_PHONE_REPORT"
                 if code not in seen_strong_codes:
                     seen_strong_codes.add(code)
@@ -890,7 +1010,7 @@ class AssessmentEngine:
                         )
                     )
 
-            if r_details.get("email_flagged") or r_reason == "ADVERSE_EMAIL_REPORT":
+            if (r_details.get("email_flagged") or r_reason == "ADVERSE_EMAIL_REPORT") and any(e.source_url.startswith(("http://", "https://")) for e in rec.evidence) and r_details.get("search_source") not in {"DEMO", "MOCK"}:
                 code = "ADVERSE_EMAIL_REPORT"
                 if code not in seen_strong_codes:
                     seen_strong_codes.add(code)
@@ -1084,6 +1204,11 @@ class AssessmentEngine:
         elif rec_aff and rec_aff.resolution_status != ResolutionStatus.SUPPORTED:
             material_gaps.append("Recruiter identity/affiliation could not be confirmed")
 
+        for check in checks:
+            if check.applicability and (check.execution_status in {ExecutionStatus.UNAVAILABLE, ExecutionStatus.NOT_CHECKED}
+                                       or (check.check_id == "COMPENSATION_BENCHMARK" and check.resolution_status == ResolutionStatus.UNCONFIRMED)):
+                material_gaps.append(check.check_name + " remains incomplete or unresolved")
+        material_gaps = sorted(set(material_gaps))
         if material_gaps:
             explanation = (
                 f"CANNOT_VERIFY: Public evidence is inconclusive ({'; '.join(material_gaps)}). "
@@ -1144,7 +1269,8 @@ class AssessmentEngine:
         unresolved_issues: List[str],
     ) -> CoverageSummary:
         total = len(checks)
-        applicable = [c for c in checks if c.applicability]
+        parents_with_children = {c.parent_check_id for c in checks if c.parent_check_id}
+        applicable = [c for c in checks if c.applicability and c.check_id not in parents_with_children]
         completed = [c for c in applicable if c.execution_status == ExecutionStatus.COMPLETED]
         unavailable = [c for c in applicable if c.execution_status == ExecutionStatus.UNAVAILABLE]
         not_applicable = [c for c in checks if not c.applicability]
@@ -1161,6 +1287,7 @@ class AssessmentEngine:
             applicable_checks=app_count,
             completed_checks=comp_count,
             unavailable_checks=unav_count,
+            not_checked_checks=len([c for c in applicable if c.execution_status == ExecutionStatus.NOT_CHECKED]),
             not_applicable_checks=na_count,
             completion_ratio=ratio,
             unresolved_issues=unresolved_issues,
