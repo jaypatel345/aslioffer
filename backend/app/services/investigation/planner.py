@@ -252,7 +252,7 @@ class InvestigationPlanner:
         # --------------------------------------------------------------------
         # Safe public requisition code check; strictly abstains from private candidate references
         if company_name and usable(ref_claim) and (canonical_domain or careers_url):
-            is_pub, _ = is_public_job_reference(ref_claim.value)
+            is_pub, _ = is_public_job_reference(ref_claim.value, ref_claim.source_quote)
             if is_pub:
                 ref_val = ref_claim.value.strip()
                 candidate_query = f'site:{scope} "{ref_val}"' if scope else f'"{company_name}" "{ref_val}" job requisition'

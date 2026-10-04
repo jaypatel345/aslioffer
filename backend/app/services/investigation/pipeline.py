@@ -560,7 +560,7 @@ async def investigate_case(
 
     # 2. Confirmation route
     if confirmation_route:
-        actions.append(f"Use the independently verified {confirmation_route.channel.replace('_', ' ')} ({confirmation_route.destination}) to confirm whether this offer was formally issued.")
+        actions.append(f"Use the independently sourced published {confirmation_route.channel.replace('_', ' ')} ({confirmation_route.destination}) to confirm whether this offer was formally issued.")
     else:
         actions.append("No independently sourced offer-confirmation channel was identified; contact the employer via official published directory or registry contacts.")
 
@@ -592,8 +592,7 @@ async def investigate_case(
         if not claim.value or is_redaction_placeholder(claim.value) or claim.extraction_status == ExtractionStatus.UNCERTAIN:
             continue
         if claim.kind in (ClaimKind.ROLE, ClaimKind.LOCATION, ClaimKind.JOB_REFERENCE, ClaimKind.APPLICATION_URL):
-            ass = next((a for a in assessed_claims if a.claim_id == claim.claim_id), None)
-            if ass and ass.status != ClaimStatus.NOT_CHECKED:
+            if claim.kind in corroboration_res.executed_checks:
                 checked_claim_ids.add(claim.claim_id)
             continue
         finding = findings_map.get(claim_agents.get(claim.kind))

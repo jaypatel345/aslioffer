@@ -39,9 +39,7 @@
       "claim_id": "c1",
       "status": "UNRESOLVED",
       "explanation": "The completed check did not establish attributable corroboration. Empty results do not prove fraud or legitimacy.",
-      "evidence_ids": [
-        "e1"
-      ],
+      "evidence_ids": [],
       "reason_codes": [
         "SPARSE_FOOTPRINT",
         "OFFICIAL_DOMAIN_UNRESOLVED"
@@ -66,23 +64,7 @@
       ]
     }
   ],
-  "evidence": [
-    {
-      "evidence_id": "e1",
-      "claim_id": "c1",
-      "source_kind": "SEARCH_SNIPPET",
-      "source_url": "https://wipro.wd3.myworkdayjobs.com/careers/job-101",
-      "title": "Project Engineer - Wipro Limited Careers",
-      "quote_or_snippet": "Project Engineer opening on Wipro Workday jobs portal.",
-      "retrieved_at": "2026-10-04T09:13:03.843832Z",
-      "query": "\"Wipro Limited\" official website careers",
-      "engine": "google",
-      "search_id": null,
-      "retrieval_status": "LIVE",
-      "source_tier": "ESTABLISHED_THIRD_PARTY",
-      "relation": "CONTEXT"
-    }
-  ],
+  "evidence": [],
   "overall_outcome": "CANNOT_VERIFY",
   "authenticity_status": "UNCONFIRMED",
   "coverage": {
@@ -100,14 +82,9 @@
     "Review standard employment terms, scope of work, and contract conditions carefully before signing.",
     "Never share sensitive banking passwords, OTPs, or pay any onboarding charges.",
     "Do not pay any fee or share bank OTPs at any stage.",
-    "Use the independently verified careers portal (https://wipro.wd3.myworkdayjobs.com/careers/job-101) to confirm whether this offer was formally issued."
+    "No independently sourced offer-confirmation channel was identified; contact the employer via official published directory or registry contacts."
   ],
-  "confirmation_route": {
-    "channel": "careers_portal",
-    "destination": "https://wipro.wd3.myworkdayjobs.com/careers/job-101",
-    "evidence_id": "e1",
-    "draft_message": "Navigate to Wipro Limited's official portal and locate their published human resources or recruitment contact. Inquire neutrally: 'I have received an employment offer for [Position / Role Title] (Reference: [Candidate/Offer Reference]); could you please verify whether this offer was officially issued?' State your name ([Your Name]) but do not disclose banking details, account passwords, or OTPs."
-  },
+  "confirmation_route": null,
   "tool_trace": [
     {
       "step": "resolve_employer_domain",
@@ -115,11 +92,9 @@
       "query": "\"Wipro Limited\" official website careers",
       "reason": "Resolve the employer's official domain before checking contact details",
       "status": "COMPLETED",
-      "started_at": "2026-10-04T09:13:03.843832Z",
+      "started_at": "2026-10-04T09:43:24.158349Z",
       "duration_ms": 0,
-      "evidence_ids": [
-        "e1"
-      ]
+      "evidence_ids": []
     },
     {
       "step": "check_recruiter_contact",
@@ -127,7 +102,7 @@
       "query": "\"talentacquisition@wipro.example\" scam fraud complaint",
       "reason": "Verify recruiter email alignment with resolved domain",
       "status": "COMPLETED",
-      "started_at": "2026-10-04T09:13:03.851603Z",
+      "started_at": "2026-10-04T09:43:24.159436Z",
       "duration_ms": 0,
       "evidence_ids": []
     },
@@ -137,7 +112,7 @@
       "query": "\"talentacquisition@wipro.example\" \"Wipro Limited\"",
       "reason": "Verify recruiter email alignment with resolved domain",
       "status": "COMPLETED",
-      "started_at": "2026-10-04T09:13:03.851907Z",
+      "started_at": "2026-10-04T09:43:24.159556Z",
       "duration_ms": 0,
       "evidence_ids": []
     },
@@ -147,7 +122,7 @@
       "query": "\"Wipro Limited\" job scam fraud complaint telegram",
       "reason": "Check for upfront fees, credential demands, and adverse reports",
       "status": "COMPLETED",
-      "started_at": "2026-10-04T09:13:03.857207Z",
+      "started_at": "2026-10-04T09:43:24.160155Z",
       "duration_ms": 0,
       "evidence_ids": []
     }

@@ -53,9 +53,9 @@ Task 12 extends `InvestigationPlanner` (`planner.py`) with three targeted strate
 Each claim is evaluated individually; one job posting may provide separate evidence records for distinct claims.
 
 ### ROLE (`c6`)
-- **Support Criteria:** Requires attributable hiring records from the official employer domain or an established employer ATS tenant containing the core role tokens.
-- **Conservative Normalization (`normalize_job_title`):** Strips parentheticals `(m/f/d)`, punctuation, and seniority modifiers (`senior`, `jr`, `lead`, `associate`, `intern`, `trainee`, `graduate`) to compare core functional disciplines without broad fuzzy matching that would falsely equate different professions (e.g., Frontend Developer vs. Backend Engineer).
-- **Unresolved Semantics:** Unlisted or expired postings remain `UNRESOLVED` (`VACANCY_NOT_FOUND`, `UNLISTED_OR_EXPIRED`, `NO_MATCHING_VACANCY`), never proof of fraud.
+- **Support Criteria:** Requires attributable hiring records from the official employer domain or an established employer ATS tenant containing a contiguous whole-token role match in a public hiring record. Closed, expired, filled and explicitly non-hiring records cannot support an open vacancy.
+- **Conservative Normalization (`normalize_job_title`):** Normalizes punctuation, known formatting labels such as `(m/f/d)` and common abbreviations (`sr`/`jr`). Preserves seniority, specialization and meaningful parenthetical levels; an intern listing does not corroborate a senior position. Snippets establish a public listing observation, not current availability.
+- **Unresolved Semantics:** A completed relevant check without a match remains `UNRESOLVED` (`VACANCY_NOT_FOUND`, `NO_MATCHING_VACANCY`). Skipped or budget-denied checks are `NOT_CHECKED`; failed targeted searches remain unresolved with `SEARCH_UNAVAILABLE`. None proves fraud.
 
 ### LOCATION (`c7`)
 - **Support Criteria:** Supported *only* when the corroborated vacancy or specific hiring record names the claimed city/region.
@@ -64,7 +64,7 @@ Each claim is evaluated individually; one job posting may provide separate evide
 
 ### JOB_REFERENCE (`c8`)
 - **Public vs. Private:** Requires an exact attributable public requisition match on an employer-controlled or associated ATS source.
-- **Abstention on Private References:** Private offer codes remain `NOT_CHECKED` / `UNRESOLVED` (`PRIVATE_OFFER_REFERENCE`).
+- **Abstention on Private References:** Private or ambiguous codes remain `NOT_CHECKED` (`NOT_PUBLIC_REQUISITION`). Bare numbers and generic ID/REF prefixes are not public search candidates. Candidate/offer-reference context overrides a public-looking code. An eligible syntax is permission to check a candidate public requisition, not proof of its public provenance.
 - **No False Contradiction:** A different reference number in search results does not contradict the claim, nor does it imply an internal ATS offer-verification API exists.
 
 ### APPLICATION_URL (`c5`)
@@ -79,7 +79,7 @@ Each claim is evaluated individually; one job posting may provide separate evide
 
 Reuses `DomainResolver` safe parsing and tenant extraction (`DomainResolver.is_hosted_careers_platform` and `_is_associated_hosted_careers`):
 
-- **Established ATS Tenant:** A hosted careers platform (e.g. `wipro.wd3.myworkdayjobs.com`, `tcs.taleo.net`, `acme.greenhouse.io`, `acme.lever.co`) is verified against the employer identity.
+- **Established ATS Tenant:** A hosted careers platform (e.g. `wipro.wd3.myworkdayjobs.com`, `tcs.taleo.net`, `acme.greenhouse.io`, `acme.lever.co`) must match the employer identity and be associated through an independently retrieved employer-domain record publishing the resolved careers link. A similarly spelled tenant and an ATS search result alone are insufficient. Association is restricted to that published portal path, including its child job pages.
 - **Honest Source Tier:** ATS platforms are classified as `SourceTier.ESTABLISHED_THIRD_PARTY` with documented employer association; they are *never* mislabeled `OFFICIAL_EMPLOYER` simply to satisfy a filter.
 - **Unrelated ATS Tenants:** An ATS platform hosting an unrelated company remains `UNRESOLVED` (`UNRELATED_ATS_TENANT`).
 - **Untrusted Plausibility:** Familiar ATS hostnames without verified tenants, embedded company names in arbitrary query parameters, or lookalike subdomains are rejected.
@@ -93,11 +93,11 @@ Reuses `DomainResolver` safe parsing and tenant extraction (`DomainResolver.is_h
 ### Selection Hierarchy (Deterministic Priority)
 1. **Dedicated Verification Channel (`official_email`):** Employer-published email dedicated to hiring verification (e.g., `careers@`, `recruitment@`, `talent@`, `verify@`, `offer-verification@`).
 2. **Official Recruitment Phone (`official_phone`):** Dedicated recruitment switchboard published on employer domain.
-3. **Established ATS Portal (`ats_portal`):** Verified ATS tenant careers portal for the employer.
-4. **General Careers Portal (`careers_portal`):** General official careers portal URL.
+3. **Careers Portal (`careers_portal`):** An observed official careers URL or independently associated ATS portal. The draft instructs the candidate to find published recruitment contacts; it does not claim an offer-verification API exists.
 
 ### Evidence & Provenance Requirements
-- A route **must cite a real `EvidenceRecord`** retrieved in this run that actually published the destination and its purpose.
+- A route **must cite the exact retrieved observation** that published the destination and its purpose. Another snippet at the same URL cannot substitute for it. Original title/snippet/query/engine/search ID/time are retained; generated assessment explanations are never promoted into search citations.
+- Channels are chosen deterministically by type, destination and source observation. Negative contact instructions, personal mailbox substring matches and ATS-published email/phone contacts are excluded. An unobserved careers URL cannot become a fallback route.
 - **Prohibited:** Inventing `hr@company.com`, reusing submitted-only recruiter contacts without independent publication, promoting generic homepage URLs into HR contacts, or treating profile pages as employer authorization.
 - **DEMO Isolation:** Observations with `RetrievalStatus.DEMO` never yield a production confirmation route.
 - If no route meets evidence requirements, `confirmation_route=None`.
@@ -115,7 +115,7 @@ When a supported route exists, `draft_message` provides a neutral, template inqu
 
 ## 6. Coverage & Recommendation Integration
 
-- **Coverage Accounting:** Checked claims (`checked_claims`) count completed corroborated checks even when the vacancy is unresolved. Missing values, skipped queries, and budget denials do not inflate checked coverage.
+- **Coverage Accounting:** Checked claims (`checked_claims`) count completed relevant searches or actual attributable records evaluated for that claim, even when the result is unresolved. Local unsafe-URL analysis is counted separately through the same executed-check set. Missing values, skipped queries, budget denials and failed searches do not inflate checked coverage. A partial provider outage does not erase already retrieved claim-specific evidence.
 - **Outcome Precedence Preserved:** Vacancy corroboration does not erase upfront fee warnings, credential theft demands, adverse reports, recruiter domain mismatches, or provider outages.
 - **Deterministic Recommendations:** Recommendations distinguish between:
   - Found job corroboration.
@@ -130,13 +130,12 @@ When a supported route exists, `draft_message` provides a neutral, template inqu
 
 For Jay's UI and frontend integration:
 - `InvestigationResult.confirmation_route`: Optional `ConfirmationRoute` model containing:
-  - `route_type`: `"official_email" | "official_phone" | "careers_portal" | "ats_portal"`
+  - `channel`: `"official_email" | "official_phone" | "careers_portal"`
   - `destination`: URL, email address, or phone number.
   - `evidence_id`: ID of the attributable `EvidenceRecord` proving this channel.
-  - `instructions`: Clear guidance on how to reach out independently.
   - `draft_message`: Ready-to-review neutral verification inquiry with safe placeholders.
 - `InvestigationResult.assessed_claims`:
-  - `ROLE` (`c6`), `LOCATION` (`c7`), `JOB_REFERENCE` (`c8`), and `APPLICATION_URL` (`c5`) now return real claim assessments (`SUPPORTED`, `UNRESOLVED`, `CONTRADICTED`) citing specific evidence IDs.
+  - `ROLE` (`c6`), `LOCATION` (`c7`), `JOB_REFERENCE` (`c8`), and `APPLICATION_URL` (`c5`) now return real claim assessments (`SUPPORTED`, `UNRESOLVED`, `CONTRADICTED`, `NOT_CHECKED`) citing attributable evidence when available. Unsupported proposed support/contradiction is downgraded with an unresolved explanation and `NO_ATTRIBUTABLE_CITATION`.
 - Authenticity status remains strictly `UNCONFIRMED`.
 
 ---
@@ -148,3 +147,15 @@ Four validated contract-v1 handoff fixtures are generated in `backend/tests/fixt
 2. `fixture_unresolved_no_route.json`: Unresolved vacancy with unlisted postings and no independent confirmation route (`confirmation_route=None`).
 3. `fixture_associated_ats_destination.json`: Corroborated application link directing to an established Workday ATS tenant.
 4. `fixture_local_warning_with_vacancy.json`: Strong upfront fee demand (`HIGH_RISK`) preserving safety warnings despite a matching public vacancy.
+
+## 9. Cleanup validation
+
+Run from the repository root:
+
+```bash
+python -m pytest backend/tests/ -q
+```
+
+`test_task12_cleanup.py` covers false role/seniority matches, closed postings, exact requisition boundaries, unrelated employers, ATS publication requirements, private reference context, source tiers, confirmation citation binding, private draft fields, and denied/failed checks. Existing strong-warning and recruiter-uncertainty tests continue to protect prior outcomes.
+
+Fixture generation tests write exclusively under pytest's temporary directory. The four committed samples are independently validated as contract-v1 fixtures; ordinary tests do not overwrite them. Confirmation drafts remain review-only and never send messages. No route, persistence, frontend, or wire-schema changes are required for this cleanup.

@@ -1,5 +1,6 @@
 """Claim-specific evidence adaptation. Missing provenance never becomes live evidence."""
 from datetime import datetime, timezone
+import re
 from typing import Any, Dict, List, Optional
 from urllib.parse import urlparse
 
@@ -85,7 +86,7 @@ class EvidenceAdapter:
                     or (step == 'resolve_employer_domain' and m.get('step') == 'adaptive_employer_context')
                     or (step == 'check_recruiter_contact' and m.get('step') in ('resolve_employer_domain', 'adaptive_employer_context', 'adaptive_agency_authorization', 'adaptive_recruiter_affiliation'))
                     or (step == 'check_scam_signals' and m.get('step') in ('adaptive_recruitment_fee_policy', 'check_scam_signals'))
-                    or (step in ('corroborate_job_role', 'corroborate_job_reference', 'discover_confirmation_contact') or m.get('step') in ('adaptive_job_role_corroboration', 'adaptive_job_reference_corroboration', 'adaptive_confirmation_route_discovery'))]
+                    or (step in ('corroborate_job_role', 'corroborate_job_reference', 'discover_confirmation_contact') and m.get('step') in ('adaptive_job_role_corroboration', 'adaptive_job_reference_corroboration', 'adaptive_confirmation_route_discovery'))]
 
         company = findings.get('CompanyAgent')
         if company:
@@ -142,69 +143,45 @@ class EvidenceAdapter:
                 for meta in provenance(item.source_url, 'check_compensation_benchmark'):
                     add(by_kind.get(ClaimKind.COMPENSATION), meta)
 
-        # Adapt Corroboration Observations (Task 12)
-        if corroboration_result and corroboration_result.observations:
+        # Task 12: cite the selected retrieved observation, never its generated
+        # assessment text or another result sharing the same URL.
+        def recorded_meta(selected):
+            if not selected:
+                return None
+            for entries in recording_client.snippets_by_url.values():
+                for meta in entries:
+                    if all(meta.get(k) == selected.get(k) for k in
+                           ('source_url', 'title', 'snippet', 'query', 'engine', 'retrieved_at', 'retrieval_status')):
+                        if meta.get('retrieval_status') in (RetrievalStatus.LIVE, RetrievalStatus.CACHED) or (self.demo_mode and meta.get('retrieval_status') == RetrievalStatus.DEMO):
+                            return meta
+            return None
+
+        if corroboration_result:
             for claim_id, obs in corroboration_result.observations.items():
                 claim = next((c for c in claims if c.claim_id == claim_id), None)
-                if not claim or not claim.value:
+                if not claim:
                     continue
-                for ev_item in obs.evidence_items:
-                    if isinstance(ev_item, dict):
-                        url = ev_item.get("source_url")
-                        title = ev_item.get("title")
-                        desc = ev_item.get("description", "")
-                        rel = ev_item.get("relation")
+                for item in obs.evidence_items:
+                    if item.get('document_quote') and claim.source_quote == item['document_quote']:
+                        quote = re.sub(r'(https?://)[^/@\s]+@', r'\1[REDACTED_CREDENTIALS]@', claim.source_quote, flags=re.I)
+                        quote = re.sub(r'([?&](?:[^\s&=]*(?:token|signature|password|secret|api[_-]?key)[^\s&=]*)=)[^\s&]+', r'\1[REDACTED_SECRET]', quote, flags=re.I)
+                        add(claim, quote=quote, title='Application destination in submitted document', relation=item['relation'])
                     else:
-                        url = getattr(ev_item, "source_url", None)
-                        title = getattr(ev_item, "title", None)
-                        desc = getattr(ev_item, "description", "")
-                        rel = getattr(ev_item, "relation", None)
-
-                    if rel is None:
-                        if obs.status == ClaimStatus.SUPPORTED:
-                            rel = EvidenceRelation.SUPPORTS
-                        elif obs.status == ClaimStatus.CONTRADICTED:
-                            rel = EvidenceRelation.CONTRADICTS
-                        else:
-                            rel = EvidenceRelation.CONTEXT
-
-                    matching_metas = [
-                        m for key, entries in recording_client.snippets_by_url.items()
-                        if canonicalize_url(key) == canonicalize_url(url)
-                        for m in entries
-                    ] if url else []
-                    if matching_metas:
-                        for meta in matching_metas:
-                            add(claim, meta=meta, title=title, quote=desc, relation=rel)
-                    else:
-                        item_title = title or "Hiring record observation"
-                        add(claim, quote=desc, title=item_title, relation=rel)
-
-        # Resolve confirmation route evidence ID to actual EvidenceRecord
-        if corroboration_result and corroboration_result.confirmation_route:
-            ev_target = corroboration_result.confirmation_route.evidence_id
-            matching_rec = next(
-                (r for r in records if r.source_url and canonicalize_url(r.source_url) == canonicalize_url(ev_target)),
-                None,
-            )
-            if not matching_rec and ev_target:
-                # Check if ev_target was recorded in snippets_by_url
-                for key, entries in recording_client.snippets_by_url.items():
-                    if canonicalize_url(key) == canonicalize_url(ev_target):
-                        for m in entries:
-                            emp_claim = by_kind.get(ClaimKind.EMPLOYER)
-                            if emp_claim:
-                                add(emp_claim, meta=m, relation=EvidenceRelation.CONTEXT)
-                        break
-                matching_rec = next(
-                    (r for r in records if r.source_url and canonicalize_url(r.source_url) == canonicalize_url(ev_target)),
-                    None,
-                )
-
-            if matching_rec and (matching_rec.retrieval_status != RetrievalStatus.DEMO or self.demo_mode) and matching_rec.retrieval_status != RetrievalStatus.FAILED:
-                corroboration_result.confirmation_route.evidence_id = matching_rec.evidence_id
-            else:
-                corroboration_result.confirmation_route = None
+                        meta = recorded_meta(item.get('metadata'))
+                        if meta:
+                            add(claim, meta=meta, relation=item.get('relation', EvidenceRelation.CONTEXT))
+            if corroboration_result.confirmation_route:
+                meta = recorded_meta(corroboration_result.confirmation_evidence)
+                if meta:
+                    add(by_kind.get(ClaimKind.EMPLOYER), meta=meta, relation=EvidenceRelation.CONTEXT)
+                matching = next((r for r in records if meta and r.source_url == meta['source_url']
+                    and r.quote_or_snippet == sanitize_and_redact_secrets(meta['snippet'])
+                    and r.title == sanitize_and_redact_secrets(meta['title'])
+                    and r.query == meta.get('query') and r.retrieved_at == meta['retrieved_at']), None)
+                if matching:
+                    corroboration_result.confirmation_route.evidence_id = matching.evidence_id
+                else:
+                    corroboration_result.confirmation_route = None
 
         # A failed search is retained as context with its recorded provenance.
         for failure in recording_client.failed_searches:

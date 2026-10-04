@@ -66,13 +66,11 @@
     },
     {
       "claim_id": "c7",
-      "status": "UNRESOLVED",
-      "explanation": "Identified records for PhantomAI Labs do not corroborate 'Remote' as the active hiring location for this position.",
+      "status": "NOT_CHECKED",
+      "explanation": "The relevant hiring records do not establish the claimed job location; headquarters alone are insufficient.",
       "evidence_ids": [],
       "reason_codes": [
-        "LOCATION_NOT_CORROBORATED",
-        "LOCATION_UNCORROBORATED",
-        "HEADQUARTERS_ONLY_NOT_JOB_LOCATION"
+        "CHECK_NOT_EXECUTED"
       ]
     },
     {
@@ -89,7 +87,7 @@
   "overall_outcome": "CANNOT_VERIFY",
   "authenticity_status": "UNCONFIRMED",
   "coverage": {
-    "checked_claims": 3,
+    "checked_claims": 2,
     "total_claims": 4,
     "unresolved_claims": 4,
     "failed_checks": 0
@@ -113,7 +111,7 @@
       "query": "\"PhantomAI Labs\" official website careers",
       "reason": "Resolve the employer's official domain before checking contact details",
       "status": "COMPLETED",
-      "started_at": "2026-10-04T09:13:03.775181Z",
+      "started_at": "2026-10-04T09:43:24.154333Z",
       "duration_ms": 0,
       "evidence_ids": []
     },
@@ -123,7 +121,7 @@
       "query": "\"hr@phantomai.example\" scam fraud complaint",
       "reason": "Verify recruiter email alignment with resolved domain",
       "status": "COMPLETED",
-      "started_at": "2026-10-04T09:13:03.780270Z",
+      "started_at": "2026-10-04T09:43:24.154929Z",
       "duration_ms": 0,
       "evidence_ids": []
     },
@@ -133,7 +131,7 @@
       "query": "\"hr@phantomai.example\" \"PhantomAI Labs\"",
       "reason": "Verify recruiter email alignment with resolved domain",
       "status": "COMPLETED",
-      "started_at": "2026-10-04T09:13:03.781042Z",
+      "started_at": "2026-10-04T09:43:24.155042Z",
       "duration_ms": 0,
       "evidence_ids": []
     },
@@ -143,7 +141,7 @@
       "query": "\"PhantomAI Labs\" job scam fraud complaint telegram",
       "reason": "Check for upfront fees, credential demands, and adverse reports",
       "status": "COMPLETED",
-      "started_at": "2026-10-04T09:13:03.786812Z",
+      "started_at": "2026-10-04T09:43:24.155698Z",
       "duration_ms": 0,
       "evidence_ids": []
     },
@@ -153,7 +151,7 @@
       "query": "\"PhantomAI Labs\" \"Remote\" official website",
       "reason": "Employer identity remains unresolved; checking 'PhantomAI Labs' with grounded context 'Remote'.",
       "status": "COMPLETED",
-      "started_at": "2026-10-04T09:13:03.788117Z",
+      "started_at": "2026-10-04T09:43:24.155923Z",
       "duration_ms": 0,
       "evidence_ids": []
     }

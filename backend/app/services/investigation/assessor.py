@@ -34,12 +34,7 @@ class ClaimAssessor:
                 status, reason, codes = ClaimStatus.NOT_CHECKED, 'Extraction is uncertain; confirm the claim before using it in searches.', ['EXTRACTION_UNCERTAIN']
                 ids = []
             elif claim.kind in (ClaimKind.ROLE, ClaimKind.LOCATION, ClaimKind.JOB_REFERENCE, ClaimKind.APPLICATION_URL):
-                if provider_outage:
-                    status = ClaimStatus.UNRESOLVED
-                    reason = 'The external search provider was unavailable; no completed vacancy corroboration was obtained.'
-                    codes = ['SEARCH_UNAVAILABLE']
-                    ids = []
-                elif corroboration_result and claim.claim_id in corroboration_result.observations:
+                if corroboration_result and claim.claim_id in corroboration_result.observations:
                     obs = corroboration_result.observations[claim.claim_id]
                     status = obs.status
                     reason = obs.explanation
@@ -50,6 +45,8 @@ class ClaimAssessor:
                             ids = support_ids
                         else:
                             status = ClaimStatus.UNRESOLVED
+                            reason = 'No attributable citation supports the proposed corroboration; the claim remains unresolved.'
+                            codes = ['NO_ATTRIBUTABLE_CITATION']
                             ids = [e.evidence_id for e in usable]
                     elif status == ClaimStatus.CONTRADICTED:
                         contra_ids = [e.evidence_id for e in usable if e.relation == EvidenceRelation.CONTRADICTS]
@@ -57,6 +54,8 @@ class ClaimAssessor:
                             ids = contra_ids
                         else:
                             status = ClaimStatus.UNRESOLVED
+                            reason = 'No attributable citation supports the proposed corroboration; the claim remains unresolved.'
+                            codes = ['NO_ATTRIBUTABLE_CITATION']
                             ids = [e.evidence_id for e in usable]
                     elif status == ClaimStatus.NOT_CHECKED:
                         ids = []

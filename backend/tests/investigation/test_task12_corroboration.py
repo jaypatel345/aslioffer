@@ -188,8 +188,9 @@ async def test_employer_headquarters_does_not_support_job_location():
 
     loc_ass = next((a for a in result.assessed_claims if next((c.kind for c in result.claims if c.claim_id == a.claim_id), None) == ClaimKind.LOCATION), None)
     assert loc_ass is not None
-    assert loc_ass.status == ClaimStatus.UNRESOLVED
-    assert "LOCATION_NOT_CORROBORATED" in loc_ass.reason_codes
+    # Higher-priority checks consume the default follow-up allowance here.
+    assert loc_ass.status == ClaimStatus.NOT_CHECKED
+    assert "CHECK_NOT_EXECUTED" in loc_ass.reason_codes
 
 
 # ============================================================================
@@ -395,6 +396,7 @@ def test_employer_ats_tenant_association():
         company_name="Wipro Limited",
         canonical_domain="wipro.com",
         observed_urls={"https://wipro.wd3.myworkdayjobs.com/careers/job1"},
+        established_ats_urls={"https://wipro.wd3.myworkdayjobs.com/careers/job1"},
     )
     assert res_matched["status"] == ClaimStatus.SUPPORTED
     assert res_matched["reason_code"] == "ESTABLISHED_ATS_TENANT"
@@ -837,9 +839,10 @@ async def test_existing_pipeline_signature_and_contract_serialization():
 # ============================================================================
 
 @pytest.mark.asyncio
-async def test_generate_and_roundtrip_task12_fixtures():
+async def test_generate_and_roundtrip_task12_fixtures(tmp_path):
     """Generates and validates the 4 Task 12 handoff fixtures."""
-    FIXTURES_DIR.mkdir(parents=True, exist_ok=True)
+    output_dir = tmp_path / "generated_task12"
+    output_dir.mkdir(parents=True, exist_ok=True)
 
     fixtures = [
         # Fixture 1: Corroborated vacancy with supported confirmation route
@@ -973,7 +976,7 @@ async def test_generate_and_roundtrip_task12_fixtures():
     for fname, case_input, search_client in fixtures:
         res = await investigate_case(case_input, search_client=search_client)
         payload = res.model_dump(mode="json")
-        fpath = FIXTURES_DIR / fname
+        fpath = output_dir / fname
         with open(fpath, "w", encoding="utf-8") as f:
             json.dump(payload, f, indent=2)
 
@@ -981,3 +984,13 @@ async def test_generate_and_roundtrip_task12_fixtures():
         reloaded = InvestigationResult.model_validate_json(fpath.read_text(encoding="utf-8"))
         assert reloaded.run_id == res.run_id
         assert reloaded.overall_outcome == res.overall_outcome
+
+
+def test_committed_task12_fixtures_are_valid():
+    paths = sorted(FIXTURES_DIR.glob("fixture_*.json"))
+    assert len(paths) == 4
+    for path in paths:
+        result = InvestigationResult.model_validate_json(path.read_text(encoding="utf-8"))
+        assert result.authenticity_status.value == "UNCONFIRMED"
+        if result.confirmation_route:
+            assert result.confirmation_route.evidence_id in {e.evidence_id for e in result.evidence}
