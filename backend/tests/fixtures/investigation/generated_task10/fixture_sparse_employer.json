@@ -24,7 +24,7 @@
       "extraction_status": "EXTRACTED"
     },
     {
-      "claim_id": "c3",
+      "claim_id": "c6",
       "kind": "role",
       "value": "Backend Developer",
       "source_quote": "Backend Developer",
@@ -34,7 +34,7 @@
       "extraction_status": "EXTRACTED"
     },
     {
-      "claim_id": "c4",
+      "claim_id": "c10",
       "kind": "payment_request",
       "value": null,
       "source_quote": null,
@@ -48,7 +48,7 @@
     {
       "claim_id": "c1",
       "status": "UNRESOLVED",
-      "explanation": "Only sparse or unverified mentions of 'Coorix Labs' were found, so no official domain could be resolved. A small footprint is common for early startups and is not a warning by itself.",
+      "explanation": "The completed check did not establish attributable corroboration. Empty results do not prove fraud or legitimacy.",
       "evidence_ids": [],
       "reason_codes": [
         "SPARSE_FOOTPRINT",
@@ -58,28 +58,28 @@
     {
       "claim_id": "c2",
       "status": "UNRESOLVED",
-      "explanation": "Without a resolved official domain, the sender domain cannot be checked against anything.",
-      "evidence_ids": [],
-      "reason_codes": [
-        "NO_REFERENCE_DOMAIN"
-      ]
-    },
-    {
-      "claim_id": "c3",
-      "status": "UNRESOLVED",
-      "explanation": "No public listing for this role was found. Roles can be unlisted or expired, so this is neither support nor a warning.",
+      "explanation": "The completed check did not establish attributable corroboration. Empty results do not prove fraud or legitimacy.",
       "evidence_ids": [],
       "reason_codes": [
         "NO_PUBLIC_LISTING_FOUND"
       ]
     },
     {
-      "claim_id": "c4",
+      "claim_id": "c6",
       "status": "NOT_CHECKED",
-      "explanation": "The message contains no payment request.",
+      "explanation": "Independent corroboration for this claim is deferred; no targeted check was executed.",
       "evidence_ids": [],
       "reason_codes": [
-        "NOT_APPLICABLE"
+        "CORROBORATION_DEFERRED"
+      ]
+    },
+    {
+      "claim_id": "c10",
+      "status": "NOT_CHECKED",
+      "explanation": "Required claim value is absent; no check was executed for it.",
+      "evidence_ids": [],
+      "reason_codes": [
+        "MISSING_INPUT"
       ]
     }
   ],
@@ -87,9 +87,9 @@
   "overall_outcome": "CANNOT_VERIFY",
   "authenticity_status": "UNCONFIRMED",
   "coverage": {
-    "checked_claims": 3,
+    "checked_claims": 2,
     "total_claims": 4,
-    "unresolved_claims": 3,
+    "unresolved_claims": 4,
     "failed_checks": 0
   },
   "recommended_actions": [
@@ -110,7 +110,7 @@
       "query": "\"Coorix Labs\" official website careers",
       "reason": "Resolve the employer's official domain before checking contact details",
       "status": "COMPLETED",
-      "started_at": "2026-10-04T07:00:22.850852Z",
+      "started_at": "2026-10-04T07:20:45.714768Z",
       "duration_ms": 0,
       "evidence_ids": []
     },
@@ -120,7 +120,7 @@
       "query": "\"hr@coorixlabs.example\" scam fraud complaint",
       "reason": "Verify recruiter email alignment with resolved domain",
       "status": "COMPLETED",
-      "started_at": "2026-10-04T07:00:22.856225Z",
+      "started_at": "2026-10-04T07:20:45.715765Z",
       "duration_ms": 0,
       "evidence_ids": []
     },
@@ -130,7 +130,7 @@
       "query": "\"hr@coorixlabs.example\" \"Coorix Labs\"",
       "reason": "Verify recruiter email alignment with resolved domain",
       "status": "COMPLETED",
-      "started_at": "2026-10-04T07:00:22.856506Z",
+      "started_at": "2026-10-04T07:20:45.715871Z",
       "duration_ms": 0,
       "evidence_ids": []
     },
@@ -140,7 +140,7 @@
       "query": "\"Coorix Labs\" job scam fraud complaint telegram",
       "reason": "Check for upfront fees, credential demands, and adverse reports",
       "status": "COMPLETED",
-      "started_at": "2026-10-04T07:00:22.861017Z",
+      "started_at": "2026-10-04T07:20:45.716618Z",
       "duration_ms": 0,
       "evidence_ids": []
     }

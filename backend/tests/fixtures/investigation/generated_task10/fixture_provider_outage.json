@@ -24,7 +24,7 @@
       "extraction_status": "EXTRACTED"
     },
     {
-      "claim_id": "c3",
+      "claim_id": "c6",
       "kind": "role",
       "value": "Data Analyst",
       "source_quote": "Data Analyst",
@@ -34,7 +34,7 @@
       "extraction_status": "EXTRACTED"
     },
     {
-      "claim_id": "c4",
+      "claim_id": "c10",
       "kind": "payment_request",
       "value": null,
       "source_quote": null,
@@ -48,7 +48,7 @@
     {
       "claim_id": "c1",
       "status": "UNRESOLVED",
-      "explanation": "The search provider was unavailable, so the employer could not be checked. This says nothing about the offer either way.",
+      "explanation": "The relevant external check was unavailable; no completed corroboration was obtained.",
       "evidence_ids": [
         "e1"
       ],
@@ -59,28 +59,28 @@
     {
       "claim_id": "c2",
       "status": "UNRESOLVED",
-      "explanation": "Depends on the employer domain, which could not be resolved.",
+      "explanation": "The completed check did not establish attributable corroboration. Empty results do not prove fraud or legitimacy.",
       "evidence_ids": [],
       "reason_codes": [
-        "DEPENDENCY_UNRESOLVED"
+        "NO_PUBLIC_LISTING_FOUND"
       ]
     },
     {
-      "claim_id": "c3",
+      "claim_id": "c6",
       "status": "NOT_CHECKED",
-      "explanation": "Skipped after the provider failure.",
+      "explanation": "Independent corroboration for this claim is deferred; no targeted check was executed.",
       "evidence_ids": [],
       "reason_codes": [
-        "SKIPPED_AFTER_FAILURE"
+        "CORROBORATION_DEFERRED"
       ]
     },
     {
-      "claim_id": "c4",
+      "claim_id": "c10",
       "status": "NOT_CHECKED",
-      "explanation": "The message contains no payment request.",
+      "explanation": "Required claim value is absent; no check was executed for it.",
       "evidence_ids": [],
       "reason_codes": [
-        "NOT_APPLICABLE"
+        "MISSING_INPUT"
       ]
     }
   ],
@@ -90,9 +90,9 @@
       "claim_id": "c1",
       "source_kind": "SEARCH_SNIPPET",
       "source_url": null,
-      "title": "Search failed",
-      "quote_or_snippet": "No results: Upstream search engine rate limited after 2 retries",
-      "retrieved_at": "2026-10-04T07:00:22.889710Z",
+      "title": "Retrieval unavailable",
+      "quote_or_snippet": "No completed search result was obtained.",
+      "retrieved_at": "2026-10-04T07:20:45.719002Z",
       "query": "\"Vardhan Analytics Pvt Ltd\" official website careers",
       "engine": "google",
       "search_id": null,
@@ -104,10 +104,10 @@
   "overall_outcome": "CANNOT_VERIFY",
   "authenticity_status": "UNCONFIRMED",
   "coverage": {
-    "checked_claims": 2,
+    "checked_claims": 1,
     "total_claims": 4,
-    "unresolved_claims": 2,
-    "failed_checks": 2
+    "unresolved_claims": 4,
+    "failed_checks": 1
   },
   "recommended_actions": [
     "Re-run this investigation once the search provider is available.",
@@ -128,7 +128,7 @@
       "query": "\"Vardhan Analytics Pvt Ltd\" official website careers",
       "reason": "Resolve the employer's official domain before checking contact details",
       "status": "FAILED",
-      "started_at": "2026-10-04T07:00:22.878480Z",
+      "started_at": "2026-10-04T07:20:45.719002Z",
       "duration_ms": 0,
       "evidence_ids": [
         "e1"
@@ -140,7 +140,7 @@
       "query": "\"careers@vardhananalytics.example\" scam fraud complaint",
       "reason": "Verify recruiter email alignment with resolved domain",
       "status": "COMPLETED",
-      "started_at": "2026-10-04T07:00:22.881694Z",
+      "started_at": "2026-10-04T07:20:45.720128Z",
       "duration_ms": 0,
       "evidence_ids": []
     },
@@ -150,7 +150,7 @@
       "query": "\"careers@vardhananalytics.example\" \"Vardhan Analytics Pvt Ltd\"",
       "reason": "Verify recruiter email alignment with resolved domain",
       "status": "COMPLETED",
-      "started_at": "2026-10-04T07:00:22.881937Z",
+      "started_at": "2026-10-04T07:20:45.720277Z",
       "duration_ms": 0,
       "evidence_ids": []
     },
@@ -160,7 +160,7 @@
       "query": "\"Vardhan Analytics Pvt Ltd\" job scam fraud complaint telegram",
       "reason": "Check for upfront fees, credential demands, and adverse reports",
       "status": "COMPLETED",
-      "started_at": "2026-10-04T07:00:22.886184Z",
+      "started_at": "2026-10-04T07:20:45.721078Z",
       "duration_ms": 0,
       "evidence_ids": []
     }
@@ -169,7 +169,7 @@
     {
       "code": "SEARCH_PROVIDER_OUTAGE",
       "message": "Search provider request timed out or was unavailable",
-      "step": "resolve_company",
+      "step": "resolve_employer_domain",
       "retryable": true
     }
   ]

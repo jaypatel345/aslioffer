@@ -6,6 +6,8 @@ preserves semantic contact roles, validates offsets against the input buffer,
 and applies confirmed_claims explicitly with duplicate-ID rejection.
 """
 
+import re
+from app.services.agents.scam_classifier import sanitize_and_redact_secrets
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 from app.schemas.contract import (
@@ -53,7 +55,7 @@ def is_redaction_placeholder(val: Optional[str]) -> bool:
     clean = val.strip().lower()
     if clean in REDACTION_PLACEHOLDERS:
         return True
-    if clean.startswith("[") and clean.endswith("]"):
+    if re.search(r"\[(?:email|phone|redacted|candidate|company|employer|upi)[^\]]*\]", clean):
         return True
     return False
 
@@ -87,13 +89,17 @@ class ClaimBuilder:
         """
         # 1. Validate confirmed_claims for duplicate IDs
         seen_confirmed_ids: Set[str] = set()
+        seen_confirmed_kinds = set()
         for cc in case_input.confirmed_claims:
             if cc.claim_id in seen_confirmed_ids:
                 raise ValueError(f"Duplicate confirmed claim ID '{cc.claim_id}' in case_input")
             seen_confirmed_ids.add(cc.claim_id)
+            if cc.kind in seen_confirmed_kinds:
+                raise ValueError("Ambiguous confirmations: multiple values for one claim kind")
+            seen_confirmed_kinds.add(cc.kind)
 
         # 2. Extract grounded claims from redacted_text
-        text = case_input.redacted_text or ""
+        text = sanitize_and_redact_secrets(case_input.redacted_text or "")
         ext_result = self.extractor.extract_claims(text, source_type=case_input.source_type.value)
         data = ext_result.to_extracted_data()
 
@@ -128,7 +134,7 @@ class ClaimBuilder:
         company_quote = None
         company_span = None
         for c in ext_result.claims:
-            if c.kind == ExtractorClaimKind.CLAIMED_EMPLOYER.value and c.value:
+            if c.kind == ExtractorClaimKind.CLAIMED_EMPLOYER.value and c.value and c.extraction_status != "ambiguous":
                 company_val = str(c.value)
                 company_quote = c.source_quote
                 company_span = c.source_span
@@ -159,7 +165,7 @@ class ClaimBuilder:
             if c.kind == ExtractorClaimKind.CANDIDATE_CONTACT.value:
                 # Explicitly ignore candidate contacts
                 continue
-            if c.kind in (ExtractorClaimKind.CONTACT.value, ExtractorClaimKind.SENDER_RECRUITER.value):
+            if c.kind == ExtractorClaimKind.CONTACT.value and c.attributes.get("semantic_role") in ("recruiter_contact", "sender_contact"):
                 val = str(c.value or "")
                 if "@" in val and not is_redaction_placeholder(val):
                     recruiter_email = val
@@ -342,6 +348,18 @@ class ClaimBuilder:
                         **item,
                     })
 
+        ambiguity_kinds = {
+            ExtractorClaimKind.CLAIMED_EMPLOYER.value: ClaimKind.EMPLOYER,
+            ExtractorClaimKind.JOB_ROLE.value: ClaimKind.ROLE,
+            ExtractorClaimKind.COMPENSATION.value: ClaimKind.COMPENSATION,
+            ExtractorClaimKind.APPLICATION_DESTINATION.value: ClaimKind.APPLICATION_URL,
+        }
+        uncertain_kinds = {ambiguity_kinds[c.kind] for c in ext_result.claims
+                           if c.extraction_status == "ambiguous" and c.kind in ambiguity_kinds}
+        for item in initial_claims:
+            if item["kind"] in uncertain_kinds and item.get("value"):
+                item["status"] = ExtractionStatus.UNCERTAIN
+
         # Assign deterministic claim IDs
         # If confirmed_claims has specific claim_id mappings, preserve them
         claims: List[Claim] = []
@@ -352,7 +370,10 @@ class ClaimBuilder:
             kind = cdict["kind"]
             # Look up if user confirmed this kind with an explicit ID
             cc = confirmed_by_kind.get(kind)
-            claim_id = cc.claim_id if (cc and cc.claim_id not in used_ids) else f"c{claim_index}"
+            expected_id = f"c{canonical_order.index(kind) + 1}"
+            if cc and cc.claim_id != expected_id:
+                raise ValueError("Confirmed claim ID does not match the stable kind ID")
+            claim_id = expected_id
             while claim_id in used_ids:
                 claim_index += 1
                 claim_id = f"c{claim_index}"
@@ -362,19 +383,24 @@ class ClaimBuilder:
 
             val = cdict["value"]
             quote = cdict["source_quote"]
-            s_off, e_off = validate_offsets(text, quote, cdict["start"], cdict["end"])
+            s_off, e_off = validate_offsets(case_input.redacted_text, quote, cdict["start"], cdict["end"])
             status = cdict["status"]
+            if quote and quote not in case_input.redacted_text:
+                quote, s_off, e_off = None, None, None
+                status = ExtractionStatus.UNCERTAIN
 
             # Apply user confirmation/editing if matching cc found
             if cc and cc.claim_id == claim_id:
                 if cc.extraction_status == ExtractionStatus.USER_EDITED:
-                    val = cc.value
+                    val = sanitize_and_redact_secrets(cc.value)
                     quote = None
                     s_off = None
                     e_off = None
                     status = ExtractionStatus.USER_EDITED
                 elif cc.extraction_status == ExtractionStatus.USER_CONFIRMED:
-                    val = cc.value
+                    if val is not None and cc.value != val:
+                        raise ValueError("Changed values must use USER_EDITED")
+                    val = sanitize_and_redact_secrets(cc.value)
                     status = ExtractionStatus.USER_CONFIRMED
 
             # Model validation guarantees
@@ -407,13 +433,15 @@ class ClaimBuilder:
 
         # Include any confirmed_claims that were not present in initial extracted claims
         for cc in case_input.confirmed_claims:
+            if cc.claim_id != f"c{canonical_order.index(cc.kind) + 1}":
+                raise ValueError("Confirmed claim ID does not match the stable kind ID")
             if cc.claim_id not in used_ids:
                 used_ids.add(cc.claim_id)
                 claims.append(
                     Claim(
                         claim_id=cc.claim_id,
                         kind=cc.kind,
-                        value=cc.value,
+                        value=sanitize_and_redact_secrets(cc.value),
                         source_quote=None,
                         start_offset=None,
                         end_offset=None,

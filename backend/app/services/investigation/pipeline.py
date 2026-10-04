@@ -19,6 +19,8 @@ from app.schemas.contract import (
     RunEvent,
     SourceTier,
     ClaimKind,
+    ExtractionStatus,
+    CONTRACT_VERSION,
 )
 from app.services.agents.company_agent import CompanyAgent
 from app.services.agents.recruiter_agent import RecruiterAgent
@@ -48,6 +50,8 @@ async def investigate_case(
         search_client: Injected search client (or mock) for reproducible execution.
         emit_event: Optional async callback for streaming RunEvent updates.
     """
+    if case_input.contract_version != CONTRACT_VERSION:
+        raise ValueError("Unsupported investigation contract version")
     events = EventEmitter(run_id=case_input.run_id, emit_fn=emit_event)
     recording_client = RecordingSearchClient(underlying_client=search_client, demo_mode=case_input.demo_mode)
     errors: List[RunError] = []
@@ -59,7 +63,7 @@ async def investigate_case(
         claims, scam_assessments, ext_result = builder.build_claims(case_input)
         await events.emit("extract_claims", EventStatus.COMPLETED, f"Extracted {len(claims)} document claims")
     except Exception as exc:
-        logger.error("Claim extraction failed: %s", exc)
+        logger.error("Claim extraction failed")
         await events.emit("extract_claims", EventStatus.FAILED, "Claim extraction encountered an error")
         raise
 
@@ -71,12 +75,12 @@ async def investigate_case(
     sal_claim = next((c for c in claims if c.kind == ClaimKind.COMPENSATION), None)
     role_claim = next((c for c in claims if c.kind == ClaimKind.ROLE), None)
 
-    company_name = emp_claim.value if (emp_claim and emp_claim.value and not is_redaction_placeholder(emp_claim.value)) else None
-    recruiter_email = email_claim.value if (email_claim and email_claim.value and not is_redaction_placeholder(email_claim.value)) else None
-    recruiter_phone = phone_claim.value if (phone_claim and phone_claim.value and not is_redaction_placeholder(phone_claim.value)) else None
-    recruiter_name = rec_name_claim.value if (rec_name_claim and rec_name_claim.value and not is_redaction_placeholder(rec_name_claim.value)) else None
-    role_title = role_claim.value if (role_claim and role_claim.value and not is_redaction_placeholder(role_claim.value)) else None
-    offered_salary = sal_claim.value if (sal_claim and sal_claim.value and not is_redaction_placeholder(sal_claim.value)) else None
+    company_name = emp_claim.value if (emp_claim and emp_claim.extraction_status != ExtractionStatus.UNCERTAIN and emp_claim.value and not is_redaction_placeholder(emp_claim.value)) else None
+    recruiter_email = email_claim.value if (email_claim and email_claim.extraction_status != ExtractionStatus.UNCERTAIN and email_claim.value and not is_redaction_placeholder(email_claim.value)) else None
+    recruiter_phone = phone_claim.value if (phone_claim and phone_claim.extraction_status != ExtractionStatus.UNCERTAIN and phone_claim.value and not is_redaction_placeholder(phone_claim.value)) else None
+    recruiter_name = rec_name_claim.value if (rec_name_claim and rec_name_claim.extraction_status != ExtractionStatus.UNCERTAIN and rec_name_claim.value and not is_redaction_placeholder(rec_name_claim.value)) else None
+    role_title = role_claim.value if (role_claim and role_claim.extraction_status != ExtractionStatus.UNCERTAIN and role_claim.value and not is_redaction_placeholder(role_claim.value)) else None
+    offered_salary = sal_claim.value if (sal_claim and sal_claim.extraction_status != ExtractionStatus.UNCERTAIN and sal_claim.value and not is_redaction_placeholder(sal_claim.value)) else None
 
     # Initialize agents sharing the recording search client
     comp_agent = CompanyAgent(search_client=recording_client)
@@ -95,7 +99,7 @@ async def investigate_case(
 
     # 2. Company domain resolution stage (sequenced first to resolve official domain)
     if company_name:
-        await events.emit("resolve_company", EventStatus.STARTED, f"Resolving employer footprint for '{company_name}'")
+        await events.emit("resolve_company", EventStatus.STARTED, "Resolving the claimed employer public footprint")
         try:
             with recording_client.step("resolve_employer_domain", "Resolve the employer's official domain before checking contact details"):
                 finding_comp = await comp_agent.investigate(company_name)
@@ -107,7 +111,7 @@ async def investigate_case(
                     RunError(
                         code="SEARCH_PROVIDER_OUTAGE",
                         message="Search provider request timed out or was unavailable",
-                        step="resolve_company",
+                        step="resolve_employer_domain",
                         retryable=True,
                     )
                 )
@@ -117,11 +121,11 @@ async def investigate_case(
                     from urllib.parse import urlparse
                     canonical_domain = urlparse(canonical_domain).hostname or canonical_domain
                 careers_url = finding_comp.details.get("careers_url")
-                await events.emit("resolve_company", EventStatus.COMPLETED, f"Employer resolution finished: domain={canonical_domain or 'unresolved'}")
+                await events.emit("resolve_company", EventStatus.COMPLETED, "Employer domain resolution finished")
         except asyncio.CancelledError:
             raise
         except Exception as exc:
-            logger.error("CompanyAgent failed: %s", exc)
+            logger.error("CompanyAgent failed")
             errors.append(
                 RunError(
                     code="COMPANY_INVESTIGATION_ERROR",
@@ -148,7 +152,7 @@ async def investigate_case(
         await events.emit("check_recruiter", EventStatus.STARTED, "Checking recruiter email and affiliation")
         with recording_client.step("check_recruiter_contact", "Verify recruiter email alignment with resolved domain"):
             return await rec_agent.investigate(
-                company_name=company_name or "Unknown Company",
+                company_name=company_name or "",
                 recruiter_name=recruiter_name,
                 recruiter_email=recruiter_email,
                 recruiter_phone=recruiter_phone,
@@ -168,19 +172,39 @@ async def investigate_case(
 
     async def run_scam():
         await events.emit("check_scam_signals", EventStatus.STARTED, "Analyzing document text and scam signals")
+        if not company_name:
+            from app.services.search.serpapi_client import SearchResult, SearchOutcome
+            class LocalOnlySearch:
+                async def search(self, query, **kwargs):
+                    return SearchResult(query=query, outcome=SearchOutcome.PROVIDER_FAILURE,
+                                        error="Employer absent; external scam search not executed")
+            local_finding = await ScamAgent(search_client=LocalOnlySearch()).investigate(
+                company_name="", demanded_fee=None, payment_method=None, flags=[], raw_text=case_input.redacted_text)
+            local_finding.details.update(provider_status="NOT_CHECKED", search_status="NOT_CHECKED",
+                                         error=None, checks={})
+            await events.emit("external_scam_search", EventStatus.SKIPPED, "Employer absent; external scam search not executed")
+            return local_finding
         with recording_client.step("check_scam_signals", "Check for upfront fees, credential demands, and adverse reports"):
             return await scam_agent.investigate(
-                company_name=company_name or "Unknown Company",
+                company_name=company_name or "",
                 demanded_fee=ext_result.to_extracted_data().payment_amount,
                 payment_method=ext_result.to_extracted_data().payment_method,
                 flags=ext_result.to_extracted_data().flags,
                 raw_text=case_input.redacted_text,
             )
 
+    async def finish_step(fn, name):
+        result = await fn()
+        if result is not None:
+            failed = result.details.get("provider_status") in ("FAILED", "PARTIAL")
+            await events.emit(name, EventStatus.FAILED if failed else EventStatus.COMPLETED,
+                              "Check retained partial results; external retrieval was unavailable" if failed else "Check completed")
+        return result
+
     tasks = [
-        asyncio.create_task(run_recruiter()),
-        asyncio.create_task(run_salary()),
-        asyncio.create_task(run_scam()),
+        asyncio.create_task(finish_step(run_recruiter, "check_recruiter")),
+        asyncio.create_task(finish_step(run_salary, "check_compensation")),
+        asyncio.create_task(finish_step(run_scam, "check_scam_signals")),
     ]
 
     try:
@@ -188,6 +212,7 @@ async def investigate_case(
     except asyncio.CancelledError:
         for t in tasks:
             t.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
         raise
 
     # Unpack results and isolate individual failures
@@ -195,7 +220,7 @@ async def investigate_case(
         if isinstance(res, asyncio.CancelledError):
             raise res
         elif isinstance(res, Exception):
-            logger.error("Agent %s failed with exception: %s", step_name, res)
+            logger.error("Agent %s failed", step_name)
             errors.append(
                 RunError(
                     code="AGENT_CHECK_FAILURE",
@@ -208,16 +233,26 @@ async def investigate_case(
         else:
             if idx == 0:
                 finding_rec = res
-                if res:
-                    await events.emit("check_recruiter", EventStatus.COMPLETED, "Recruiter check completed")
+
             elif idx == 1:
                 finding_sal = res
-                if res:
-                    await events.emit("check_compensation", EventStatus.COMPLETED, "Compensation check completed")
+
             elif idx == 2:
                 finding_scam = res
-                if res:
-                    await events.emit("check_scam_signals", EventStatus.COMPLETED, "Scam signal assessment completed")
+
+
+    if finding_sal and finding_sal.verdict == "VERIFIED":
+        finding_sal = finding_sal.model_copy(update={"verdict": "CANNOT_VERIFY", "confidence": 0.0,
+            "summary": "No comparable market compensation data was established.",
+            "details": {**finding_sal.details, "anomaly": None, "benchmark_range": None}})
+
+    # Surface every failed external retrieval, including downstream failures.
+    recorded_steps = {e.step for e in errors if e.code == "SEARCH_PROVIDER_OUTAGE"}
+    for failure in recording_client.failed_searches:
+        if failure["step"] not in recorded_steps:
+            errors.append(RunError(code="SEARCH_CHECK_UNAVAILABLE", message="An external retrieval was unavailable",
+                                   step=failure["step"], retryable=True))
+            recorded_steps.add(failure["step"])
 
     # 4. Synthesize findings using AssessmentEngine (Task 8 policy)
     await events.emit("assess_verdict", EventStatus.STARTED, "Computing unified assessment policy")
@@ -269,7 +304,7 @@ async def investigate_case(
             actions.append("Do not pay any fee or share bank OTPs at any stage.")
     elif overall_outcome == OverallOutcome.NO_STRONG_RISK_SIGNALS:
         actions.insert(0, f"No strong risk signals were found, but only {company_name or 'the employer'} can confirm this offer.")
-        actions.append("Accept the offer through the careers portal you reach yourself, not through a link in an email.")
+        actions.append("Confirm offer issuance independently before accepting; do not rely solely on an emailed link.")
 
     # Deduplicate actions preserving order
     deduped_actions: List[str] = []
@@ -283,27 +318,52 @@ async def investigate_case(
     # Only if independently sourced, employer-published channel exists in evidence
     confirmation_route: Optional[ConfirmationRoute] = None
     if careers_url and canonical_domain:
-        matching_ev = next(
-            (e for e in evidence_records if e.source_tier == SourceTier.OFFICIAL_EMPLOYER and e.source_url and canonical_domain in e.source_url.lower()),
-            None,
-        )
-        if matching_ev:
-            confirmation_route = ConfirmationRoute(
-                channel="careers_portal",
-                destination=careers_url,
-                evidence_id=matching_ev.evidence_id,
-                draft_message=None,
-            )
+        from urllib.parse import urlparse
+        from app.services.risk.assessment_engine import canonicalize_url
+        matching_ev = next((e for e in evidence_records
+            if e.source_tier == SourceTier.OFFICIAL_EMPLOYER
+            and e.retrieval_status.value in ("LIVE", "CACHED")
+            and e.source_url and canonicalize_url(e.source_url) == canonicalize_url(careers_url)), None)
+        if matching_ev and urlparse(careers_url).scheme in ("https", "http"):
+            confirmation_route = ConfirmationRoute(channel="careers_portal", destination=careers_url,
+                                                    evidence_id=matching_ev.evidence_id)
 
     # 9. Tool Trace
     tool_trace = recording_client.tool_calls
 
     # 10. Coverage
-    distinct_failed_checks = len(errors) + len(recording_client.failed_searches)
+    distinct_failed_checks = len(recording_client.failed_searches) + sum(
+        e.code in ("COMPANY_INVESTIGATION_ERROR", "AGENT_CHECK_FAILURE") for e in errors)
+    # Claim execution counts are independent of whether a result resolved it.
+    checked_claim_ids = set()
+    claim_agents = {ClaimKind.EMPLOYER: "CompanyAgent", ClaimKind.SENDER_EMAIL: "RecruiterAgent",
+                    ClaimKind.CONTACT_PHONE: "RecruiterAgent", ClaimKind.RECRUITER_NAME: "RecruiterAgent",
+                    ClaimKind.COMPENSATION: "SalaryAgent", ClaimKind.PAYMENT_REQUEST: "ScamAgent",
+                    ClaimKind.CREDENTIAL_REQUEST: "ScamAgent"}
+    for claim in claims:
+        if not claim.value or is_redaction_placeholder(claim.value) or claim.extraction_status == ExtractionStatus.UNCERTAIN:
+            continue
+        finding = findings_map.get(claim_agents.get(claim.kind))
+        if not finding:
+            continue
+        checked = finding.details.get("provider_status") == "SUCCESS"
+        if claim.kind in (ClaimKind.PAYMENT_REQUEST, ClaimKind.CREDENTIAL_REQUEST):
+            checked = bool(finding.details.get("local_scan_completed"))
+        elif claim.kind == ClaimKind.CONTACT_PHONE:
+            checked = (finding.details.get("checks", {}).get("phone_reports", {}).get("provider_status") == "SUCCESS")
+        elif claim.kind == ClaimKind.RECRUITER_NAME:
+            checked = any(a.claim_id == claim.claim_id and a.status.value == "SUPPORTED" for a in assessed_claims)
+            checked = checked or any(c.status == EventStatus.COMPLETED and c.query and claim.value.lower() in c.query.lower()
+                                     for c in recording_client.tool_calls)
+        elif claim.kind == ClaimKind.SENDER_EMAIL and finding.details.get("provider_status") == "PARTIAL":
+            checked = finding.details.get("checks", {}).get("email_reports", {}).get("provider_status") == "SUCCESS"
+        if checked:
+            checked_claim_ids.add(claim.claim_id)
     coverage = compute_coverage(
         claims=claims,
         assessed_claims=assessed_claims,
         failed_check_count=distinct_failed_checks,
+        checked_claim_ids=checked_claim_ids,
     )
 
     result = InvestigationResult(

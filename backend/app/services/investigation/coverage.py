@@ -17,6 +17,7 @@ def compute_coverage(
     claims: List[Claim],
     assessed_claims: List[AssessedClaim],
     failed_check_count: int = 0,
+    checked_claim_ids=None,
 ) -> Coverage:
     total = len(claims)
     assessed_by_id = {a.claim_id: a for a in assessed_claims}
@@ -28,9 +29,9 @@ def compute_coverage(
         a = assessed_by_id.get(c.claim_id)
         if not a:
             continue
-        if a.status in (ClaimStatus.SUPPORTED, ClaimStatus.CONTRADICTED, ClaimStatus.UNRESOLVED):
+        if (c.claim_id in checked_claim_ids if checked_claim_ids is not None else a.status in (ClaimStatus.SUPPORTED, ClaimStatus.CONTRADICTED)) and c.value is not None:
             checked_count += 1
-        if a.status == ClaimStatus.UNRESOLVED:
+        if a.status in (ClaimStatus.UNRESOLVED, ClaimStatus.NOT_CHECKED):
             unresolved_count += 1
 
     checked_count = min(checked_count, total)

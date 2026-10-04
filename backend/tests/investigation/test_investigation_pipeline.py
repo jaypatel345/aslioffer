@@ -54,7 +54,6 @@ from tests.investigation.fixture_helpers import MockSearchClient, load_fixture_b
 
 FIXTURES_DIR = Path(__file__).resolve().parent.parent / "fixtures" / "investigation"
 GENERATED_FIXTURES_DIR = FIXTURES_DIR / "generated_task10"
-GENERATED_FIXTURES_DIR.mkdir(parents=True, exist_ok=True)
 
 
 # ---------------------------------------------------------------------------
@@ -115,7 +114,8 @@ async def test_grounded_upfront_fee_high_risk():
 
     assessed_pay = next(a for a in result.assessed_claims if a.claim_id == pay_claim.claim_id)
     assert "UPFRONT_PAYMENT_DEMAND" in assessed_pay.reason_codes
-    assert assessed_pay.status in (ClaimStatus.CONTRADICTED, ClaimStatus.UNRESOLVED)
+    assert assessed_pay.status == ClaimStatus.SUPPORTED
+    assert "presence of the demand" in assessed_pay.explanation
 
 
 # ---------------------------------------------------------------------------
@@ -678,7 +678,7 @@ async def test_callback_failure_does_not_alter_verdict():
 @pytest.mark.asyncio
 async def test_cancellation_cleanup_propagates():
     """Cancellation during investigation propagates asyncio.CancelledError cleanly."""
-    text = "Offer from ZetaCorp for Architect."
+    text = "Offer from Zeta Technologies Pvt Ltd for Architect."
     case_input = CaseInput(case_id=117, run_id="run_cancel", source_type=SourceType.TEXT, redacted_text=text, demo_mode=False)
 
     async def hanging_search(*args, **kwargs):
@@ -763,7 +763,7 @@ async def test_no_repeated_company_resolution_query():
 # ---------------------------------------------------------------------------
 
 @pytest.mark.asyncio
-async def test_generate_and_roundtrip_handoff_fixtures():
+async def test_generate_and_roundtrip_handoff_fixtures(tmp_path):
     """
     Generates actual investigator pipeline outputs for:
     - Supported public consistency
@@ -772,6 +772,7 @@ async def test_generate_and_roundtrip_handoff_fixtures():
     - Provider outage
     Validates them with InvestigationResult and asserts JSON round-tripping.
     """
+    GENERATED_FIXTURES_DIR = tmp_path
     fixtures_to_generate = [
         (
             "supported_public_consistency",
@@ -783,7 +784,7 @@ async def test_generate_and_roundtrip_handoff_fixtures():
                     "Offer of Employment from Kestrel Systems Pvt Ltd.\n"
                     "We are pleased to offer you the position of Associate Consultant.\n"
                     "Please review the offer details at https://careers.kestrelsystems.example/offers.\n"
-                    "Regards, Ananya Rao. Contact: ananya.rao@kestrelsystems.example"
+                    "Regards, Ananya Rao, Talent Acquisition. Contact: ananya.rao@kestrelsystems.example"
                 ),
                 demo_mode=False,
             ),
@@ -792,6 +793,7 @@ async def test_generate_and_roundtrip_handoff_fixtures():
                     '"Kestrel Systems Pvt Ltd" official website careers': {
                         "status": "successful",
                         "source": "REAL",
+                        "knowledge_graph": {"title": "Kestrel Systems Pvt Ltd", "website": "https://www.kestrelsystems.example", "careers_url": "https://careers.kestrelsystems.example"},
                         "organic_results": [
                             {
                                 "link": "https://www.kestrelsystems.example/",
@@ -909,6 +911,11 @@ async def test_generate_and_roundtrip_handoff_fixtures():
         parsed_again = InvestigationResult.model_validate_json(dumped_json)
         assert parsed_again == result
 
+        expected = {"supported_public_consistency": OverallOutcome.NO_STRONG_RISK_SIGNALS,
+                    "supported_adverse_warning": OverallOutcome.HIGH_RISK,
+                    "sparse_employer": OverallOutcome.CANNOT_VERIFY,
+                    "provider_outage": OverallOutcome.CANNOT_VERIFY}
+        assert result.overall_outcome == expected[name]
         out_path = GENERATED_FIXTURES_DIR / f"fixture_{name}.json"
         out_path.write_text(dumped_json, encoding="utf-8")
         alt_path = GENERATED_FIXTURES_DIR / f"{name}.json"

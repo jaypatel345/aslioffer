@@ -9,6 +9,7 @@ caller cancellation cleanly.
 import asyncio
 from datetime import datetime, timezone
 import re
+import inspect
 from typing import Any, Callable, List, Optional
 
 from app.schemas.contract import EventStatus, RunEvent
@@ -39,9 +40,15 @@ class EventEmitter:
         self.run_id = run_id
         self.emit_fn = emit_fn
         self.sequence = 0
+        self._delivery_lock = asyncio.Lock()
         self.emitted_events: List[RunEvent] = []
 
     async def emit(self, step: str, status: EventStatus, message: str) -> Optional[RunEvent]:
+        # Persist callbacks in sequence order even when agent stages finish concurrently.
+        async with self._delivery_lock:
+            return await self._emit(step, status, message)
+
+    async def _emit(self, step: str, status: EventStatus, message: str) -> Optional[RunEvent]:
         """
         Emits a validated RunEvent. Swallows callback errors (logging a warning)
         without changing the investigation verdict, but re-raises CancelledError.
@@ -61,11 +68,11 @@ class EventEmitter:
         if self.emit_fn is not None:
             try:
                 res = self.emit_fn(event)
-                if asyncio.iscoroutine(res):
+                if inspect.isawaitable(res):
                     await res
             except asyncio.CancelledError:
                 raise
             except Exception as exc:
-                logger.warning("Event emission callback error for step %s: %s", step, exc)
+                logger.warning("Event emission callback failed for step %s", step)
 
         return event
