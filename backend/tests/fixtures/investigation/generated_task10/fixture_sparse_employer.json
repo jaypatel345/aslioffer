@@ -1,0 +1,149 @@
+{
+  "contract_version": "1.0.0",
+  "run_id": "run_01J9X3SPARSESTARTUP",
+  "demo_mode": false,
+  "claims": [
+    {
+      "claim_id": "c1",
+      "kind": "employer",
+      "value": "Coorix Labs",
+      "source_quote": "Coorix Labs",
+      "start_offset": 11,
+      "end_offset": 22,
+      "page": null,
+      "extraction_status": "EXTRACTED"
+    },
+    {
+      "claim_id": "c2",
+      "kind": "sender_email",
+      "value": "hr@coorixlabs.example",
+      "source_quote": "hr@coorixlabs.example",
+      "start_offset": 65,
+      "end_offset": 86,
+      "page": null,
+      "extraction_status": "EXTRACTED"
+    },
+    {
+      "claim_id": "c3",
+      "kind": "role",
+      "value": "Backend Developer",
+      "source_quote": "Backend Developer",
+      "start_offset": 30,
+      "end_offset": 47,
+      "page": null,
+      "extraction_status": "EXTRACTED"
+    },
+    {
+      "claim_id": "c4",
+      "kind": "payment_request",
+      "value": null,
+      "source_quote": null,
+      "start_offset": null,
+      "end_offset": null,
+      "page": null,
+      "extraction_status": "MISSING"
+    }
+  ],
+  "assessed_claims": [
+    {
+      "claim_id": "c1",
+      "status": "UNRESOLVED",
+      "explanation": "Only sparse or unverified mentions of 'Coorix Labs' were found, so no official domain could be resolved. A small footprint is common for early startups and is not a warning by itself.",
+      "evidence_ids": [],
+      "reason_codes": [
+        "SPARSE_FOOTPRINT",
+        "OFFICIAL_DOMAIN_UNRESOLVED"
+      ]
+    },
+    {
+      "claim_id": "c2",
+      "status": "UNRESOLVED",
+      "explanation": "Without a resolved official domain, the sender domain cannot be checked against anything.",
+      "evidence_ids": [],
+      "reason_codes": [
+        "NO_REFERENCE_DOMAIN"
+      ]
+    },
+    {
+      "claim_id": "c3",
+      "status": "UNRESOLVED",
+      "explanation": "No public listing for this role was found. Roles can be unlisted or expired, so this is neither support nor a warning.",
+      "evidence_ids": [],
+      "reason_codes": [
+        "NO_PUBLIC_LISTING_FOUND"
+      ]
+    },
+    {
+      "claim_id": "c4",
+      "status": "NOT_CHECKED",
+      "explanation": "The message contains no payment request.",
+      "evidence_ids": [],
+      "reason_codes": [
+        "NOT_APPLICABLE"
+      ]
+    }
+  ],
+  "evidence": [],
+  "overall_outcome": "CANNOT_VERIFY",
+  "authenticity_status": "UNCONFIRMED",
+  "coverage": {
+    "checked_claims": 3,
+    "total_claims": 4,
+    "unresolved_claims": 3,
+    "failed_checks": 0
+  },
+  "recommended_actions": [
+    "Ask the company for an official website or LinkedIn page and a contact you can reach independently.",
+    "Independently look up the employer using official public business registries (such as MCA India at mca.gov.in) or verified business directories.",
+    "Do not rely on website links, phone numbers, or addresses provided solely within the submitted document.",
+    "Resolve the outstanding Recruiter Domain Alignment & Employer Affiliation Check independently before relying on that result.",
+    "Contact the employer through independently established published contact details to confirm that this specific offer was issued to you.",
+    "Review standard employment terms, scope of work, and contract conditions carefully before signing.",
+    "Never share sensitive banking passwords, OTPs, or pay any onboarding charges.",
+    "Do not pay any fee or share bank OTPs at any stage."
+  ],
+  "confirmation_route": null,
+  "tool_trace": [
+    {
+      "step": "resolve_employer_domain",
+      "tool": "serpapi.google",
+      "query": "\"Coorix Labs\" official website careers",
+      "reason": "Resolve the employer's official domain before checking contact details",
+      "status": "COMPLETED",
+      "started_at": "2026-10-04T07:00:22.850852Z",
+      "duration_ms": 0,
+      "evidence_ids": []
+    },
+    {
+      "step": "check_recruiter_contact",
+      "tool": "serpapi.google",
+      "query": "\"hr@coorixlabs.example\" scam fraud complaint",
+      "reason": "Verify recruiter email alignment with resolved domain",
+      "status": "COMPLETED",
+      "started_at": "2026-10-04T07:00:22.856225Z",
+      "duration_ms": 0,
+      "evidence_ids": []
+    },
+    {
+      "step": "check_recruiter_contact",
+      "tool": "serpapi.google",
+      "query": "\"hr@coorixlabs.example\" \"Coorix Labs\"",
+      "reason": "Verify recruiter email alignment with resolved domain",
+      "status": "COMPLETED",
+      "started_at": "2026-10-04T07:00:22.856506Z",
+      "duration_ms": 0,
+      "evidence_ids": []
+    },
+    {
+      "step": "check_scam_signals",
+      "tool": "serpapi.google",
+      "query": "\"Coorix Labs\" job scam fraud complaint telegram",
+      "reason": "Check for upfront fees, credential demands, and adverse reports",
+      "status": "COMPLETED",
+      "started_at": "2026-10-04T07:00:22.861017Z",
+      "duration_ms": 0,
+      "evidence_ids": []
+    }
+  ],
+  "errors": []
+}

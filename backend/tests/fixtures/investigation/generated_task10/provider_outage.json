@@ -1,0 +1,176 @@
+{
+  "contract_version": "1.0.0",
+  "run_id": "run_01J9X4PROVIDEROUTAGE",
+  "demo_mode": false,
+  "claims": [
+    {
+      "claim_id": "c1",
+      "kind": "employer",
+      "value": "Vardhan Analytics Pvt Ltd",
+      "source_quote": "Vardhan Analytics Pvt Ltd",
+      "start_offset": 11,
+      "end_offset": 36,
+      "page": null,
+      "extraction_status": "EXTRACTED"
+    },
+    {
+      "claim_id": "c2",
+      "kind": "sender_email",
+      "value": "careers@vardhananalytics.example",
+      "source_quote": "careers@vardhananalytics.example",
+      "start_offset": 64,
+      "end_offset": 96,
+      "page": null,
+      "extraction_status": "EXTRACTED"
+    },
+    {
+      "claim_id": "c3",
+      "kind": "role",
+      "value": "Data Analyst",
+      "source_quote": "Data Analyst",
+      "start_offset": 41,
+      "end_offset": 53,
+      "page": null,
+      "extraction_status": "EXTRACTED"
+    },
+    {
+      "claim_id": "c4",
+      "kind": "payment_request",
+      "value": null,
+      "source_quote": null,
+      "start_offset": null,
+      "end_offset": null,
+      "page": null,
+      "extraction_status": "MISSING"
+    }
+  ],
+  "assessed_claims": [
+    {
+      "claim_id": "c1",
+      "status": "UNRESOLVED",
+      "explanation": "The search provider was unavailable, so the employer could not be checked. This says nothing about the offer either way.",
+      "evidence_ids": [
+        "e1"
+      ],
+      "reason_codes": [
+        "SEARCH_UNAVAILABLE"
+      ]
+    },
+    {
+      "claim_id": "c2",
+      "status": "UNRESOLVED",
+      "explanation": "Depends on the employer domain, which could not be resolved.",
+      "evidence_ids": [],
+      "reason_codes": [
+        "DEPENDENCY_UNRESOLVED"
+      ]
+    },
+    {
+      "claim_id": "c3",
+      "status": "NOT_CHECKED",
+      "explanation": "Skipped after the provider failure.",
+      "evidence_ids": [],
+      "reason_codes": [
+        "SKIPPED_AFTER_FAILURE"
+      ]
+    },
+    {
+      "claim_id": "c4",
+      "status": "NOT_CHECKED",
+      "explanation": "The message contains no payment request.",
+      "evidence_ids": [],
+      "reason_codes": [
+        "NOT_APPLICABLE"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "evidence_id": "e1",
+      "claim_id": "c1",
+      "source_kind": "SEARCH_SNIPPET",
+      "source_url": null,
+      "title": "Search failed",
+      "quote_or_snippet": "No results: Upstream search engine rate limited after 2 retries",
+      "retrieved_at": "2026-10-04T07:00:22.889710Z",
+      "query": "\"Vardhan Analytics Pvt Ltd\" official website careers",
+      "engine": "google",
+      "search_id": null,
+      "retrieval_status": "FAILED",
+      "source_tier": "UNKNOWN",
+      "relation": "CONTEXT"
+    }
+  ],
+  "overall_outcome": "CANNOT_VERIFY",
+  "authenticity_status": "UNCONFIRMED",
+  "coverage": {
+    "checked_claims": 2,
+    "total_claims": 4,
+    "unresolved_claims": 2,
+    "failed_checks": 2
+  },
+  "recommended_actions": [
+    "Re-run this investigation once the search provider is available.",
+    "Investigation checks (Employer Identity & Web Presence Check) were unavailable; no completed result was obtained; re-run verification or check official records independently.",
+    "Independently look up the employer using official public business registries (such as MCA India at mca.gov.in) or verified business directories.",
+    "Do not rely on website links, phone numbers, or addresses provided solely within the submitted document.",
+    "Resolve the outstanding Recruiter Domain Alignment & Employer Affiliation Check independently before relying on that result.",
+    "Contact the employer through independently established published contact details to confirm that this specific offer was issued to you.",
+    "Review standard employment terms, scope of work, and contract conditions carefully before signing.",
+    "Never share sensitive banking passwords, OTPs, or pay any onboarding charges.",
+    "Do not pay any fee or share bank OTPs."
+  ],
+  "confirmation_route": null,
+  "tool_trace": [
+    {
+      "step": "resolve_employer_domain",
+      "tool": "serpapi.google",
+      "query": "\"Vardhan Analytics Pvt Ltd\" official website careers",
+      "reason": "Resolve the employer's official domain before checking contact details",
+      "status": "FAILED",
+      "started_at": "2026-10-04T07:00:22.878480Z",
+      "duration_ms": 0,
+      "evidence_ids": [
+        "e1"
+      ]
+    },
+    {
+      "step": "check_recruiter_contact",
+      "tool": "serpapi.google",
+      "query": "\"careers@vardhananalytics.example\" scam fraud complaint",
+      "reason": "Verify recruiter email alignment with resolved domain",
+      "status": "COMPLETED",
+      "started_at": "2026-10-04T07:00:22.881694Z",
+      "duration_ms": 0,
+      "evidence_ids": []
+    },
+    {
+      "step": "check_recruiter_contact",
+      "tool": "serpapi.google",
+      "query": "\"careers@vardhananalytics.example\" \"Vardhan Analytics Pvt Ltd\"",
+      "reason": "Verify recruiter email alignment with resolved domain",
+      "status": "COMPLETED",
+      "started_at": "2026-10-04T07:00:22.881937Z",
+      "duration_ms": 0,
+      "evidence_ids": []
+    },
+    {
+      "step": "check_scam_signals",
+      "tool": "serpapi.google",
+      "query": "\"Vardhan Analytics Pvt Ltd\" job scam fraud complaint telegram",
+      "reason": "Check for upfront fees, credential demands, and adverse reports",
+      "status": "COMPLETED",
+      "started_at": "2026-10-04T07:00:22.886184Z",
+      "duration_ms": 0,
+      "evidence_ids": []
+    }
+  ],
+  "errors": [
+    {
+      "code": "SEARCH_PROVIDER_OUTAGE",
+      "message": "Search provider request timed out or was unavailable",
+      "step": "resolve_company",
+      "retryable": true
+    }
+  ]
+}

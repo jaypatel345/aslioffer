@@ -1,0 +1,174 @@
+{
+  "contract_version": "1.0.0",
+  "run_id": "run_01J9X2IMPERSONATION",
+  "demo_mode": false,
+  "claims": [
+    {
+      "claim_id": "c1",
+      "kind": "employer",
+      "value": "Nimbus Infotech Ltd",
+      "source_quote": "Nimbus Infotech Ltd",
+      "start_offset": 16,
+      "end_offset": 35,
+      "page": null,
+      "extraction_status": "EXTRACTED"
+    },
+    {
+      "claim_id": "c2",
+      "kind": "sender_email",
+      "value": "priya.nimbushr@gmail.com",
+      "source_quote": "priya.nimbushr@gmail.com",
+      "start_offset": 173,
+      "end_offset": 197,
+      "page": null,
+      "extraction_status": "EXTRACTED"
+    },
+    {
+      "claim_id": "c3",
+      "kind": "payment_request",
+      "value": "Deposit a refundable laptop security fee of INR 15,000 via UPI within 24 hours.",
+      "source_quote": "Deposit a refundable laptop security fee of INR 15,000 via UPI within 24 hours.",
+      "start_offset": 84,
+      "end_offset": 163,
+      "page": null,
+      "extraction_status": "EXTRACTED"
+    }
+  ],
+  "assessed_claims": [
+    {
+      "claim_id": "c1",
+      "status": "UNRESOLVED",
+      "explanation": "Only sparse or unverified mentions of 'Nimbus Infotech Ltd' were found, so no official domain could be resolved. A small footprint is common for early startups and is not a warning by itself.",
+      "evidence_ids": [],
+      "reason_codes": [
+        "SPARSE_FOOTPRINT",
+        "OFFICIAL_DOMAIN_UNRESOLVED"
+      ]
+    },
+    {
+      "claim_id": "c2",
+      "status": "UNRESOLVED",
+      "explanation": "Without a resolved official domain, the sender domain cannot be checked against anything.",
+      "evidence_ids": [],
+      "reason_codes": [
+        "NO_REFERENCE_DOMAIN"
+      ]
+    },
+    {
+      "claim_id": "c3",
+      "status": "UNRESOLVED",
+      "explanation": "The letter contains an upfront payment or deposit demand. While no external employer policy page was retrieved, advance fee demands are a severe risk marker.",
+      "evidence_ids": [
+        "e2"
+      ],
+      "reason_codes": [
+        "UPFRONT_PAYMENT_DEMAND"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "evidence_id": "e1",
+      "claim_id": "c2",
+      "source_kind": "DOCUMENT",
+      "source_url": null,
+      "title": "Free Webmail Domain Used for Corporate Recruitment",
+      "quote_or_snippet": "The submitted recruiter contact uses a public webmail domain; employer affiliation requires confirmation.",
+      "retrieved_at": "2026-10-04T07:00:22.839992Z",
+      "query": null,
+      "engine": null,
+      "search_id": null,
+      "retrieval_status": "LIVE",
+      "source_tier": "OFFER_DOCUMENT",
+      "relation": "CONTEXT"
+    },
+    {
+      "evidence_id": "e2",
+      "claim_id": "c3",
+      "source_kind": "DOCUMENT",
+      "source_url": null,
+      "title": "Payment demand in the offer text",
+      "quote_or_snippet": "Deposit a refundable laptop security fee of INR 15,000 via UPI within 24 hours.",
+      "retrieved_at": "2026-10-04T07:00:22.840192Z",
+      "query": null,
+      "engine": null,
+      "search_id": null,
+      "retrieval_status": "LIVE",
+      "source_tier": "OFFER_DOCUMENT",
+      "relation": "CONTEXT"
+    }
+  ],
+  "overall_outcome": "HIGH_RISK",
+  "authenticity_status": "UNCONFIRMED",
+  "coverage": {
+    "checked_claims": 3,
+    "total_claims": 3,
+    "unresolved_claims": 3,
+    "failed_checks": 0
+  },
+  "recommended_actions": [
+    "DO NOT pay any registration fee, security deposit, laptop charge, or document processing fee under any circumstance.",
+    "Confirm the payment demand independently with the employer using published contact details, not the contact supplied with the demand.",
+    "If you suspect employment fraud or have experienced financial loss or credential theft, report the incident to the National Cyber Crime Reporting Portal at https://cybercrime.gov.in or call helpline 1930.",
+    "The recruiter contacted you from a personal or non-matching email domain. Request written communication from the employer's official corporate email domain.",
+    "Independently confirm the recruiter's hiring authority by calling the employer's official corporate switchboard or published HR directory.",
+    "Independently look up the employer using official public business registries (such as MCA India at mca.gov.in) or verified business directories.",
+    "Do not rely on website links, phone numbers, or addresses provided solely within the submitted document.",
+    "Resolve the outstanding Recruiter Domain Alignment & Employer Affiliation Check independently before relying on that result.",
+    "Contact the employer through independently established published contact details to confirm that this specific offer was issued to you."
+  ],
+  "confirmation_route": null,
+  "tool_trace": [
+    {
+      "step": "resolve_employer_domain",
+      "tool": "serpapi.google",
+      "query": "\"Nimbus Infotech Ltd\" official website careers",
+      "reason": "Resolve the employer's official domain before checking contact details",
+      "status": "COMPLETED",
+      "started_at": "2026-10-04T07:00:22.826355Z",
+      "duration_ms": 0,
+      "evidence_ids": []
+    },
+    {
+      "step": "check_recruiter_contact",
+      "tool": "serpapi.google",
+      "query": "\"priya.nimbushr@gmail.com\" scam fraud complaint",
+      "reason": "Verify recruiter email alignment with resolved domain",
+      "status": "COMPLETED",
+      "started_at": "2026-10-04T07:00:22.830390Z",
+      "duration_ms": 0,
+      "evidence_ids": []
+    },
+    {
+      "step": "check_recruiter_contact",
+      "tool": "serpapi.google",
+      "query": "\"priya.nimbushr@gmail.com\" \"Nimbus Infotech Ltd\"",
+      "reason": "Verify recruiter email alignment with resolved domain",
+      "status": "COMPLETED",
+      "started_at": "2026-10-04T07:00:22.830745Z",
+      "duration_ms": 0,
+      "evidence_ids": []
+    },
+    {
+      "step": "check_scam_signals",
+      "tool": "serpapi.google",
+      "query": "\"Nimbus Infotech Ltd\" job scam fraud complaint telegram",
+      "reason": "Check for upfront fees, credential demands, and adverse reports",
+      "status": "COMPLETED",
+      "started_at": "2026-10-04T07:00:22.834815Z",
+      "duration_ms": 0,
+      "evidence_ids": []
+    },
+    {
+      "step": "check_scam_signals",
+      "tool": "serpapi.google",
+      "query": "\"Nimbus Infotech Ltd\" \"UPI\" recruitment scam",
+      "reason": "Check for upfront fees, credential demands, and adverse reports",
+      "status": "COMPLETED",
+      "started_at": "2026-10-04T07:00:22.835644Z",
+      "duration_ms": 0,
+      "evidence_ids": []
+    }
+  ],
+  "errors": []
+}
