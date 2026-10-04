@@ -20,7 +20,7 @@ export const Upload: React.FC = () => {
     { title: 'Report Synthesis', desc: 'Risk Engine assembling evidence citations' },
   ];
 
-  const handleAnalyze = async (payload: { title: string; content: string; file?: File }) => {
+  const handleAnalyze = async (payload: { title: string; content: string; file?: File; sample?: boolean }) => {
     setIsProcessing(true);
     setCurrentStep(0);
     setError(null);
@@ -45,13 +45,19 @@ export const Upload: React.FC = () => {
         const res = await api.uploadOffer(formData);
         offerId = res.offer_id;
       } else {
-        const res = await api.uploadOfferText(payload.title, payload.content);
+        const res = await api.uploadOfferText(payload.title, payload.content, payload.sample ?? false);
         offerId = res.offer_id;
       }
 
       // Run the pipeline here so the step list tracks the real investigation
       // instead of a timer, and the report is already in hand when we navigate.
-      const report = await api.runAnalysis(offerId);
+      let report;
+      try {
+        report = await api.runAnalysis(offerId);
+      } catch (err) {
+        const reason = err instanceof Error && err.message ? err.message : 'unknown error';
+        throw new Error(`Your offer was saved (ID ${offerId}), but the investigation failed: ${reason}`);
+      }
 
       clearInterval(stepInterval);
       setCurrentStep(steps.length); // every step ticks over to done

@@ -33,6 +33,17 @@ export const lastReport = {
     listeners.forEach((notify) => notify());
   },
 
+  /** Forget the remembered report, e.g. when the backend no longer has that case. */
+  clear() {
+    snapshot = null;
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch {
+      // Nothing persisted to remove.
+    }
+    listeners.forEach((notify) => notify());
+  },
+
   subscribe(listener: () => void) {
     listeners.add(listener);
     return () => {
