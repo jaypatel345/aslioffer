@@ -83,11 +83,14 @@ def sanitize_and_redact_secrets(text: str) -> str:
         sanitized,
     )
 
-    # Redact explicit passwords following password keywords
+    # Labelled values only; bare 'password with HR' must retain demand context.
     sanitized = re.sub(
-        r'(?i)(\b(?:password|net-banking\s+password|login\s+password)\s*(?:is|:|=|#|-)?\s*)([^\s,.;]+)',
-        r'\1[REDACTED_PASSWORD]',
-        sanitized,
+        r"(?i)(\b(?:password|pin|otp|passcode)\s*(?:is\s+|[:=#-]\s*))([^\s,;]+)",
+        r"\1[REDACTED_SECRET]", sanitized,
+    )
+    sanitized = re.sub(
+        r"(?i)(\bpassword\s+)(?!with\b|and\b|or\b|immediately\b|to\b|for\b|must\b|should\b|required\b)([^\s,.;]+)",
+        r"\1[REDACTED_PASSWORD]", sanitized,
     )
 
     return sanitized
@@ -109,10 +112,11 @@ ADVISORY_PREFIX_PATTERNS = [
 
 # Negation terms indicating company anti-scam policies
 POLICY_NEGATION_PATTERNS = [
+    r'\b(?:fee|fees|deposit|payment|charge)\b.*?\b(?:not required|not mandatory|not payable|is optional|are optional)\b',
     r'\b(?:never|do\s+not|does\s+not|will\s+not|shall\s+not|cannot)\s+(?:charge|ask|solicit|require|demand|collect)\b',
     r'\bno\s+(?:fees?|charges?|deposits?|payments?)\s+(?:are\s+)?(?:charged|required|solicited|collected)\b',
     r'\b(?:free\s+of\s+charge|at\s+no\s+(?:cost|fee|charge)|without\s+any\s+(?:fee|deposit|charge))\b',
-    r'\b(?:never|do\s+not)\s+share\s+your\s+(?:bank\s+)?(?:otp|password|pin|credentials?)\b',
+    r'\b(?:never|do\s+not)\s+(?:share|send|provide|forward|submit|pay|transfer|deposit|recharge)\b',
     r'\bdo\s+not\s+transfer\s+funds\b',
     r'\benter\s+the\s+otp\s+on\s+the\s+official\s+portal\s+yourself\b',
 ]
@@ -128,6 +132,7 @@ UPFRONT_FEE_PATTERNS = [
 
 # Unlock / withdrawal / release extortion terminology
 UNLOCK_EARNINGS_PATTERNS = [
+    r'\bto\s+(?:withdraw|unlock|release)\s+.*?\b(?:pay|deposit|transfer|recharge)\b',
     r'\b(?:unlock|release)\s+(?:your\s+)?(?:earnings|job|tasks?|wages?|balance|funds?|commissions?|account|wallet)\b',
     r'\bwallet\s+release\s+(?:charge|fee)\b',
     r'\bclearing\s+(?:agent\s+)?(?:charge|fee)\b',
@@ -139,7 +144,7 @@ UNLOCK_EARNINGS_PATTERNS = [
 # Credential / OTP / password theft terminology
 CREDENTIAL_THEFT_PATTERNS = [
     r'\b(?:share|provide|send|forward|submit)\s+(?:your\s+)?(?:bank\s+)?(?:verification\s+)?otp\b',
-    r'\b(?:share|provide|send|forward|submit)\s+(?:your\s+)?(?:net[- ]banking|login|account)\s+password\b',
+    r'\b(?:share|provide|send|forward|submit)\s+(?:your\s+)?(?:(?:net[- ]banking|login|account)\s+)?password\b',
     r'\b(?:share|provide|send|forward|submit)\s+(?:your\s+)?(?:atm\s+)?pin\b',
     r'\bshare\s+your\s+bank\s+otp\s+and\s+net[- ]banking\b',
     r'\botp\s+and\s+.*?\bpassword\s+immediately\s+with\s+hr\b',
@@ -158,7 +163,7 @@ SELF_SERVICE_OTP_PATTERNS = [
 UPI_PATTERNS = [
     r'\b(?:via|through|using|to)\s+upi\b',
     r'\b(?:upi\s+id|gpay|phonepe|paytm)\b',
-    r'@[a-zA-Z0-9.\-_]{2,}\b',  # VPA handles like @okaxis, @okhdfc, @okicici
+    r'@(?:okaxis|okhdfcbank|okhdfc|okicici|oksbi|upi|ybl|ibl|paytm)\b',
 ]
 
 # Salary direction patterns (employer to candidate, not a fee demand)
@@ -193,7 +198,7 @@ class ScamClassifier:
             return clauses
 
         # Split on sentence boundaries and line breaks
-        pattern = re.compile(r'[^.\n!?]+(?:[.\n!?]+|$)')
+        pattern = re.compile(r'.+?(?:[.!?](?=\s|$)|[;\n]+|\s+(?:but|however|yet)\s+|[, ]+and\s+(?=(?:please\s+)?(?:pay|transfer|share|send|provide|recharge)\b)|$)', re.I)
         for match in pattern.finditer(text):
             clause = match.group().strip()
             if clause:
@@ -271,21 +276,12 @@ class ScamClassifier:
         Quotation marks alone do not suppress a demand unless framed by advisory context.
         """
         lower = clause.lower()
-        full_lower = full_text.lower()
-
-        # Direct clause advisory match
-        for pat in ADVISORY_PREFIX_PATTERNS:
-            if re.search(pat, lower):
-                return True
-
-        # Check if the clause is enclosed in quotes inside an advisory document
-        has_quotes = ('"' in clause or "'" in clause or '“' in clause or '”' in clause or '‘' in clause or '’' in clause)
-        if has_quotes:
-            # Check if surrounding document text has advisory headers
-            for pat in ADVISORY_PREFIX_PATTERNS:
-                if re.search(pat, full_lower):
-                    return True
-
+        if any(re.search(pat, lower) for pat in ADVISORY_PREFIX_PATTERNS):
+            return True
+        start = full_text.find(clause)
+        prefix = full_text[max(0, start - 160):start].strip().lower()
+        if clause.lstrip().startswith(('"', '“', '‘')) and prefix.endswith((':', 'example.')):
+            return any(re.search(pat, prefix) for pat in ADVISORY_PREFIX_PATTERNS)
         return False
 
     def _is_negated_policy_clause(self, clause_lower: str) -> bool:
@@ -304,7 +300,7 @@ class ScamClassifier:
         if not quote:
             return None
         start = sanitized_text.find(quote)
-        if start == -1:
+        if start == -1 or sanitized_text.count(quote) != 1:
             return None
         return {
             "start_offset": start,
@@ -334,9 +330,7 @@ class ScamClassifier:
 
         # Check for credential theft solicitation
         has_cred_theft = any(re.search(pat, clause_lower) for pat in CREDENTIAL_THEFT_PATTERNS)
-        has_otp_and_password = ("otp" in clause_lower and ("password" in clause_lower or "pin" in clause_lower))
-
-        if has_cred_theft or has_otp_and_password:
+        if has_cred_theft:
             if is_negated:
                 assessments.append(
                     SignalAssessment(
@@ -381,7 +375,7 @@ class ScamClassifier:
     ):
         has_unlock = any(re.search(pat, clause_lower) for pat in UNLOCK_EARNINGS_PATTERNS)
 
-        if has_unlock:
+        if has_unlock and (is_negated or is_advisory or self._payment_request(clause_lower)):
             if is_negated:
                 assessments.append(
                     SignalAssessment(
@@ -450,6 +444,21 @@ class ScamClassifier:
                         contributes_to_verdict=False,
                     )
                 )
+            elif re.search(r"\b(?:we|company|employer)\s+(?:will\s+)?(?:pay|cover|reimburse|refund)\b", clause_lower):
+                assessments.append(SignalAssessment(
+                    signal_code="EMPLOYER_PAYMENT_DIRECTION", modality="informational", severity="INFO",
+                    explanation="Employer covers or reimburses the fee; no candidate remittance is established.",
+                    source_quote=clause, source_span=self._make_span(sanitized_text, clause),
+                    contributes_to_verdict=False,
+                ))
+            elif not self._payment_request(clause_lower):
+                assessments.append(SignalAssessment(
+                    signal_code=ScamSignalCode.UPFRONT_FEE_DEMAND,
+                    modality=ScamModality.AMBIGUOUS, severity="LOW",
+                    explanation="Fee terminology is present without a clear candidate payment demand.",
+                    source_quote=clause, source_span=self._make_span(sanitized_text, clause),
+                    contributes_to_verdict=True,
+                ))
             else:
                 # Active upfront fee demand
                 assessments.append(
@@ -494,10 +503,9 @@ class ScamClassifier:
             return
 
         # Check if tied to an active candidate-to-recruiter demand
-        is_payment_demand = any(w in clause_lower for w in ["pay", "transfer", "deposit", "send", "charge", "fee"])
-        has_vpa = "@ok" in clause_lower or "@upi" in clause_lower or "upi id" in clause_lower
+        is_payment_demand = self._payment_request(clause_lower)
 
-        if is_payment_demand or has_vpa:
+        if is_payment_demand:
             assessments.append(
                 SignalAssessment(
                     signal_code=ScamSignalCode.UPI_PAYMENT_REQUEST,
@@ -514,62 +522,27 @@ class ScamClassifier:
         self, clause: str, clause_lower: str, start_pos: int, end_pos: int,
         is_negated: bool, is_advisory: bool, sanitized_text: str, assessments: List[SignalAssessment]
     ):
-        # Telegram
-        if "telegram" in clause_lower:
-            is_task_group = any(w in clause_lower for w in ["task", "assignment", "review", "daily review", "parttime"])
-            is_announcement = any(w in clause_lower for w in ["webinar", "announcement", "community", "student community", "links will be posted", "orientation"])
+        for platform, code in (("telegram", ScamSignalCode.TELEGRAM_COMMUNICATION),
+                               ("whatsapp", ScamSignalCode.WHATSAPP_RECRUITMENT_CHANNEL)):
+            if re.search(r"\b" + platform + r"\b", clause_lower):
+                assessments.append(SignalAssessment(
+                    signal_code=code, modality="informational", severity="INFO",
+                    explanation="Communication channel mention alone does not establish a payment or credential demand.",
+                    source_quote=clause, source_span=self._make_span(sanitized_text, clause),
+                    contributes_to_verdict=False,
+                ))
 
-            if is_task_group:
-                assessments.append(
-                    SignalAssessment(
-                        signal_code=ScamSignalCode.TELEGRAM_COMMUNICATION,
-                        modality=ScamModality.AMBIGUOUS,
-                        severity="MEDIUM",
-                        explanation="Telegram task/review group mentioned for assignment distribution.",
-                        source_quote=clause,
-                        source_span=self._make_span(sanitized_text, clause),
-                        contributes_to_verdict=True,
-                    )
-                )
-            elif is_announcement:
-                assessments.append(
-                    SignalAssessment(
-                        signal_code=ScamSignalCode.TELEGRAM_COMMUNICATION,
-                        modality=ScamModality.AMBIGUOUS,
-                        severity="LOW",
-                        explanation="Telegram channel mentioned for announcements without payment requests or task scam patterns; treated as caution, not definitive fraud.",
-                        source_quote=clause,
-                        source_span=self._make_span(sanitized_text, clause),
-                        contributes_to_verdict=True,
-                    )
-                )
-            else:
-                assessments.append(
-                    SignalAssessment(
-                        signal_code=ScamSignalCode.TELEGRAM_COMMUNICATION,
-                        modality=ScamModality.AMBIGUOUS,
-                        severity="LOW",
-                        explanation="Telegram communication channel mentioned in offer context.",
-                        source_quote=clause,
-                        source_span=self._make_span(sanitized_text, clause),
-                        contributes_to_verdict=True,
-                    )
-                )
-
-        # WhatsApp
-        if any(w in clause_lower for w in ["whatsapp only", "whatsapp task", "whatsapp group", "contact on whatsapp", "task on whatsapp"]):
-            is_task_scam = "task" in clause_lower
-            assessments.append(
-                SignalAssessment(
-                    signal_code=ScamSignalCode.WHATSAPP_RECRUITMENT_CHANNEL,
-                    modality=ScamModality.AMBIGUOUS if not is_task_scam else ScamModality.ACTIVE_DEMAND,
-                    severity="HIGH" if is_task_scam else "MEDIUM",
-                    explanation="WhatsApp channel referenced for recruitment tasks or communication.",
-                    source_quote=clause,
-                    source_span=self._make_span(sanitized_text, clause),
-                    contributes_to_verdict=True,
-                )
-            )
+    @staticmethod
+    def _payment_request(text: str) -> bool:
+        # Employer paying/reimbursing the candidate is not candidate remittance.
+        if re.search(r"\b(?:we|company|employer)\s+(?:will\s+)?(?:pay|cover|reimburse|refund)\b", text):
+            return False
+        return bool(re.search(
+            r"\b(?:pay|transfer|remit|recharge|deposit|submit|send)\b.*?"
+            r"\b(?:fee|deposit|charge|funds|money|amount|inr|rs|rupees|wallet|upi|gpay|phonepe|paytm|unlock|withdraw|release)\b"
+            r"|\b(?:fee|deposit|charge|payment|recharge)\b.*?\b(?:required|mandatory|must|before|payable)\b"
+            r"|\b(?:mandatory|required)\b.*?\b(?:fee|deposit|charge|payment)\b", text,
+        ))
 
     def _evaluate_structured_hints(
         self,
@@ -585,7 +558,7 @@ class ScamClassifier:
         or provides no supporting request.
         """
         active_fee_assessments = [a for a in assessments if a.signal_code == ScamSignalCode.UPFRONT_FEE_DEMAND and a.modality == ScamModality.ACTIVE_DEMAND]
-        negated_policy_assessments = [a for a in assessments if a.modality == ScamModality.NEGATED_POLICY]
+        negated_policy_assessments = [a for a in assessments if a.signal_code == ScamSignalCode.NEGATED_FEE_POLICY]
 
         # Check demanded_fee hint
         has_fee_hint = bool(demanded_fee) or "DEMANDS_UPFRONT_FEE" in flags
@@ -600,7 +573,7 @@ class ScamClassifier:
                         signal_code=ScamSignalCode.UNSUPPORTED_STRUCTURED_HINT,
                         modality=ScamModality.NEGATED_POLICY,
                         severity="LOW",
-                        explanation=f"Structured fee hint ({demanded_fee or 'DEMANDS_UPFRONT_FEE'}) is contradicted by explicit document policy stating company never charges fees.",
+                        explanation=f"Structured fee hint (fee indicator) is contradicted by explicit document policy stating company never charges fees.",
                         source_quote=negated_policy_assessments[0].source_quote,
                         source_span=negated_policy_assessments[0].source_span,
                         contributes_to_verdict=False,
@@ -613,7 +586,7 @@ class ScamClassifier:
                         signal_code=ScamSignalCode.UNSUPPORTED_STRUCTURED_HINT,
                         modality=ScamModality.AMBIGUOUS,
                         severity="MEDIUM",
-                        explanation=f"Structured fee hint ({demanded_fee or 'DEMANDS_UPFRONT_FEE'}) is not corroborated by the submitted document text.",
+                        explanation=f"Structured fee hint (fee indicator) is not corroborated by the submitted document text.",
                         source_quote=None,
                         source_span=None,
                         contributes_to_verdict=True,
@@ -623,7 +596,7 @@ class ScamClassifier:
         # Check payment_method hint
         if payment_method and payment_method.upper() in {"UPI", "GPAY", "PHONEPE", "PAYTM"}:
             active_upi = [a for a in assessments if a.signal_code == ScamSignalCode.UPI_PAYMENT_REQUEST and a.modality == ScamModality.ACTIVE_DEMAND]
-            if not active_upi and not active_fee_assessments:
+            if not active_upi and not active_fee_assessments and not any(a.signal_code == "SALARY_PAYMENT_DIRECTION" for a in assessments):
                 if negated_policy_assessments:
                     assessments.append(
                         SignalAssessment(

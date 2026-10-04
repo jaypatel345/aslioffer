@@ -1,6 +1,6 @@
 # Task 6: Contextual Scam Detection in AsliOffer
 
-Version **1.0.0**, October 2026.
+Version **1.0.1**, October 2026.
 Implementation documentation for Task 6: Evidence-backed contextual scam detection.
 
 ---
@@ -19,14 +19,14 @@ Task 6 replaces unconditional keyword detection with an evidence-backed contextu
 
 ## 2. Contextual Signal Classification & Modalities
 
-Every candidate clause or structured hint is assigned one of four explicit modalities:
+Payment and credential assessments use four contextual modalities; ordinary channels and employer payment directions use non-contributing `informational` assessments.
 
 | Modality | Definition | Examples | Effect on Verdict |
 |---|---|---|---|
 | `active_demand` | An affirmative command or conditional demand requiring the candidate to remit payment, unlock wages, or disclose sensitive authentication credentials. | *"Pay the mandatory laptop deposit of INR 5,000."*<br>*"To unlock your earnings, pay INR 2,200 wallet release charge."*<br>*"Share your bank OTP and net-banking password with HR."* | Grounded basis for `HIGH_RISK` |
 | `negated_policy` | An explicit corporate policy stating that the company does NOT charge fees, request deposits, or solicit account secrets. | *"We never charge a security deposit, registration fee, or onboarding deposit."*<br>*"Wipro does not solicit payments or training fees."*<br>*"Do not share your bank OTP with anyone."* | Suppresses fee/theft triggers; auditable in structured assessments |
 | `quoted_advisory` | Scam phrasing quoted within an anti-fraud advisory or public warning cautioning candidates against third-party scammers. | *"Security Advisory: Fraudsters are circulating fake letters stating 'Pay INR 2,500 registration fee via UPI'."* | Recognized as prevention guidance; does not elevate offer risk |
-| `ambiguous` | Uncorroborated structured hints (e.g., fee present in metadata but absent from text), unclear payment terms, or informational platform channels without active demands. | *"All webinar links will be posted on our Telegram channel."*<br>*Demanded fee present in structured input but contradicted or uncorroborated by text.* | Triggers `NEEDS_REVIEW` |
+| `ambiguous` | Uncorroborated structured hints (e.g., fee present in metadata but absent from text), unclear payment terms, or unclear fee references. | *Demanded fee present in structured input but contradicted or uncorroborated by text.* | Triggers `NEEDS_REVIEW` |
 
 ### Key Detection Rules:
 1. **Localized Negation Scope**:
@@ -52,8 +52,8 @@ Every candidate clause or structured hint is assigned one of four explicit modal
 | `UNLOCK_PAYMENT_DEMAND` | `active_demand` | `CRITICAL` | Payment or wallet recharge demanded to unlock tasks, accumulated earnings, wages, or withdrawals. |
 | `CREDENTIAL_THEFT_DEMAND` | `active_demand` | `CRITICAL` | Direct solicitation of bank OTPs, net-banking passwords, ATM PINs, or account-access secrets. |
 | `UPI_PAYMENT_REQUEST` | `active_demand` | `HIGH` | Candidate payment requested through UPI, GPay, PhonePe, Paytm, or VPA handles (`@okaxis`). |
-| `TELEGRAM_COMMUNICATION` | `ambiguous` | `LOW` / `MEDIUM` | Telegram channel or task group mentioned in recruitment communication without active payment demands. |
-| `WHATSAPP_RECRUITMENT_CHANNEL` | `ambiguous` / `active_demand` | `MEDIUM` / `HIGH` | WhatsApp referenced for recruitment tasks or communication. |
+| `TELEGRAM_COMMUNICATION` | `informational` | `INFO` | Telegram channel or task group mentioned in recruitment communication without active payment demands. |
+| `WHATSAPP_RECRUITMENT_CHANNEL` | `informational` | `INFO` | WhatsApp referenced for recruitment tasks or communication. |
 | `NEGATED_FEE_POLICY` | `negated_policy` | `INFO` | Explicit anti-fraud disclaimer stating company never charges fees. |
 | `QUOTED_SCAM_ADVISORY` | `quoted_advisory` | `LOW` | Quoted scam language inside security advisory cautioning candidates. |
 | `UNSUPPORTED_STRUCTURED_HINT` | `ambiguous` / `negated_policy` | `LOW` / `MEDIUM` | Extracted structured hint uncorroborated or contradicted by raw text. |
@@ -63,7 +63,7 @@ Every candidate clause or structured hint is assigned one of four explicit modal
 - **`HIGH_RISK`** (`confidence = 0.98`, `scam_flagged = True`):
   Triggered when at least one active demand (`UPFRONT_FEE_DEMAND`, `UNLOCK_PAYMENT_DEMAND`, or `CREDENTIAL_THEFT_DEMAND`) is grounded in the text. External search failure or demo mode does not suppress active document scam demands.
 - **`NEEDS_REVIEW`** (`confidence = 0.70`, `scam_flagged = False`):
-  Triggered when document contains ambiguous requests, uncorroborated structured hints, or ordinary platform cautions (e.g. Telegram announcement link).
+  Triggered when document contains ambiguous requests, uncorroborated structured hints, or unclear fee references without an actual demand.
 - **`VERIFIED`** (`confidence = 0.90`, `scam_flagged = False`):
   No local scam indicators detected and external searches completed cleanly. Explicit summary states that searches completed but do not authenticate the offer.
 - **`CANNOT_VERIFY`** (`confidence = 0.0`, `scam_flagged = False`):
@@ -111,6 +111,32 @@ Every candidate clause or structured hint is assigned one of four explicit modal
 ## 7. Deferred Items
 
 As specified in the project scope:
-- **Entity Extraction**: Extraction regex rules (Cases 15 and 16 regarding candidate/recruiter email separation and meeting platform traps) remain deferred to Task 2 handoff.
+- **Entity Extraction**: Extraction regex rules (Cases 15 and 16 regarding candidate/recruiter email separation and meeting platform traps) remain deferred to Task 7 extraction implementation.
 - **Risk Weights**: Deterministic weights in `RiskEngine` remain unchanged.
 - **Shared Schemas**: No breaking changes to `AgentFinding`, `EvidenceItem`, or wire contracts.
+
+
+## Review cleanup on 498a28d
+
+- Split semicolons and contrasting/new-request clauses to keep negation local.
+  An advisory header elsewhere does not suppress a separately quoted request.
+- Mere fee references are ambiguous; ordinary Telegram/WhatsApp task groups
+  and payment rails do not contribute risk. Employer-paid fees are informational.
+- Unlock terminology requires payment context. Reversed-order demands such as
+  "To withdraw earnings, recharge your wallet" are recognized.
+- OTP/password co-occurrence alone is not credential solicitation. Each requested
+  credential type is reported separately.
+- Structured hints and retrieved titles/snippets are redacted before retention.
+  Payment searches use fixed signal-derived terms, not arbitrary extracted text.
+- Search evidence requires company relevance and attributable adverse wording
+  on both query paths. Generic advisories and unrelated hits are excluded.
+- Candidate UPI payments have CANDIDATE_PAYMENT_DETECTED reasoning rather than
+  automatically inventing an advance-fee reason. Unsupported legal claims about
+  recruitment fees have been removed from summaries.
+- Repeated quotes omit ambiguous spans. All retained spans reference the sanitized
+  buffer, not the original text.
+
+The classifier remains deterministic and cannot resolve every linguistic
+ambiguity. Conservative filtering may miss paraphrased reports; it does not
+perform webpage verification or authenticate the offer. Secret redaction covers
+recognizable labelled values, not arbitrary unidentified secrets.

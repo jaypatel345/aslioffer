@@ -26,6 +26,16 @@ class ScamAgent:
         self.search_client = search_client or SerpApiClient()
         self.classifier = ScamClassifier()
 
+    @staticmethod
+    def _relevant_report(company: str, title: str, snippet: str) -> bool:
+        import re
+        text = f"{title} {snippet}".lower()
+        if not company or not re.search(r"(?<!\w)" + re.escape(company.lower()) + r"(?!\w)", text):
+            return False
+        if re.search(r"\b(?:tips|guidelines|how to|beware|avoid|prevention|advisory|never charge|do not pay)\b", text):
+            return False
+        return bool(re.search(r"\b(?:scammed|victim|complaint|fraudulent offer|fake job|impersonat\w*)\b", text))
+
     async def investigate(
         self,
         company_name: str,
@@ -40,6 +50,8 @@ class ScamAgent:
         """
         logger.info("ScamAgent investigation started")
 
+        demanded_fee = sanitize_and_redact_secrets(demanded_fee) if demanded_fee else None
+        payment_method = sanitize_and_redact_secrets(payment_method) if payment_method else None
         evidence_list: List[EvidenceItem] = []
         detected_signals: List[str] = []
 
@@ -63,17 +75,15 @@ class ScamAgent:
         negated_fee_found = any(a.signal_code == ScamSignalCode.NEGATED_FEE_POLICY for a in assessments)
         quoted_warning_detected = any(a.signal_code == ScamSignalCode.QUOTED_SCAM_ADVISORY for a in assessments)
         telegram_present = any(a.signal_code == ScamSignalCode.TELEGRAM_COMMUNICATION for a in assessments)
-        task_scam_detected = has_unlock_earnings or any(
-            a.signal_code == ScamSignalCode.WHATSAPP_RECRUITMENT_CHANNEL and "task" in (a.source_quote or "").lower()
-            for a in assessments
-        )
-        otp_requested = has_cred_theft
-        password_requested = has_cred_theft
+        task_scam_detected = has_unlock_earnings
+        credential_quotes = " ".join(a.source_quote or "" for a in active_demands if a.signal_code == ScamSignalCode.CREDENTIAL_THEFT_DEMAND).lower()
+        otp_requested = "otp" in credential_quotes
+        password_requested = "password" in credential_quotes
 
         # Build grounded local evidence items for active demands
         if has_upfront_fee:
             detected_signals.append(ScamSignalCode.UPFRONT_FEE_DEMAND)
-            fee_desc = demanded_fee or "mandatory upfront fee / security deposit"
+            fee_desc = next(a.source_quote for a in active_demands if a.signal_code == ScamSignalCode.UPFRONT_FEE_DEMAND)
             evidence_list.append(
                 EvidenceItem(
                     source_url="document://submitted-offer",
@@ -110,7 +120,7 @@ class ScamAgent:
 
         if has_upi:
             detected_signals.append(ScamSignalCode.UPI_PAYMENT_REQUEST)
-            method_desc = payment_method or "UPI / Mobile Wallet"
+            method_desc = "UPI / Mobile Wallet"
             evidence_list.append(
                 EvidenceItem(
                     source_url="document://submitted-offer",
@@ -154,21 +164,18 @@ class ScamAgent:
             else:
                 for res in (search_res.organic_results or [])[:2]:
                     link = res.get("link")
-                    title = res.get("title")
-                    snippet = res.get("snippet")
+                    title = sanitize_and_redact_secrets(res.get("title") or "")
+                    snippet = sanitize_and_redact_secrets(res.get("snippet") or "")
                     if link and title:
-                        text_content = f"{title} {snippet or ''}".lower()
-                        is_relevant = bool(safe_company and safe_company.lower() in text_content)
-                        is_generic = any(g in text_content for g in ["tips to avoid", "safety guidelines", "how to identify"])
                         # Distinguish general prevention advice from attributable adverse reports
-                        if is_relevant or not is_generic:
+                        if self._relevant_report(safe_company, title, snippet or ""):
                             evidence_list.append(
                                 EvidenceItem(
                                     source_url=link,
                                     title=title,
                                     description=snippet or f"Scam advisory result for {company_name}.",
                                     evidence_type="SCAM_REPORT",
-                                    confidence=0.92 if (search_res.get("source") == SearchSource.REAL.value and is_relevant) else 0.85,
+                                    confidence=0.85,
                                 )
                             )
         except Exception:
@@ -176,7 +183,7 @@ class ScamAgent:
             checks["company_reports"] = {"provider_status": "FAILED", "search_status": "PROVIDER_FAILURE", "error": "Search integration failed"}
             logger.warning("ScamAgent: general scam search failed")
 
-        payment_term = payment_method or demanded_fee
+        payment_term = "UPI" if has_upi else "recruitment fee" if has_upfront_fee else None
         if payment_term and has_upfront_fee:
             pay_query = (
                 f'"{safe_company}" "{payment_term}" recruitment scam'
@@ -193,9 +200,9 @@ class ScamAgent:
                 else:
                     for res in (pay_res.organic_results or [])[:2]:
                         link = res.get("link")
-                        title = res.get("title")
-                        snippet = res.get("snippet")
-                        if link and title:
+                        title = sanitize_and_redact_secrets(res.get("title") or "")
+                        snippet = sanitize_and_redact_secrets(res.get("snippet") or "")
+                        if link and title and self._relevant_report(safe_company, title, snippet or ""):
                             evidence_list.append(
                                 EvidenceItem(
                                     source_url=link,
@@ -237,8 +244,11 @@ class ScamAgent:
                 summary = "Advance payment required to release earned funds or unlock job tasks is a classic task-scam extortion pattern."
                 reason_code = "UNLOCK_PAYMENT_DETECTED"
             elif has_upfront_fee:
-                summary = "Direct demand for advance security deposit via UPI violates Ministry of Labour guidelines and constitutes advance fee fraud." if has_upi else "Direct demand for advance security deposit or upfront recruitment fee violates employment guidelines and constitutes advance fee fraud."
+                summary = "The submitted document requires an upfront recruitment payment via UPI; this is a serious advance-fee warning signal." if has_upi else "The submitted document requires an upfront recruitment fee or deposit; this is a serious advance-fee warning signal."
                 reason_code = "ADVANCE_FEE_DETECTED"
+            elif has_upi:
+                summary = "The submitted document requests a candidate payment via UPI or a mobile wallet; verify this recruitment payment independently."
+                reason_code = "CANDIDATE_PAYMENT_DETECTED"
             else:
                 summary = f"Critical scam markers identified! Detected: {', '.join(detected_signals)}."
                 reason_code = "ADVANCE_FEE_DETECTED"
@@ -367,7 +377,7 @@ class ScamAgent:
                 "fee_detected": False,
                 "negated_fee_found": negated_fee_found,
                 "quoted_warning_detected": quoted_warning_detected,
-                "telegram_present": False,
+                "telegram_present": telegram_present,
                 "task_scam_detected": False,
                 "otp_requested": False,
                 "password_requested": False,

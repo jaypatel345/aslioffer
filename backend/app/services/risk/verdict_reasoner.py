@@ -110,6 +110,9 @@ class VerdictReasoner:
                 ):
                     scam_codes.append(("ADVANCE_FEE_DETECTED", "Advance fee, security deposit, or onboarding charge detected."))
 
+                if "UPI_PAYMENT_REQUEST" in risk_signals:
+                    scam_codes.append(("CANDIDATE_PAYMENT_DETECTED", "Candidate payment requested via UPI or mobile wallet."))
+
                 if not scam_codes:
                     fallback_code = scam.details.get("reason_code") or "ADVANCE_FEE_DETECTED"
                     scam_codes.append((fallback_code, scam.summary))

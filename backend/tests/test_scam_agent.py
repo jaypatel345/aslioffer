@@ -63,8 +63,8 @@ async def test_upi_payment_verdict_bug_fixed():
 
 
 @pytest.mark.asyncio
-async def test_telegram_channel_alone_is_needs_review_not_high_risk():
-    """Verify Telegram communication channel alone without fee demands triggers NEEDS_REVIEW, not HIGH_RISK."""
+async def test_telegram_channel_alone_is_informational():
+    """Verify ordinary Telegram communication does not contribute risk."""
     mock_search = MagicMock(spec=SerpApiClient)
     mock_search.search = AsyncMock(
         return_value={
@@ -84,7 +84,7 @@ async def test_telegram_channel_alone_is_needs_review_not_high_risk():
 
     # Must NOT be marked HIGH_RISK when no active payment or credential demands exist
     assert finding.verdict != "HIGH_RISK"
-    assert finding.verdict == "NEEDS_REVIEW"
+    assert finding.verdict == "VERIFIED"
     assert finding.details["scam_flagged"] is False
     assert any(a["signal_code"] == "TELEGRAM_COMMUNICATION" for a in finding.details["signal_assessments"])
 
@@ -200,7 +200,7 @@ async def test_mock_search_source_propagation():
 
 @pytest.mark.asyncio
 async def test_independent_risk_signals_matrix():
-    """Verify training fee, onboarding fee, whatsapp, and personal enterprise email all trigger HIGH_RISK."""
+    """Verify actual fee demands raise risk while channel/email mentions alone do not."""
     mock_search = MagicMock(spec=SerpApiClient)
     mock_search.search = AsyncMock(return_value={"source": SearchSource.REAL.value, "organic_results": []})
     agent = ScamAgent(search_client=mock_search)
@@ -215,7 +215,8 @@ async def test_independent_risk_signals_matrix():
 
     # 3. WhatsApp task group
     f3 = await agent.investigate("Enterprise Inc", None, None, [], "All communication will be through whatsapp task group.")
-    assert f3.verdict == "HIGH_RISK"
+    assert f3.verdict == "VERIFIED"
+    assert not f3.details["risk_signals"]
 
     # 4. Personal email domain alone is deferred to RecruiterAgent; ScamAgent does not force HIGH_RISK
     f4 = await agent.investigate("Tata Consultancy Services", None, None, [], "Contact recruiter at tcs.recruitment@gmail.com")

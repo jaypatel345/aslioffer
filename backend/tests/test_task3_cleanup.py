@@ -141,11 +141,11 @@ async def test_free_webmail_signal_survives_phone_outage():
 async def test_scam_partial_search_preserves_retrieved_evidence():
     class PartialSearch:
         async def search(self, query, **kwargs):
-            if '"registration fee"' in query:
+            if '"recruitment fee"' in query:
                 return SearchResult(query=query, outcome=SearchOutcome.TIMEOUT, error="Timed out")
             return SearchResult(query=query, results=[{
-                "title": "Example Ltd recruitment advisory", "link": "https://reports.example/advisory",
-                "snippet": "Check recruitment contacts independently."}])
+                "title": "Example Ltd recruitment complaint", "link": "https://reports.example/advisory",
+                "snippet": "Victim alleges a fraudulent offer impersonating Example Ltd."}])
     finding = await ScamAgent(PartialSearch()).investigate(
         "Example Ltd", "registration fee", None, [], "Pay registration fee.")
     assert finding.verdict == "HIGH_RISK"
@@ -213,8 +213,14 @@ async def test_total_deadline_bounds_slow_requests_and_cancels_them():
         finally:
             cancelled.set()
     client = SerpApiClient(api_key="test_key", timeout=8, total_timeout=0.03, max_retries=2)
-    with patch("httpx.AsyncClient.get", side_effect=slow_request) as request:
+    http_client = AsyncMock()
+    http_client.__aenter__.return_value = http_client
+    http_client.get.side_effect = slow_request
+
+    with patch("httpx.AsyncClient", return_value=http_client):
         result = await asyncio.wait_for(client.search("Example"), timeout=1)
+
+    request = http_client.get
     assert result.outcome == SearchOutcome.TIMEOUT
     assert cancelled.is_set()
     assert request.call_count == 1
