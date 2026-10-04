@@ -100,7 +100,7 @@ class VerdictReasoner:
         reasons, reason_details = derive_reasons_and_details(
             assessment=assessment,
             findings=findings,
-            evidence_count=evidence_count,
+            evidence_count=len(assessment.supporting_evidence_refs),
         )
 
         logger.info(

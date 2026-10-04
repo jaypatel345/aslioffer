@@ -152,7 +152,7 @@ def test_provider_outage_differs_from_completed_no_match_and_missing_input():
     summary_outage = ReportGenerator().generate(
         4, "Outage", 0.0, RiskLevel.CANNOT_VERIFY, ExtractedEntities(company_name="OutageCorp"), [outage_finding], [], []
     ).summary
-    assert "unavailable due to service outages" in summary_outage.lower()
+    assert "were unavailable" in summary_outage.lower()
 
 
 # 5. Strong local warning plus provider outage retains both warning and gap.
@@ -196,7 +196,7 @@ def test_strong_local_warning_plus_provider_outage_retains_both_warning_and_gap(
     codes = [d.code for d in report.reason_details]
     assert "ADVANCE_FEE_DETECTED" in codes
     assert "COMPANY_SEARCH_UNAVAILABLE" in codes
-    assert "external checks" in report.summary.lower()
+    assert "checks" in report.summary.lower() and "unavailable" in report.summary.lower()
     assert "the employer has not authenticated this individual offer" in report.summary.lower()
 
 

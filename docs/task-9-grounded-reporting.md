@@ -162,3 +162,9 @@ When updating the UI components, Jay should follow these guidelines:
 ## 8. Deferred Work (Task 10)
 
 - **Task 10 Scope**: Owns pipeline orchestration, adaptive search retries, database schema migrations, and asynchronous background task workers.
+
+## Task 9 cleanup and current integration boundary
+
+Unavailable checks are described without guessing that an outage caused them; authentication failures, demo data and other unavailable states are not outages. Local scan no-match is not an empty public search. Recruiter affiliation support does not establish email-domain alignment. Compensation wording describes the check's comparison baseline without promising pay. All outcomes include offer-authenticity limitations and concrete outstanding checks, including child failures without repeating their aggregate parent. Conflicting careers URLs and missing provider execution metadata do not become official contact information.
+
+Jay's J1/J2 commits publish contract v1 and remove fabricated API/client fallbacks. The current live endpoint still uses legacy VerificationReport until J3. These presentation helpers do not migrate that endpoint or alter contract.py. Task 10 must implement the documented investigate_case(CaseInput, search_client=None, emit_event=None) -> InvestigationResult interface, preserving claim-linked evidence, tool failures, demo_mode and UNCONFIRMED authenticity. Jay owns run persistence/polling and the TypeScript/UI migration. Review contract semantics together before freezing v1; do not rename shared fields independently. A contract-v1 formatter must consume InvestigationResult without rerunning checks or upgrading claims.

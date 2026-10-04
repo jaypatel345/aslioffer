@@ -12,6 +12,29 @@ from app.services.risk.assessment_models import (
 )
 
 
+def _completed_supported(check: Optional[CheckCoverageItem]) -> bool:
+    return bool(check and check.applicability and check.execution_status == ExecutionStatus.COMPLETED
+                and check.resolution_status == ResolutionStatus.SUPPORTED)
+
+
+def _gap_checks(assessment: StructuredAssessment) -> List[CheckCoverageItem]:
+    # Show child failures once, rather than repeating their aggregate parent.
+    children = {c.parent_check_id for c in assessment.individual_checks if c.parent_check_id}
+    return [c for c in assessment.individual_checks if c.applicability and c.check_id not in children
+            and (c.execution_status in (ExecutionStatus.UNAVAILABLE, ExecutionStatus.NOT_CHECKED)
+                 or c.resolution_status in (ResolutionStatus.UNCONFIRMED, ResolutionStatus.CONFLICTING))]
+
+
+def _gap_description(check: CheckCoverageItem) -> str:
+    if check.execution_status == ExecutionStatus.UNAVAILABLE:
+        state = "unavailable; no completed result was obtained"
+    elif check.execution_status == ExecutionStatus.NOT_CHECKED:
+        state = "not executed; required inputs or execution remain outstanding"
+    else:
+        state = "completed but remains unresolved"
+    return f"{check.check_name}: {state}."
+
+
 def derive_green_flags(assessment: StructuredAssessment) -> List[str]:
     """
     Derives positive flags strictly grounded in completed, supported checks.
@@ -55,7 +78,7 @@ def derive_green_flags(assessment: StructuredAssessment) -> List[str]:
         and rec_aff.execution_status == ExecutionStatus.COMPLETED
         and rec_aff.resolution_status == ResolutionStatus.SUPPORTED
     ):
-        flags.append("Recruiter email domain aligns with claimed corporate domain; does not prove mailbox control or hiring authority.")
+        flags.append("Public evidence supports a recruiter affiliation; it does not prove mailbox control, hiring authority, or offer issuance.")
 
     # 5. Compensation benchmark (only if completed and supported)
     sal_check = check_dict.get("COMPENSATION_BENCHMARK")
@@ -64,7 +87,7 @@ def derive_green_flags(assessment: StructuredAssessment) -> List[str]:
         and sal_check.execution_status == ExecutionStatus.COMPLETED
         and sal_check.resolution_status == ResolutionStatus.SUPPORTED
     ):
-        flags.append("Offered compensation package falls within expected market baseline for role.")
+        flags.append("The compensation check reported consistency with its comparison baseline; this is not a guarantee of pay or offer authenticity.")
 
     # Deduplicate deterministically preserving order
     deduped: List[str] = []
@@ -103,8 +126,10 @@ def derive_official_company_info(
             det = f.details or {}
             dom = det.get("official_domain")
             car = det.get("careers_url")
-            p_status = det.get("provider_status", "SUCCESS")
-            if f.verdict == "VERIFIED" and p_status == "SUCCESS" and dom:
+            p_status = det.get("provider_status")
+            if (f.verdict == "VERIFIED" and p_status == "SUCCESS" and dom
+                    and det.get("search_source", "LIVE") not in ("DEMO", "MOCK")
+                    and det.get("search_status") not in ("DEMO", "MOCK", "AUTH_FAILURE", "TIMEOUT", "RATE_LIMIT", "PROVIDER_FAILURE")):
                 verified_domains.add(dom)
                 if car:
                     verified_careers.add(car)
@@ -118,15 +143,15 @@ def derive_official_company_info(
         elif len(verified_domains) == 1 and has_supported_finding:
             if assessment:
                 comp_check = next((c for c in assessment.individual_checks if c.check_id == "COMPANY_IDENTITY_CHECK"), None)
-                if comp_check and comp_check.resolution_status == ResolutionStatus.SUPPORTED:
+                if _completed_supported(comp_check):
                     official_domain = sorted(list(verified_domains))[0]
-                    careers_url = sorted(list(verified_careers))[0] if verified_careers else None
+                    careers_url = next(iter(verified_careers)) if len(verified_careers) == 1 else None
                 else:
                     official_domain = None
                     careers_url = None
             else:
                 official_domain = sorted(list(verified_domains))[0]
-                careers_url = sorted(list(verified_careers))[0] if verified_careers else None
+                careers_url = next(iter(verified_careers)) if len(verified_careers) == 1 else None
 
     return {
         "name": clean_name,
@@ -137,7 +162,7 @@ def derive_official_company_info(
     }
 
 
-def derive_summary(
+def _derive_summary(
     assessment: StructuredAssessment,
     company_name: str,
     extracted_entities: Optional[ExtractedEntities] = None,
@@ -156,9 +181,9 @@ def derive_summary(
         extra = f" ({len(signal_descriptions) - 1} further critical signal(s) detected)" if len(signal_descriptions) > 1 else ""
 
         gap_notes = []
-        unavailable = [c.check_name for c in assessment.individual_checks if c.execution_status == ExecutionStatus.UNAVAILABLE]
+        unavailable = [c.check_name for c in _gap_checks(assessment) if c.execution_status == ExecutionStatus.UNAVAILABLE]
         if unavailable:
-            gap_notes.append(f"external checks ({', '.join(unavailable[:2])}) were unavailable due to provider outages")
+            gap_notes.append(f"checks ({', '.join(unavailable[:2])}) were unavailable; their results remain unresolved")
         elif assessment.unresolved_issues:
             gap_notes.append(f"coverage gaps remain ({assessment.unresolved_issues[0]})")
 
@@ -166,7 +191,7 @@ def derive_summary(
 
         return (
             f"HIGH RISK: This offer contains critical warning signals: {headline}{extra}. "
-            f"While this assessment does not constitute formal legal proof of fraud, such demands are characteristic of employment fraud.{gap_str} "
+            f"While this assessment does not constitute formal legal proof of fraud, the supported signals warrant independent confirmation before proceeding.{gap_str} "
             f"{unconfirmed_notice}"
         )
 
@@ -175,12 +200,12 @@ def derive_summary(
         concern_str = "; ".join(concerns) if concerns else "Contextual offer parameters require independent confirmation."
 
         comp_check = check_dict.get("COMPANY_IDENTITY_CHECK")
-        if comp_check and comp_check.resolution_status == ResolutionStatus.SUPPORTED:
+        if _completed_supported(comp_check):
             comp_status = f"While public web records were found for {comp_name}, {concern_str}"
         elif comp_check and comp_check.execution_status == ExecutionStatus.UNAVAILABLE:
-            comp_status = f"Employer verification was unavailable due to service outages, and {concern_str}"
+            comp_status = f"Employer verification was unavailable, and {concern_str}"
         elif comp_check and comp_check.resolution_status == ResolutionStatus.NO_MATCH:
-            comp_status = f"No public records were found for {comp_name}, and {concern_str}"
+            comp_status = f"No matching public web presence was established for {comp_name}, and {concern_str}"
         else:
             comp_status = f"Employer public footprint could not be confirmed, and {concern_str}"
 
@@ -197,12 +222,12 @@ def derive_summary(
 
     elif assessment.overall_outcome == OverallOutcome.CANNOT_VERIFY:
         reasons_list = []
-        unavailable_checks = [c.check_name for c in assessment.individual_checks if c.execution_status == ExecutionStatus.UNAVAILABLE]
-        no_match_checks = [c.check_name for c in assessment.individual_checks if c.execution_status == ExecutionStatus.COMPLETED and c.resolution_status == ResolutionStatus.NO_MATCH]
+        unavailable_checks = [c.check_name for c in _gap_checks(assessment) if c.execution_status == ExecutionStatus.UNAVAILABLE]
+        no_match_checks = [c.check_name for c in assessment.individual_checks if c.execution_status == ExecutionStatus.COMPLETED and c.resolution_status == ResolutionStatus.NO_MATCH and c.check_id in ("COMPANY_IDENTITY_CHECK", "EXTERNAL_SCAM_REPORTS", "RECRUITER_CONTACT_REPUTATION")]
         not_checked_checks = [c.check_name for c in assessment.individual_checks if c.execution_status == ExecutionStatus.NOT_CHECKED and c.applicability]
 
         if unavailable_checks:
-            reasons_list.append(f"External search checks ({', '.join(unavailable_checks[:2])}) were unavailable due to service outages")
+            reasons_list.append(f"Investigation checks ({', '.join(unavailable_checks[:2])}) were unavailable; no completed result was obtained")
         if no_match_checks:
             reasons_list.append(f"Public searches completed but found no matching records ({', '.join(no_match_checks[:2])})")
         if not_checked_checks:
@@ -215,23 +240,23 @@ def derive_summary(
         return (
             f"INCONCLUSIVE PUBLIC EVIDENCE: Could not independently verify this offer from available evidence. "
             f"Some checks were unavailable or did not establish sufficient evidence ({reasons_str}). "
-            f"Inconclusive evidence is not proof of fraud, but means the offer cannot be substantiated through public channels. "
+            f"Inconclusive evidence is not proof of fraud, and the affected checks remain unresolved. "
             f"{unconfirmed_notice}"
         )
 
     else:  # NO_STRONG_RISK_SIGNALS
         positive_items = []
         comp_check = check_dict.get("COMPANY_IDENTITY_CHECK")
-        if comp_check and comp_check.resolution_status == ResolutionStatus.SUPPORTED:
+        if _completed_supported(comp_check):
             positive_items.append(f"public web records for {comp_name} were matched")
 
         rec_aff = check_dict.get("RECRUITER_AFFILIATION_CHECK")
-        if rec_aff and rec_aff.resolution_status == ResolutionStatus.SUPPORTED:
-            positive_items.append("recruiter email domain aligns with corporate domain")
+        if _completed_supported(rec_aff):
+            positive_items.append("public evidence supports recruiter affiliation")
 
         sal_check = check_dict.get("COMPENSATION_BENCHMARK")
         if sal_check and sal_check.execution_status == ExecutionStatus.COMPLETED and sal_check.resolution_status == ResolutionStatus.SUPPORTED:
-            positive_items.append("compensation aligns with market baseline")
+            positive_items.append("the compensation check reported consistency with its comparison baseline")
 
         pos_str = f" ({', '.join(positive_items)})" if positive_items else ""
 
@@ -239,6 +264,16 @@ def derive_summary(
             f"NO STRONG RISK SIGNALS: Completed checks found no supported adverse signals or active scam indicators{pos_str}. "
             f"Note: {unconfirmed_notice} Public web consistency does not prove that this document was legitimately issued."
         )
+
+
+def derive_summary(assessment: StructuredAssessment, company_name: str,
+                   extracted_entities: Optional[ExtractedEntities] = None) -> str:
+    summary = _derive_summary(assessment, company_name, extracted_entities)
+    gaps = [_gap_description(c) for c in _gap_checks(assessment)]
+    gaps.extend(sorted(set(assessment.unresolved_issues)))
+    if gaps:
+        summary += " Outstanding checks: " + " ".join(dict.fromkeys(gaps))
+    return summary
 
 
 def derive_reasons_and_details(
@@ -269,7 +304,7 @@ def derive_reasons_and_details(
         comp_check = check_dict.get("COMPANY_IDENTITY_CHECK")
         if comp_check and comp_check.resolution_status != ResolutionStatus.SUPPORTED:
             if comp_check.execution_status == ExecutionStatus.UNAVAILABLE:
-                msg = "Company identity verification was unavailable due to search service outage."
+                msg = "Company identity verification was unavailable; no completed result was obtained."
                 code = "COMPANY_SEARCH_UNAVAILABLE"
             else:
                 msg = "No established public corporate footprint verified for company."
@@ -297,7 +332,7 @@ def derive_reasons_and_details(
         comp_check = check_dict.get("COMPANY_IDENTITY_CHECK")
         if comp_check and comp_check.resolution_status != ResolutionStatus.SUPPORTED:
             if comp_check.execution_status == ExecutionStatus.UNAVAILABLE:
-                msg = "Company identity verification was unavailable due to search service outage."
+                msg = "Company identity verification was unavailable; no completed result was obtained."
                 code = "COMPANY_SEARCH_UNAVAILABLE"
             else:
                 msg = "No established public corporate footprint verified for company."
@@ -335,14 +370,14 @@ def derive_reasons_and_details(
             reason_details.append(
                 VerdictReason(
                     code="INSUFFICIENT_SEARCH_RESULTS",
-                    reason=f"Public evidence is insufficient ({evidence_count} evidence observation(s)).",
+                    reason=f"Available supporting evidence references ({evidence_count}) do not resolve the outstanding checks.",
                 )
             )
 
         comp_check = check_dict.get("COMPANY_IDENTITY_CHECK")
         if comp_check and comp_check.resolution_status != ResolutionStatus.SUPPORTED:
             if comp_check.execution_status == ExecutionStatus.UNAVAILABLE:
-                comp_msg = "Company identity verification was unavailable due to search service outage."
+                comp_msg = "Company identity verification was unavailable; no completed result was obtained."
                 code = "COMPANY_SEARCH_UNAVAILABLE"
             else:
                 comp_msg = "No established public corporate footprint verified for company."
@@ -366,7 +401,7 @@ def derive_reasons_and_details(
             reason_details.append(VerdictReason(code=code, reason=c.description))
 
     else:  # NO_STRONG_RISK_SIGNALS (VERIFIED)
-        msg = "Offer credentials align with verified corporate footprint and public records."
+        msg = "Completed checks found no supported strong warning signals; public consistency does not authenticate the offer."
         reasons.append(msg)
         reason_details.append(
             VerdictReason(
@@ -383,9 +418,20 @@ def derive_reasons_and_details(
         reason_details.append(
             VerdictReason(
                 code="OFFER_AUTHENTICITY_UNCONFIRMED",
-                reason="Public web presence confirmed; individual offer authenticity remains unconfirmed.",
+                reason="The employer has not authenticated this individual offer; public checks cannot establish offer issuance.",
             )
         )
+
+    for check in _gap_checks(assessment):
+        msg = _gap_description(check)
+        reasons.append(msg)
+        reason_details.append(VerdictReason(code=f"CHECK_{check.execution_status.value.upper()}_{check.check_id}", reason=msg))
+    for issue in sorted(set(assessment.unresolved_issues)):
+        reasons.append(issue)
+        reason_details.append(VerdictReason(code="UNRESOLVED_INVESTIGATION_ITEM", reason=issue))
+    notice = "The employer has not authenticated this individual offer; public checks cannot establish offer issuance."
+    reasons.append(notice)
+    reason_details.append(VerdictReason(code="OFFER_AUTHENTICITY_UNCONFIRMED", reason=notice))
 
     deduped_reasons: List[str] = []
     seen_reasons = set()
@@ -423,7 +469,7 @@ def derive_recommended_actions(
     fee_signals = {"ADVANCE_FEE_DETECTED", "UPFRONT_FEE_DEMAND", "UNLOCK_PAYMENT_DETECTED", "UNLOCK_PAYMENT_DEMAND"}
     if signal_codes & fee_signals:
         actions.append("DO NOT pay any registration fee, security deposit, laptop charge, or document processing fee under any circumstance.")
-        actions.append("Verify payment policies directly with the employer's official HR department; legitimate employers in India do not charge hiring fees.")
+        actions.append("Confirm the payment demand independently with the employer using published contact details, not the contact supplied with the demand.")
 
     # 2. Candidate payment request (UPI/mobile wallet without confirmed fee demand)
     if "CANDIDATE_PAYMENT_DETECTED" in concern_codes:
@@ -458,10 +504,10 @@ def derive_recommended_actions(
     if "SALARY_OUTLIER" in concern_codes:
         actions.append("Request written clarification from the employer regarding total compensation, currency, payment frequency, and employment terms.")
 
-    # 9. Provider outages
-    unavailable_checks = [c.check_name for c in assessment.individual_checks if c.execution_status == ExecutionStatus.UNAVAILABLE]
+    # 9. Unavailable checks (not necessarily outages).
+    unavailable_checks = [c.check_name for c in _gap_checks(assessment) if c.execution_status == ExecutionStatus.UNAVAILABLE]
     if unavailable_checks:
-        actions.append(f"External search checks ({', '.join(unavailable_checks[:2])}) were unavailable due to service outages; re-run verification or check official records independently.")
+        actions.append(f"Investigation checks ({', '.join(unavailable_checks[:2])}) were unavailable; no completed result was obtained; re-run verification or check official records independently.")
 
     # 10. Missing employer verification / public footprint
     comp_check = check_dict.get("COMPANY_IDENTITY_CHECK")
@@ -469,9 +515,14 @@ def derive_recommended_actions(
         actions.append("Independently look up the employer using official public business registries (such as MCA India at mca.gov.in) or verified business directories.")
         actions.append("Do not rely on website links, phone numbers, or addresses provided solely within the submitted document.")
 
+    for check in _gap_checks(assessment):
+        if check.execution_status != ExecutionStatus.UNAVAILABLE:
+            actions.append(f"Resolve the outstanding {check.check_name} independently before relying on that result.")
+
+    actions.append("Contact the employer through independently established published contact details to confirm that this specific offer was issued to you.")
+
     # 11. Universal next steps for non-high-risk offers (authenticity verification & employment terms)
     if assessment.overall_outcome != OverallOutcome.HIGH_RISK:
-        actions.append("Contact the employer directly through their official published careers portal or HR department to confirm that this specific offer was issued to you.")
         actions.append("Review standard employment terms, scope of work, and contract conditions carefully before signing.")
         actions.append("Never share sensitive banking passwords, OTPs, or pay any onboarding charges.")
 
