@@ -83,8 +83,8 @@ def test_all_providers_unavailable_cannot_verify_zero_invented_signals(engine, r
     score, level, red_flags, green_flags = risk_engine.compute_risk(findings)
     assert score == 0.0
     assert level == RiskLevel.CANNOT_VERIFY
-    assert red_flags == []
-    assert green_flags == []
+    # Task 9: A successful local document scan is described even when external search is unavailable.
+    assert green_flags == ["Document text scan found no upfront fee demands, deposit requests, or credential solicitation."]
 
     verdict_res = reasoner.evaluate(*findings, initial_risk_score=score, initial_risk_level=level)
     assert verdict_res.verdict == RiskLevel.CANNOT_VERIFY

@@ -100,7 +100,7 @@ class VerdictReason(BaseModel):
 
 class VerdictResult(BaseModel):
     verdict: RiskLevel
-    confidence: float = Field(..., description="Computed confidence score between 0.0 and 1.0")
+    confidence: float = Field(..., description="Legacy uncalibrated assessment field; does not describe offer-authenticity probability.")
     reasons: List[str] = Field(default_factory=list)
     reason_details: List[VerdictReason] = Field(default_factory=list)
     evidence: List[EvidenceItem] = Field(default_factory=list)
@@ -115,7 +115,7 @@ class VerificationReport(BaseModel):
     offer_id: int
     title: str
     risk_level: RiskLevel
-    risk_score: float = Field(..., description="0.0 (safest) to 1.0 (highest risk)")
+    risk_score: float = Field(..., description="Uncalibrated warning index (0.0 to 1.0); not a fraud probability or safety score.")
     summary: str
     extracted_entities: ExtractedEntities
     findings: List[AgentFinding]

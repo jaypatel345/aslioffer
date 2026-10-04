@@ -13,6 +13,7 @@ from app.services.risk.assessment_models import (
     ResolutionStatus,
     StructuredAssessment,
 )
+from app.services.report.presentation_helper import derive_reasons_and_details
 from app.core.logging import logger
 
 
@@ -96,106 +97,11 @@ class VerdictReasoner:
             ratio = assessment.coverage_summary.completion_ratio
             confidence = round(0.70 + (ratio * 0.15), 2)
 
-        reasons: List[str] = []
-        reason_details: List[VerdictReason] = []
-        check_dict = {c.check_id: c for c in assessment.individual_checks}
-
-        if verdict == RiskLevel.HIGH_RISK:
-            for s in assessment.supported_warning_signals:
-                reasons.append(s.description)
-                reason_details.append(VerdictReason(code=s.code, reason=s.description))
-            # Include any co-occurring review concerns (e.g. personal email domain)
-            for c in assessment.review_only_concerns:
-                reasons.append(c.description)
-                reason_code = "PERSONAL_EMAIL_DOMAIN" if c.code == "FREE_WEBMAIL_DOMAIN" else c.code
-                reason_details.append(VerdictReason(code=reason_code, reason=c.description))
-
-        elif verdict == RiskLevel.NEEDS_REVIEW:
-            for c in assessment.review_only_concerns:
-                reasons.append(c.description)
-                reason_code = "PERSONAL_EMAIL_DOMAIN" if c.code == "FREE_WEBMAIL_DOMAIN" else c.code
-                reason_details.append(VerdictReason(code=reason_code, reason=c.description))
-            # Retain visibility of coverage gaps
-            if not any(f.verdict == "NEEDS_REVIEW" for f in findings):
-                reasons.append("Certain offer parameters require independent corporate confirmation.")
-                reason_details.append(
-                    VerdictReason(
-                        code="NEEDS_MANUAL_CONFIRMATION",
-                        reason="Ambiguous credentials or salary outliers require manual confirmation.",
-                    )
-                )
-
-        elif verdict == RiskLevel.CANNOT_VERIFY:
-            msg = "Could not independently verify this offer from available evidence."
-            reasons.append(msg)
-
-            if evidence_count == 0:
-                reason_details.append(
-                    VerdictReason(
-                        code="NO_PUBLIC_EVIDENCE",
-                        reason="No verifiable public evidence available for this offer.",
-                    )
-                )
-            else:
-                reason_details.append(
-                    VerdictReason(
-                        code="INSUFFICIENT_SEARCH_RESULTS",
-                        reason=f"Public evidence is insufficient ({evidence_count} unique source(s)).",
-                    )
-                )
-
-            comp_check = check_dict.get("COMPANY_IDENTITY_CHECK")
-            if comp_check and comp_check.resolution_status != ResolutionStatus.SUPPORTED:
-                comp_msg = "No established public corporate footprint verified for company."
-                reasons.append(comp_msg)
-                reason_details.append(
-                    VerdictReason(
-                        code="COMPANY_NOT_VERIFIED",
-                        reason=comp_msg,
-                    )
-                )
-
-            rec_rep = check_dict.get("RECRUITER_CONTACT_REPUTATION")
-            rec_aff = check_dict.get("RECRUITER_AFFILIATION_CHECK")
-            if (rec_rep and rec_rep.execution_status == ExecutionStatus.NOT_CHECKED) or (
-                rec_aff and rec_aff.resolution_status != ResolutionStatus.SUPPORTED
-            ):
-                rec_msg = "Recruiter identity could not be independently confirmed."
-                reasons.append(rec_msg)
-                reason_details.append(
-                    VerdictReason(
-                        code="RECRUITER_NOT_VERIFIED",
-                        reason=rec_msg,
-                    )
-                )
-
-            # Preserve review concerns if any were noted (do not drop them merely because coverage is inconclusive)
-            for c in assessment.review_only_concerns:
-                reasons.append(c.description)
-                reason_code = "PERSONAL_EMAIL_DOMAIN" if c.code == "FREE_WEBMAIL_DOMAIN" else c.code
-                reason_details.append(VerdictReason(code=reason_code, reason=c.description))
-
-        else:  # VERIFIED (NO_STRONG_RISK_SIGNALS)
-            msg = "Offer credentials align with verified corporate footprint and public records."
-            reasons.append(msg)
-            reason_details.append(
-                VerdictReason(
-                    code="LEGITIMATE_FOOTPRINT_VERIFIED",
-                    reason=msg,
-                )
-            )
-            reason_details.append(
-                VerdictReason(
-                    code="CLEAN_RECRUITMENT_RECORDS",
-                    reason="No advance fees, deposits, or scam recruitment indicators detected.",
-                )
-            )
-            reason_details.append(
-                VerdictReason(
-                    code="OFFER_AUTHENTICITY_UNCONFIRMED",
-                    reason="Public web presence confirmed; individual offer authenticity remains unconfirmed.",
-                )
-            )
+        reasons, reason_details = derive_reasons_and_details(
+            assessment=assessment,
+            findings=findings,
+            evidence_count=evidence_count,
+        )
 
         logger.info(
             "VerdictReasoner determined verdict=%s (confidence=%.2f, evidence_count=%d)",

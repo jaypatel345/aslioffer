@@ -55,31 +55,8 @@ class RiskEngine:
             red_flags.append(c.description)
 
         # Green flags: generated ONLY for checks that genuinely ran and were supported/clean
-        green_flags: List[str] = []
-        check_dict = {c.check_id: c for c in assessment.individual_checks}
-
-        local_scan = check_dict.get("LOCAL_DOCUMENT_SCAN")
-        ext_scam = check_dict.get("EXTERNAL_SCAM_REPORTS")
-        if (
-            local_scan
-            and local_scan.execution_status == ExecutionStatus.COMPLETED
-            and local_scan.resolution_status == ResolutionStatus.NO_MATCH
-            and ext_scam
-            and ext_scam.execution_status == ExecutionStatus.COMPLETED
-        ):
-            green_flags.append("No advance fee demands, security deposits, or OTP requests found.")
-
-        comp_check = check_dict.get("COMPANY_IDENTITY_CHECK")
-        if comp_check and comp_check.execution_status == ExecutionStatus.COMPLETED and comp_check.resolution_status == ResolutionStatus.SUPPORTED:
-            green_flags.append("Company public web presence matched; registration has not been checked.")
-
-        rec_aff = check_dict.get("RECRUITER_AFFILIATION_CHECK")
-        if rec_aff and rec_aff.execution_status == ExecutionStatus.COMPLETED and rec_aff.resolution_status == ResolutionStatus.SUPPORTED:
-            green_flags.append("Recruiter credentials consistent with corporate domain standards; does not authenticate individual offer.")
-
-        sal_check = check_dict.get("COMPENSATION_BENCHMARK")
-        if sal_check and sal_check.execution_status == ExecutionStatus.COMPLETED and sal_check.resolution_status == ResolutionStatus.SUPPORTED:
-            green_flags.append("Compensation package falls within expected market baseline.")
+        from app.services.report.presentation_helper import derive_green_flags
+        green_flags: List[str] = derive_green_flags(assessment)
 
         logger.info("RiskEngine assessment complete: outcome=%s, score=%.2f, level=%s",
                     assessment.overall_outcome.value, risk_score, risk_level.value)
