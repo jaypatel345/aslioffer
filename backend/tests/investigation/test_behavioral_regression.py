@@ -113,11 +113,6 @@ async def test_case_14_agency_recruitment_must_not_be_high_risk_impersonation():
 # ===========================================================================
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(
-    strict=True,
-    raises=AssertionError,
-    reason="Defect: ScamAgent flags negated fee policies ('never charge a security deposit') as UPFRONT_FEE_DEMAND and HIGH_RISK",
-)
 async def test_case_04_negated_security_deposit_must_not_trigger_fee_demand():
     """Case 4: 'We never charge a security deposit' is an anti-fraud policy, not an upfront fee demand."""
     fixture = load_fixture_by_id("CASE-LEGIT-POLICY-NEGATED-FEE-04")
@@ -137,17 +132,11 @@ async def test_case_04_negated_security_deposit_must_not_trigger_fee_demand():
     )
 
     # Desired behavior: Negated fee recognized; no fee demand flagged
-    # Current buggy behavior: 'security deposit' substring match triggers UPFRONT_FEE_DEMAND and HIGH_RISK
     assert finding.verdict == "VERIFIED"
     assert "UPFRONT_FEE_DEMAND" not in finding.details.get("risk_signals", [])
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(
-    strict=True,
-    raises=AssertionError,
-    reason="Defect: ScamAgent fails to distinguish quoted anti-scam warnings from active fee demands, returning HIGH_RISK",
-)
 async def test_case_05_quoted_scam_warning_must_not_trigger_fee_demand():
     """Case 5: Quoted anti-scam warnings warning candidates about fake fees must not be flagged as a fee demand."""
     fixture = load_fixture_by_id("CASE-QUOTED-SCAM-WARNING-05")
@@ -167,17 +156,11 @@ async def test_case_05_quoted_scam_warning_must_not_trigger_fee_demand():
     )
 
     # Desired behavior: Quoted advisory does not trigger fee demand
-    # Current buggy behavior: 'registration fee' substring triggers UPFRONT_FEE_DEMAND and HIGH_RISK
     assert finding.verdict == "VERIFIED"
     assert "UPFRONT_FEE_DEMAND" not in finding.details.get("risk_signals", [])
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(
-    strict=True,
-    raises=AssertionError,
-    reason="Defect: ScamAgent unconditionally flags any Telegram mention as critical HIGH_RISK fraud",
-)
 async def test_case_06_ordinary_telegram_mention_must_not_be_critical_fraud():
     """Case 6: An ordinary Telegram link for webinar announcements without fee demands must not be marked HIGH_RISK."""
     fixture = load_fixture_by_id("CASE-ORDINARY-TELEGRAM-06")
@@ -197,7 +180,6 @@ async def test_case_06_ordinary_telegram_mention_must_not_be_critical_fraud():
     )
 
     # Desired behavior: Telegram alone without payment or credential requests is not critical fraud
-    # Current buggy behavior: 'telegram' substring in raw_lower unconditionally triggers HIGH_RISK
     assert finding.verdict != "HIGH_RISK"
 
 
@@ -227,11 +209,6 @@ async def test_case_07_explicit_upfront_fee_triggers_high_risk():
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(
-    strict=True,
-    raises=AssertionError,
-    reason="Defect: ScamAgent lacks explicit OTP and password credential theft detection, returning VERIFIED",
-)
 async def test_case_08_explicit_bank_otp_demand_must_trigger_high_risk():
     """Case 8: Soliciting a candidate's bank OTP or password must trigger immediate HIGH_RISK credential theft warning."""
     fixture = load_fixture_by_id("CASE-EXPLICIT-BANK-OTP-DEMAND-08")
@@ -251,17 +228,11 @@ async def test_case_08_explicit_bank_otp_demand_must_trigger_high_risk():
     )
 
     # Desired behavior: Bank OTP / password demand must trigger HIGH_RISK
-    # Current buggy behavior: ScamAgent does not check for OTP / password demands and returns VERIFIED
     assert finding.verdict == "HIGH_RISK"
     assert any("OTP" in s or "CREDENTIAL" in s for s in finding.details.get("risk_signals", []))
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(
-    strict=True,
-    raises=AssertionError,
-    reason="Defect: ScamAgent misses task-scam unlock-earnings payment demands not matching fixed keyword list",
-)
 async def test_case_09_payment_to_unlock_earnings_must_trigger_high_risk():
     """Case 9: Payment required to unlock earnings or task wages must trigger HIGH_RISK."""
     fixture = load_fixture_by_id("CASE-PAYMENT-TO-UNLOCK-JOB-09")
@@ -281,7 +252,6 @@ async def test_case_09_payment_to_unlock_earnings_must_trigger_high_risk():
     )
 
     # Desired behavior: Unlock-earnings demand detected as scam
-    # Current buggy behavior: 'wallet release charge' does not match 8 fixed keywords and Bank Transfer is not UPI
     assert finding.verdict == "HIGH_RISK"
 
 

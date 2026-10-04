@@ -85,12 +85,40 @@ class VerdictReasoner:
 
             if scam.verdict == "HIGH_RISK":
                 reasons.append(scam.summary)
-                reason_details.append(
-                    VerdictReason(
-                        code="ADVANCE_FEE_DETECTED",
-                        reason=scam.summary,
-                    )
-                )
+                scam_codes = []
+                risk_signals = scam.details.get("risk_signals", [])
+
+                if (
+                    "CREDENTIAL_THEFT_DEMAND" in risk_signals
+                    or scam.details.get("otp_requested")
+                    or scam.details.get("password_requested")
+                    or scam.details.get("reason_code") == "CREDENTIAL_THEFT_DETECTED"
+                ):
+                    scam_codes.append(("CREDENTIAL_THEFT_DETECTED", "Bank OTP, password, or account-access credential solicitation detected."))
+
+                if (
+                    "UNLOCK_PAYMENT_DEMAND" in risk_signals
+                    or scam.details.get("unlock_earnings_detected")
+                    or scam.details.get("reason_code") == "UNLOCK_PAYMENT_DETECTED"
+                ):
+                    scam_codes.append(("UNLOCK_PAYMENT_DETECTED", "Payment or deposit required to unlock job tasks, earnings, or withdrawals."))
+
+                if (
+                    "UPFRONT_FEE_DEMAND" in risk_signals
+                    or (scam.details.get("fee_detected") and not scam.details.get("unlock_earnings_detected"))
+                    or scam.details.get("reason_code") == "ADVANCE_FEE_DETECTED"
+                ):
+                    scam_codes.append(("ADVANCE_FEE_DETECTED", "Advance fee, security deposit, or onboarding charge detected."))
+
+                if not scam_codes:
+                    fallback_code = scam.details.get("reason_code") or "ADVANCE_FEE_DETECTED"
+                    scam_codes.append((fallback_code, scam.summary))
+
+                if len(scam_codes) == 1:
+                    reason_details.append(VerdictReason(code=scam_codes[0][0], reason=scam.summary))
+                else:
+                    for code, desc in scam_codes:
+                        reason_details.append(VerdictReason(code=code, reason=desc))
 
             if rec.verdict == "HIGH_RISK":
                 reasons.append(rec.summary)
@@ -156,11 +184,21 @@ class VerdictReasoner:
                 reasons.append(rec.summary)
                 reason_details.append(VerdictReason(code=rec.details.get("reason_code") or "RECRUITER_REQUIRES_REVIEW", reason=rec.summary))
 
+            if scam.verdict == "NEEDS_REVIEW":
+                reasons.append(scam.summary)
+                reason_details.append(
+                    VerdictReason(
+                        code=scam.details.get("reason_code") or "SCAM_ASSESSMENT_REQUIRES_REVIEW",
+                        reason=scam.summary,
+                    )
+                )
+
         # 6. Check for Anomaly / Needs Review
         elif (
             sal.verdict == "NEEDS_REVIEW"
             or comp.verdict == "NEEDS_REVIEW"
             or rec.verdict == "NEEDS_REVIEW"
+            or scam.verdict == "NEEDS_REVIEW"
             or initial_risk_level == RiskLevel.NEEDS_REVIEW
             or initial_risk_score >= 0.25
         ):
@@ -203,7 +241,16 @@ class VerdictReasoner:
                     )
                 )
 
-            if not any(f.verdict == "NEEDS_REVIEW" for f in (sal, comp, rec)):
+            if scam.verdict == "NEEDS_REVIEW":
+                reasons.append(scam.summary)
+                reason_details.append(
+                    VerdictReason(
+                        code=scam.details.get("reason_code") or "SCAM_ASSESSMENT_REQUIRES_REVIEW",
+                        reason=scam.summary,
+                    )
+                )
+
+            if not any(f.verdict == "NEEDS_REVIEW" for f in (sal, comp, rec, scam)):
                 reasons.append("Certain offer parameters require independent corporate confirmation.")
                 reason_details.append(
                     VerdictReason(

@@ -1,33 +1,30 @@
 from typing import Optional, List, Dict, Any
 from app.schemas.analysis import AgentFinding, EvidenceItem
 from app.services.search.serpapi_client import SerpApiClient, SearchSource, SearchResult
+from app.services.agents.scam_classifier import (
+    ScamClassifier,
+    ScamModality,
+    ScamSignalCode,
+    SignalAssessment,
+    sanitize_and_redact_secrets,
+)
 from app.core.logging import logger
 
 FREE_EMAIL_DOMAINS = {"gmail.com", "yahoo.com", "outlook.com", "hotmail.com", "rediffmail.com", "icloud.com"}
-
-FEE_KEYWORDS = [
-    "registration fee",
-    "security deposit",
-    "training fee",
-    "laptop fee",
-    "laptop security",
-    "onboarding fee",
-    "onboarding deposit",
-    "document verification fee",
-]
-
-UPI_METHODS = {"UPI", "GPAY", "PHONEPE", "PAYTM"}
 
 
 class ScamAgent:
     """
     Investigates direct scam indicators, such as demands for upfront fees (laptop security,
     training fee, onboarding deposit), UPI payment requests, Telegram/WhatsApp task groups,
-    personal email domains for enterprise claims, and known patterns flagged by CyberDost and NCRP.
+    bank OTP/credential theft, unlock-earnings extortion, and live adverse reports.
+    Uses contextual classification to distinguish actual demands from negated policies,
+    quoted warnings, ordinary communication channels, and uncorroborated hints.
     """
 
     def __init__(self, search_client: Optional[SerpApiClient] = None):
         self.search_client = search_client or SerpApiClient()
+        self.classifier = ScamClassifier()
 
     async def investigate(
         self,
@@ -39,90 +36,93 @@ class ScamAgent:
     ) -> AgentFinding:
         """
         Investigate scam markers, fee demands, suspicious payment channels, and live public warnings.
+        Evaluates context, localized negation, advisory quoting, and payment directions.
         """
         logger.info("ScamAgent investigation started")
 
-        raw_lower = raw_text.lower()
         evidence_list: List[EvidenceItem] = []
         detected_signals: List[str] = []
 
-        # 1. Independent Risk Signals
-
-        # Signal A: Upfront Fee Demands
-        has_fee = (
-            bool(demanded_fee)
-            or "DEMANDS_UPFRONT_FEE" in flags
-            or any(kw in raw_lower for kw in FEE_KEYWORDS)
+        # 1. Contextual Signal Classification over document text and structured hints
+        assessments: List[SignalAssessment] = self.classifier.classify(
+            raw_text=raw_text,
+            demanded_fee=demanded_fee,
+            payment_method=payment_method,
+            flags=flags,
         )
-        if has_fee:
-            detected_signals.append("UPFRONT_FEE_DEMAND")
+
+        active_demands = [a for a in assessments if a.modality == ScamModality.ACTIVE_DEMAND and a.contributes_to_verdict]
+        ambiguous_signals = [a for a in assessments if a.modality == ScamModality.AMBIGUOUS and a.contributes_to_verdict]
+
+        # Flags for fixture and consumer compatibility
+        has_upfront_fee = any(a.signal_code == ScamSignalCode.UPFRONT_FEE_DEMAND for a in active_demands)
+        has_unlock_earnings = any(a.signal_code == ScamSignalCode.UNLOCK_PAYMENT_DEMAND for a in active_demands)
+        has_cred_theft = any(a.signal_code == ScamSignalCode.CREDENTIAL_THEFT_DEMAND for a in active_demands)
+        has_upi = any(a.signal_code == ScamSignalCode.UPI_PAYMENT_REQUEST for a in active_demands)
+
+        negated_fee_found = any(a.signal_code == ScamSignalCode.NEGATED_FEE_POLICY for a in assessments)
+        quoted_warning_detected = any(a.signal_code == ScamSignalCode.QUOTED_SCAM_ADVISORY for a in assessments)
+        telegram_present = any(a.signal_code == ScamSignalCode.TELEGRAM_COMMUNICATION for a in assessments)
+        task_scam_detected = has_unlock_earnings or any(
+            a.signal_code == ScamSignalCode.WHATSAPP_RECRUITMENT_CHANNEL and "task" in (a.source_quote or "").lower()
+            for a in assessments
+        )
+        otp_requested = has_cred_theft
+        password_requested = has_cred_theft
+
+        # Build grounded local evidence items for active demands
+        if has_upfront_fee:
+            detected_signals.append(ScamSignalCode.UPFRONT_FEE_DEMAND)
             fee_desc = demanded_fee or "mandatory upfront fee / security deposit"
             evidence_list.append(
                 EvidenceItem(
                     source_url="document://submitted-offer",
-                    title="Advance Fee / Security Deposit Scam Warning",
-                    description="The submitted document contains an upfront fee or deposit indicator; confirm the request independently.",
+                    title="Advance Fee / Security Deposit Demand in Submitted Document",
+                    description=f"The submitted document contains a mandatory upfront fee or deposit indicator ({fee_desc}).",
                     evidence_type="SCAM_REPORT",
                     confidence=0.99,
                 )
             )
 
-        # Signal B: UPI / Mobile Wallet Payment Request (Fixes UPI bug)
-        is_upi_payment = (
-            (bool(payment_method) and payment_method.upper() in UPI_METHODS)
-            or any(m in raw_text.upper() for m in ["UPI ID", "@OKAXIS", "@OKICICI", "@OKHDFC"])
-            or "UPI" in flags
-            or (has_fee and any(m in raw_lower for m in ["gpay", "phonepe", "paytm", "upi"]))
-        )
-        if is_upi_payment:
-            detected_signals.append("UPI_PAYMENT_REQUEST")
+        if has_unlock_earnings:
+            detected_signals.append(ScamSignalCode.UNLOCK_PAYMENT_DEMAND)
+            evidence_list.append(
+                EvidenceItem(
+                    source_url="document://submitted-offer",
+                    title="Payment to Unlock Earnings Demand in Submitted Document",
+                    description="The submitted document requires a payment or release charge to unlock task earnings or job wages.",
+                    evidence_type="SCAM_REPORT",
+                    confidence=0.99,
+                )
+            )
+
+        if has_cred_theft:
+            detected_signals.append(ScamSignalCode.CREDENTIAL_THEFT_DEMAND)
+            evidence_list.append(
+                EvidenceItem(
+                    source_url="document://submitted-offer",
+                    title="Bank OTP / Credential Theft Demand in Submitted Document",
+                    description="The submitted document solicits candidate bank OTPs, passwords, or account-access secrets.",
+                    evidence_type="SCAM_REPORT",
+                    confidence=0.99,
+                )
+            )
+
+        if has_upi:
+            detected_signals.append(ScamSignalCode.UPI_PAYMENT_REQUEST)
             method_desc = payment_method or "UPI / Mobile Wallet"
             evidence_list.append(
                 EvidenceItem(
                     source_url="document://submitted-offer",
-                    title="Direct UPI Payment Request Flag",
-                    description="The submitted document contains a recruitment payment-channel indicator.",
+                    title="Direct UPI Payment Request in Submitted Document",
+                    description=f"The submitted document directs the candidate to remit funds via {method_desc}.",
                     evidence_type="SCAM_REPORT",
                     confidence=0.98,
                 )
             )
 
-        # Signal C: Telegram Communication
-        has_telegram = "telegram" in raw_lower or "TELEGRAM" in flags
-        if has_telegram:
-            detected_signals.append("TELEGRAM_COMMUNICATION")
-            evidence_list.append(
-                EvidenceItem(
-                    source_url="document://submitted-offer",
-                    title="CyberDost Advisory: Telegram Recruitment Fraud",
-                    description="Telegram communication is mentioned in the submitted document; context requires review.",
-                    evidence_type="SCAM_REPORT",
-                    confidence=0.90,
-                )
-            )
-
-        # Signal D: WhatsApp Task / Recruitment Channel
-        has_whatsapp = (
-            any(w in raw_lower for w in ["whatsapp only", "whatsapp task", "whatsapp group", "contact on whatsapp", "task on whatsapp"])
-            or "WHATSAPP_ONLY" in flags
-        )
-        if has_whatsapp:
-            detected_signals.append("WHATSAPP_RECRUITMENT_CHANNEL")
-            evidence_list.append(
-                EvidenceItem(
-                    source_url="document://submitted-offer",
-                    title="CyberDost Advisory: WhatsApp Task Scam",
-                    description="The submitted document contains a WhatsApp recruitment-channel indicator.",
-                    evidence_type="SCAM_REPORT",
-                    confidence=0.90,
-                )
-            )
-
-        # Signal E: Free webmail / email domain assessment is the sole authority of RecruiterAgent (Task 5).
-        # ScamAgent does not treat free email in the document as an independent enterprise fraud signal.
         safe_company = company_name if (company_name and company_name.lower() not in ["", "unknown", "unknown company"]) else ""
 
-        is_scam = len(detected_signals) > 0
         provider_failed = False
         search_sources: List[str] = []
         checks = {}
@@ -139,8 +139,6 @@ class ScamAgent:
             }
 
         # 2. SerpApi Scam Intelligence Searches
-
-        # General company scam query
         scam_query = (
             f'"{safe_company}" job scam fraud complaint telegram'
             if safe_company
@@ -159,23 +157,27 @@ class ScamAgent:
                     title = res.get("title")
                     snippet = res.get("snippet")
                     if link and title:
-                        evidence_list.append(
-                            EvidenceItem(
-                                source_url=link,
-                                title=title,
-                                description=snippet or f"Scam advisory result for {company_name}.",
-                                evidence_type="SCAM_REPORT",
-                                confidence=0.92 if search_res.get("source") == SearchSource.REAL.value else 0.85,
+                        text_content = f"{title} {snippet or ''}".lower()
+                        is_relevant = bool(safe_company and safe_company.lower() in text_content)
+                        is_generic = any(g in text_content for g in ["tips to avoid", "safety guidelines", "how to identify"])
+                        # Distinguish general prevention advice from attributable adverse reports
+                        if is_relevant or not is_generic:
+                            evidence_list.append(
+                                EvidenceItem(
+                                    source_url=link,
+                                    title=title,
+                                    description=snippet or f"Scam advisory result for {company_name}.",
+                                    evidence_type="SCAM_REPORT",
+                                    confidence=0.92 if (search_res.get("source") == SearchSource.REAL.value and is_relevant) else 0.85,
+                                )
                             )
-                        )
         except Exception:
             provider_failed = True
             checks["company_reports"] = {"provider_status": "FAILED", "search_status": "PROVIDER_FAILURE", "error": "Search integration failed"}
             logger.warning("ScamAgent: general scam search failed")
 
-        # Payment-specific search
         payment_term = payment_method or demanded_fee
-        if payment_term:
+        if payment_term and has_upfront_fee:
             pay_query = (
                 f'"{safe_company}" "{payment_term}" recruitment scam'
                 if safe_company
@@ -224,20 +226,45 @@ class ScamAgent:
                 seen_keys.add(key)
                 unique_evidence.append(ev)
 
-        # Never erase explicit scam indicators present in the submitted offer just because external searches fail
-        if is_scam:
-            signal_text = ", ".join(detected_signals) if detected_signals else "known scam pattern"
+        # 3. Verdict Determination & Decision Matrix
+
+        # Branch A: Active demands for advance fees, unlock payments, or credential theft
+        if active_demands:
+            if has_cred_theft:
+                summary = "Critical threat: Explicit solicitation of bank OTP and account passwords represents direct credential theft and banking fraud."
+                reason_code = "CREDENTIAL_THEFT_DETECTED"
+            elif has_unlock_earnings:
+                summary = "Advance payment required to release earned funds or unlock job tasks is a classic task-scam extortion pattern."
+                reason_code = "UNLOCK_PAYMENT_DETECTED"
+            elif has_upfront_fee:
+                summary = "Direct demand for advance security deposit via UPI violates Ministry of Labour guidelines and constitutes advance fee fraud." if has_upi else "Direct demand for advance security deposit or upfront recruitment fee violates employment guidelines and constitutes advance fee fraud."
+                reason_code = "ADVANCE_FEE_DETECTED"
+            else:
+                summary = f"Critical scam markers identified! Detected: {', '.join(detected_signals)}."
+                reason_code = "ADVANCE_FEE_DETECTED"
+
             return AgentFinding(
                 agent_name="ScamAgent",
                 verdict="HIGH_RISK",
                 confidence=0.98,
-                summary=f"Critical scam markers identified! Detected: {signal_text}.",
+                summary=summary,
                 evidence=unique_evidence,
                 details={
                     "demanded_fee": demanded_fee,
                     "payment_method": payment_method,
                     "scam_flagged": True,
                     "risk_signals": detected_signals,
+                    "signal_assessments": [a.to_dict() for a in assessments],
+                    "fee_detected": (has_upfront_fee or has_unlock_earnings),
+                    "fee_amount": demanded_fee,
+                    "negated_fee_found": negated_fee_found,
+                    "quoted_warning_detected": quoted_warning_detected,
+                    "telegram_present": telegram_present,
+                    "task_scam_detected": task_scam_detected,
+                    "otp_requested": otp_requested,
+                    "password_requested": password_requested,
+                    "unlock_earnings_detected": has_unlock_earnings,
+                    "reason_code": reason_code,
                     "search_source": primary_source,
                     "provider_status": provider_status,
                     "search_status": search_status,
@@ -247,18 +274,104 @@ class ScamAgent:
                 },
             )
 
+        # Branch B: Ambiguous requests, uncorroborated structured hints, or ordinary Telegram cautions
+        if ambiguous_signals:
+            if telegram_present and not active_demands:
+                summary = "Telegram channel mentioned for announcements without payment requests or task scam patterns; treated as caution, not definitive fraud."
+                reason_code = "TELEGRAM_UNVERIFIED_CHANNEL"
+            else:
+                summary = "Ambiguous payment channel or uncorroborated fee terms require manual review."
+                reason_code = "SUSPICIOUS_PAYMENT_CHANNEL_OR_TERMS"
+
+            return AgentFinding(
+                agent_name="ScamAgent",
+                verdict="NEEDS_REVIEW",
+                confidence=0.70,
+                summary=summary,
+                evidence=unique_evidence,
+                details={
+                    "demanded_fee": demanded_fee,
+                    "payment_method": payment_method,
+                    "scam_flagged": False,
+                    "risk_signals": [],
+                    "signal_assessments": [a.to_dict() for a in assessments],
+                    "fee_detected": False,
+                    "negated_fee_found": negated_fee_found,
+                    "quoted_warning_detected": quoted_warning_detected,
+                    "telegram_present": telegram_present,
+                    "task_scam_detected": task_scam_detected,
+                    "otp_requested": False,
+                    "password_requested": False,
+                    "unlock_earnings_detected": False,
+                    "reason_code": reason_code,
+                    "search_source": primary_source,
+                    "provider_status": provider_status,
+                    "search_status": search_status,
+                    "checks": checks,
+                    "error": failed[0]["error"] if failed else None,
+                    "local_scan_completed": True,
+                },
+            )
+
+        # Branch C: Clean local assessment, but external search provider failed / outage
+        if provider_failed:
+            return AgentFinding(
+                agent_name="ScamAgent",
+                verdict="CANNOT_VERIFY",
+                confidence=0.0,
+                summary="No local scam indicators detected; external checks were unavailable or incomplete.",
+                evidence=unique_evidence,
+                details={
+                    "demanded_fee": None,
+                    "payment_method": payment_method,
+                    "scam_flagged": False,
+                    "risk_signals": [],
+                    "signal_assessments": [a.to_dict() for a in assessments],
+                    "fee_detected": False,
+                    "negated_fee_found": negated_fee_found,
+                    "quoted_warning_detected": quoted_warning_detected,
+                    "telegram_present": telegram_present,
+                    "task_scam_detected": False,
+                    "otp_requested": False,
+                    "password_requested": False,
+                    "unlock_earnings_detected": False,
+                    "search_source": primary_source,
+                    "provider_status": provider_status,
+                    "search_status": search_status,
+                    "checks": checks,
+                    "error": failed[0]["error"] if failed else None,
+                    "local_scan_completed": True,
+                },
+            )
+
+        # Branch D: Clean offer with completed searches
+        if negated_fee_found:
+            summary = "Disclaimer stating company never charges security deposits recognized as anti-fraud policy, not a payment demand."
+        elif quoted_warning_detected:
+            summary = "Mention of fee language is inside an anti-scam advisory cautioning against third-party fraud, not an offer demand."
+        else:
+            summary = "No local scam indicators detected; completed searches do not authenticate the offer."
+
         return AgentFinding(
             agent_name="ScamAgent",
-            verdict="CANNOT_VERIFY" if provider_failed else "VERIFIED",
-            confidence=0.0 if provider_failed else 0.90,
-            summary="No local scam indicators detected; external checks were unavailable or incomplete."
-                if provider_failed else "No local scam indicators detected; completed searches do not authenticate the offer.",
+            verdict="VERIFIED",
+            confidence=0.90,
+            summary=summary,
             evidence=unique_evidence,
             details={
                 "demanded_fee": None,
                 "payment_method": payment_method,
                 "scam_flagged": False,
                 "risk_signals": [],
+                "signal_assessments": [a.to_dict() for a in assessments],
+                "fee_detected": False,
+                "negated_fee_found": negated_fee_found,
+                "quoted_warning_detected": quoted_warning_detected,
+                "telegram_present": False,
+                "task_scam_detected": False,
+                "otp_requested": False,
+                "password_requested": False,
+                "unlock_earnings_detected": False,
                 "search_source": primary_source,
                 "provider_status": provider_status,
                 "search_status": search_status,
