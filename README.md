@@ -78,7 +78,7 @@ To avoid misleading binary reassurance, AsliOffer classifies offers into three e
 - **`NEEDS_REVIEW`**: Ambiguous third-party agency, unverified recruiter identity, or salary anomaly.
 - **`HIGH_RISK`**: Advance fee demand detected, personal webmail used for corporate hiring, or known fraud pattern.
 
-> **Note on Current MVP Version:** The current release is an initial production-grade MVP featuring clean architectural interfaces, SQLModel database models, responsive frontend UI, and mocked agent investigation responses. Live SerpApi and Gemini 2.5 Flash keys can be configured in `.env` to test live endpoints.
+> **Note on the current version:** This is a hackathon MVP, not a production system. Investigations use live SerpApi search when `SERPAPI_API_KEY` is set; without it, searches fail and the report says so (no mock or sample data is substituted). Only the illustrative samples under `/samples/*` use synthetic data, and they are labelled.
 
 ---
 
@@ -229,12 +229,18 @@ Open [http://localhost:5173](http://localhost:5173) in your browser.
 
 | Variable | Description | Default / Example |
 |---|---|---|
-| `SERPAPI_API_KEY` | SerpApi key for live Google web/jobs search | `""` (Uses mock engine when blank) |
-| `GEMINI_API_KEY` | Google Gemini API key for multimodal extraction | `""` (Uses mock engine when blank) |
-| `GEMINI_MODEL` | Gemini model version | `gemini-2.5-flash` |
+| `SERPAPI_API_KEY` | SerpApi key for live Google web/jobs search | `""` (searches fail visibly when blank) |
+| `GROQ_API_KEY` / `GROQ_MODEL` | Document reading for screenshots and scanned PDFs (tried first) | `""` / `qwen/qwen3.8-27b` |
+| `GEMINI_API_KEY` / `GEMINI_MODEL` | Document reading fallback | `""` / `gemini-3.8-flash` |
 | `DATABASE_URL` | SQLModel database connection string | `sqlite:///./aslioffer.db` or PostgreSQL |
-| `REDIS_URL` | Redis instance for search caching | `redis://localhost:6379/0` |
-| `VITE_API_BASE_URL` | API base URL for frontend client | `http://localhost:8000` |
+| `RUN_TIMEOUT_SECONDS` | Hard limit for one investigation run | `90` |
+| `MAX_UPLOAD_BYTES` / `MAX_TEXT_CHARS` | Upload limits (PDF, PNG, JPG, WEBP only) | `5242880` / `20000` |
+| `CASE_RETENTION_DAYS` | Cases and reports are deleted this many days after upload | `7` |
+| `VITE_API_BASE_URL` | API base URL for the frontend (build-time) | `http://localhost:8000` |
+
+`REDIS_URL` is accepted but not used by any code path.
+
+To confirm the configured keys and model names actually work: `cd backend && python -m app.core.provider_check`.
 
 ---
 
@@ -243,10 +249,16 @@ Open [http://localhost:5173](http://localhost:5173) in your browser.
 | Method | Endpoint | Description |
 |---|---|---|
 | `GET` | `/health` | System health check and service status |
-| `POST` | `/offers/upload` | Ingest offer document (PDF/screenshot) or text payload |
-| `POST` | `/analysis/run` | Execute multi-agent forensic verification |
-| `GET` | `/offers/{id}` | Fetch offer metadata by ID |
-| `GET` | `/offers/{id}/report` | Retrieve complete forensic evidence report |
+| `POST` | `/offers/upload` | Upload a PDF/image or text. Returns the case ID and a one-time access token |
+| `GET` | `/offers/{id}` | Offer metadata |
+| `GET` | `/offers/{id}/claims` | Locally extracted claims for the user to review (no search) |
+| `POST` | `/analysis/run` | Start or reuse an investigation; returns a `RunSnapshot` (202 when queued) |
+| `GET` | `/analysis/runs/{run_id}` | Poll a run: status and real progress events |
+| `GET` | `/offers/{id}/report` | Latest finished report (read-only; 409 if none yet) |
+| `GET` | `/offers/{id}/runs` | Every report version for the case |
+| `DELETE` | `/offers/{id}` | Delete the case and all its reports |
+
+Every case route requires the `X-Case-Token` header returned by upload; without it the case is a 404. Full rules: [docs/api-contract.md](docs/api-contract.md).
 
 Interactive Swagger documentation is available at [http://localhost:8000/docs](http://localhost:8000/docs).
 

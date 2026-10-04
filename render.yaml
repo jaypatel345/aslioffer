@@ -52,6 +52,9 @@ services:
         sync: false
 
       # Default is sqlite:///./aslioffer.db. Render's free disk is ephemeral, so
-      # stored offers are wiped on every deploy and restart. Reports are
-      # recomputed on demand, so the demo still works; attach a Postgres
-      # instance and set its URL here if offers need to survive.
+      # stored offers AND their reports are wiped on every deploy and restart
+      # (reports are stored snapshots, never recomputed on read). Attach a
+      # Postgres instance and set DATABASE_URL if cases need to survive.
+      #
+      # Run with a single worker (the start command above does): duplicate-run
+      # protection is per process.

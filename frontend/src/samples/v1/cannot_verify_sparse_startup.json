@@ -1,0 +1,143 @@
+{
+  "contract_version": "1.0.0",
+  "run_id": "run_01J9X3SPARSESTARTUP",
+  "demo_mode": false,
+  "claims": [
+    {
+      "claim_id": "c1",
+      "kind": "employer",
+      "value": "Coorix Labs",
+      "source_quote": "Coorix Labs",
+      "start_offset": 33,
+      "end_offset": 44,
+      "page": null,
+      "extraction_status": "EXTRACTED"
+    },
+    {
+      "claim_id": "c2",
+      "kind": "sender_email",
+      "value": "hr@coorixlabs.example",
+      "source_quote": "hr@coorixlabs.example",
+      "start_offset": 202,
+      "end_offset": 223,
+      "page": null,
+      "extraction_status": "EXTRACTED"
+    },
+    {
+      "claim_id": "c3",
+      "kind": "role",
+      "value": "Backend Developer Intern",
+      "source_quote": "Backend Developer Intern",
+      "start_offset": 74,
+      "end_offset": 98,
+      "page": null,
+      "extraction_status": "EXTRACTED"
+    },
+    {
+      "claim_id": "c4",
+      "kind": "payment_request",
+      "value": null,
+      "source_quote": null,
+      "start_offset": null,
+      "end_offset": null,
+      "page": null,
+      "extraction_status": "MISSING"
+    }
+  ],
+  "assessed_claims": [
+    {
+      "claim_id": "c1",
+      "status": "UNRESOLVED",
+      "explanation": "Only one third-party mention of Coorix Labs was found, so no official domain could be resolved. A small footprint is common for early startups and is not a warning by itself.",
+      "evidence_ids": [
+        "e1"
+      ],
+      "reason_codes": [
+        "SPARSE_FOOTPRINT",
+        "OFFICIAL_DOMAIN_UNRESOLVED"
+      ]
+    },
+    {
+      "claim_id": "c2",
+      "status": "UNRESOLVED",
+      "explanation": "Without a resolved official domain, the sender domain cannot be checked against anything.",
+      "evidence_ids": [],
+      "reason_codes": [
+        "NO_REFERENCE_DOMAIN"
+      ]
+    },
+    {
+      "claim_id": "c3",
+      "status": "UNRESOLVED",
+      "explanation": "No public listing found for this internship.",
+      "evidence_ids": [],
+      "reason_codes": [
+        "NO_PUBLIC_LISTING_FOUND"
+      ]
+    },
+    {
+      "claim_id": "c4",
+      "status": "NOT_CHECKED",
+      "explanation": "The message contains no payment request.",
+      "evidence_ids": [],
+      "reason_codes": [
+        "NOT_APPLICABLE"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "evidence_id": "e1",
+      "claim_id": "c1",
+      "source_kind": "SEARCH_SNIPPET",
+      "source_url": "https://startups.directory.example/coorix-labs",
+      "title": "Coorix Labs — startup profile",
+      "quote_or_snippet": "Coorix Labs · Software development · 2–10 employees · Ahmedabad",
+      "retrieved_at": "2026-10-04T06:10:41Z",
+      "query": "\"Coorix Labs\" company",
+      "engine": "google",
+      "search_id": "serp_6700b9e1aa",
+      "retrieval_status": "LIVE",
+      "source_tier": "USER_GENERATED",
+      "relation": "CONTEXT"
+    }
+  ],
+  "overall_outcome": "CANNOT_VERIFY",
+  "authenticity_status": "UNCONFIRMED",
+  "coverage": {
+    "checked_claims": 3,
+    "total_claims": 4,
+    "unresolved_claims": 3,
+    "failed_checks": 0
+  },
+  "recommended_actions": [
+    "Ask the company for an official website or LinkedIn page and a contact you can reach independently.",
+    "Do not pay any fee or share bank OTPs at any stage."
+  ],
+  "confirmation_route": null,
+  "tool_trace": [
+    {
+      "step": "resolve_employer_domain",
+      "tool": "serpapi.google",
+      "query": "\"Coorix Labs\" company",
+      "reason": "Resolve the employer's official domain before checking any contact details.",
+      "status": "COMPLETED",
+      "started_at": "2026-10-04T06:10:39Z",
+      "duration_ms": 1720,
+      "evidence_ids": [
+        "e1"
+      ]
+    },
+    {
+      "step": "follow_up_sparse_employer",
+      "tool": "serpapi.google",
+      "query": "coorixlabs.example",
+      "reason": "First search was sparse; searching the sender's domain directly once before abstaining.",
+      "status": "COMPLETED",
+      "started_at": "2026-10-04T06:10:41Z",
+      "duration_ms": 1490,
+      "evidence_ids": []
+    }
+  ],
+  "errors": []
+}

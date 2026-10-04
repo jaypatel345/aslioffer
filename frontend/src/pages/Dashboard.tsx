@@ -8,7 +8,7 @@ import {
   AlertTriangle,
   ExternalLink,
 } from 'lucide-react';
-import { RiskBadge } from '../components/RiskBadge';
+import { OutcomeBadge } from '../components/OutcomeBadge';
 
 export const Dashboard: React.FC = () => {
   return (
@@ -55,9 +55,9 @@ export const Dashboard: React.FC = () => {
         <div className="glass-panel rounded-2xl p-6 sm:p-8 border-l-4 border-l-emerald-500">
           <h2 className="text-lg font-bold text-slate-900 mb-2">The AsliOffer Principle</h2>
           <blockquote className="text-slate-600 text-sm sm:text-base italic leading-relaxed">
-            "A genuine job offer leaves a consistent trail across the internet — official domain MX records,
-            Ministry of Corporate Affairs (MCA) registration, real careers pages, and realistic salary bands.
-            A scam almost always breaks at least one."
+            "A genuine job offer leaves a consistent trail across the internet — an official domain, real
+            careers pages and published contacts. A scam usually breaks that trail somewhere. When the trail is
+            too thin to check, AsliOffer says so instead of guessing."
           </blockquote>
         </div>
       </section>
@@ -79,7 +79,7 @@ export const Dashboard: React.FC = () => {
             </div>
             <h3 className="text-base font-semibold text-slate-900">Company Agent</h3>
             <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
-              Audits corporate web footprint, registered MCA status, and verifies authentic careers portals.
+              Resolves the employer’s official domain and careers pages from public search results.
             </p>
           </div>
 
@@ -90,7 +90,7 @@ export const Dashboard: React.FC = () => {
             </div>
             <h3 className="text-base font-semibold text-slate-900">Recruiter Agent</h3>
             <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
-              Cross-references email domains (@company.com vs @gmail.com) and verifies recruiter identities.
+              Checks whether the sender’s email domain belongs to the employer (@company.com vs @gmail.com or a lookalike).
             </p>
           </div>
 
@@ -101,7 +101,7 @@ export const Dashboard: React.FC = () => {
             </div>
             <h3 className="text-base font-semibold text-slate-900">Salary Agent</h3>
             <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
-              Compares stated CTC against AmbitionBox & Glassdoor market baselines to catch inflated bait offers.
+              Compares the stated pay with publicly listed figures for the role to flag implausible bait offers.
             </p>
           </div>
 
@@ -112,7 +112,7 @@ export const Dashboard: React.FC = () => {
             </div>
             <h3 className="text-base font-semibold text-slate-900">Scam Agent</h3>
             <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
-              Detects illegal laptop/training deposits, UPI payment demands, and known CyberDost fraud signatures.
+              Detects fee, deposit and UPI payment demands and requests for OTPs or passwords, without flagging no-fee policies or quoted warnings.
             </p>
           </div>
         </div>
@@ -124,7 +124,7 @@ export const Dashboard: React.FC = () => {
           <div>
             <h2 className="text-xl font-bold text-slate-900">Sample Offer Verifications</h2>
             <p className="text-xs text-slate-500 mt-0.5">
-              Hand-written examples of the report layout — not live investigations
+              Built from synthetic example data to show the report — not live investigations
             </p>
           </div>
           <Link
@@ -142,13 +142,13 @@ export const Dashboard: React.FC = () => {
             <div>
               <div className="flex items-center justify-between mb-3">
                 <span className="text-xs text-slate-500 font-mono">Illustrative sample</span>
-                <RiskBadge level="HIGH_RISK" />
+                <OutcomeBadge outcome="HIGH_RISK" />
               </div>
               <h3 className="text-base font-bold text-slate-900 mb-1">
-                TCS Associate Software Engineer Offer
+                Nimbus Infotech Graduate Engineer Trainee Offer
               </h3>
               <p className="text-xs text-slate-600 line-clamp-2">
-                Contains demand for ₹15,000 laptop security deposit via UPI and was dispatched from a personal Gmail address.
+                Sent from a Gmail address while the employer publishes its own domain, and demands a ₹15,000 laptop deposit via UPI.
               </p>
               <div className="mt-3 flex items-center gap-2 flex-wrap">
                 <span className="text-[10px] px-2 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-200 font-mono">
@@ -160,7 +160,7 @@ export const Dashboard: React.FC = () => {
               </div>
             </div>
             <div className="mt-5 pt-4 border-t border-slate-200/80 flex items-center justify-between">
-              <span className="text-xs text-slate-500">4 Evidence Points</span>
+              <span className="text-xs text-slate-500">Synthetic example</span>
               <Link
                 to="/samples/impersonation"
                 className="text-xs font-semibold text-rose-600 hover:text-rose-700 flex items-center gap-1"
@@ -176,28 +176,28 @@ export const Dashboard: React.FC = () => {
             <div>
               <div className="flex items-center justify-between mb-3">
                 <span className="text-xs text-slate-500 font-mono">Illustrative sample</span>
-                <RiskBadge level="VERIFIED" />
+                <OutcomeBadge outcome="CANNOT_VERIFY" />
               </div>
               <h3 className="text-base font-bold text-slate-900 mb-1">
-                Infosys Systems Engineer Specialist Offer
+                Coorix Labs Backend Developer Intern Offer
               </h3>
               <p className="text-xs text-slate-600 line-clamp-2">
-                Dispatched from official domain @infosys.com, ₹6.25 LPA aligned with SES fresher bands, zero fee solicitation.
+                A small startup with almost no public footprint. No fee is asked, so the report says it cannot verify the offer instead of accusing it.
               </p>
               <div className="mt-3 flex items-center gap-2 flex-wrap">
-                <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 font-mono">
-                  Corporate Domain
+                <span className="text-[10px] px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-300 font-mono">
+                  Sparse Footprint
                 </span>
-                <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 font-mono">
-                  Zero Upfront Fee
+                <span className="text-[10px] px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-300 font-mono">
+                  No Fee Demand
                 </span>
               </div>
             </div>
             <div className="mt-5 pt-4 border-t border-slate-200/80 flex items-center justify-between">
-              <span className="text-xs text-slate-500">4 Evidence Points</span>
+              <span className="text-xs text-slate-500">Synthetic example</span>
               <Link
-                to="/samples/corporate-domain"
-                className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 flex items-center gap-1"
+                to="/samples/sparse-startup"
+                className="text-xs font-semibold text-slate-700 hover:text-slate-900 flex items-center gap-1"
               >
                 <span>View Full Audit</span>
                 <ArrowRight className="w-3 h-3" />

@@ -1,127 +1,201 @@
-import React, { useEffect, useState } from 'react';
-import { useParams, useLocation, Link } from 'react-router-dom';
-import {
-  ArrowLeft,
-  Building2,
-  PhoneCall,
-  ExternalLink,
-  AlertTriangle,
-  CheckCircle2,
-  FileCheck,
-  Shield,
-  Clock,
-  Printer,
-} from 'lucide-react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { AlertTriangle, ArrowLeft, Download, Printer, RefreshCw, Trash2 } from 'lucide-react';
 import { api, ApiError } from '../services/api';
 import { lastReport } from '../services/lastReport';
-import { VerificationReport } from '../types';
-import { RiskBadge } from '../components/RiskBadge';
-import { EntityPanel } from '../components/EntityPanel';
-import { EvidenceCard } from '../components/EvidenceCard';
+import { ConfirmedClaim, InvestigationResult, RunSnapshot } from '../types';
+import { InvestigationReport } from '../components/InvestigationReport';
+import { RunProgress } from '../components/RunProgress';
+import { buildMarkdownReport, downloadText } from '../report/exportReport';
+import { formatTime } from '../report/labels';
 
-interface OfferReportProps {
-  /** Render a built-in illustrative sample instead of fetching a case. */
-  sample?: { label: string; report: VerificationReport };
+const POLL_MS = 1500;
+const isActive = (run: RunSnapshot) => run.status === 'QUEUED' || run.status === 'RUNNING';
+const hasReport = (run: RunSnapshot) => run.status === 'COMPLETED' || run.status === 'PARTIAL';
+
+/** The user's claim decisions from a finished report, so "run again" keeps them. */
+function confirmationsFrom(result: InvestigationResult): ConfirmedClaim[] {
+  return result.claims
+    .filter((c) => (c.extraction_status === 'USER_CONFIRMED' || c.extraction_status === 'USER_EDITED') && c.value)
+    .map((c) => ({
+      claim_id: c.claim_id,
+      kind: c.kind,
+      value: c.value as string,
+      extraction_status: c.extraction_status as ConfirmedClaim['extraction_status'],
+    }));
 }
 
-type LoadError = { notFound: boolean; message: string };
+type View =
+  | { kind: 'loading' }
+  | { kind: 'error'; notFound: boolean; message: string }
+  | { kind: 'no-report' }
+  | { kind: 'progress'; run: RunSnapshot }
+  | { kind: 'failed'; run: RunSnapshot; previous: RunSnapshot | null }
+  | { kind: 'report'; run: RunSnapshot };
 
-export const OfferReport: React.FC<OfferReportProps> = ({ sample }) => {
+export const OfferReport: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  // No default ID: a missing or malformed ID is an error, not a sample case.
   const parsedId = Number(id);
   const offerId = Number.isInteger(parsedId) && parsedId > 0 ? parsedId : null;
-  const location = useLocation();
-  // Handed over by the upload page, which already ran the agents.
-  const preloaded = (location.state as { report?: VerificationReport } | null)?.report;
-  const [report, setReport] = useState<VerificationReport | null>(sample?.report ?? null);
-  const [loading, setLoading] = useState(!sample);
-  const [error, setError] = useState<LoadError | null>(null);
+  const [params, setParams] = useSearchParams();
+  const runParam = params.get('run');
+  const navigate = useNavigate();
+
+  const [view, setView] = useState<View>({ kind: 'loading' });
+  const [title, setTitle] = useState('Offer report');
+  const [history, setHistory] = useState<RunSnapshot[]>([]);
   const [attempt, setAttempt] = useState(0);
+  const [busy, setBusy] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [includeContacts, setIncludeContacts] = useState(false);
+  const timer = useRef<number | null>(null);
+
+  const fail = (err: unknown) => {
+    const notFound = err instanceof ApiError && err.isNotFound;
+    if (notFound && offerId !== null && lastReport.get() === offerId) lastReport.clear();
+    setView({
+      kind: 'error',
+      notFound,
+      message: err instanceof Error && err.message ? err.message : 'The report could not be loaded.',
+    });
+  };
+
+  const settle = useCallback(
+    async (run: RunSnapshot) => {
+      if (offerId === null) return;
+      const runs = await api.getRuns(offerId);
+      setHistory(runs);
+      if (hasReport(run)) {
+        lastReport.set(offerId);
+        setView({ kind: 'report', run });
+      } else {
+        setView({ kind: 'failed', run, previous: runs.find(hasReport) ?? null });
+      }
+    },
+    [offerId],
+  );
 
   useEffect(() => {
-    let isMounted = true;
-
-    // Arriving from the upload form, which the user had scrolled down to submit.
-    window.scrollTo(0, 0);
-
-    if (sample) {
-      setReport(sample.report);
-      setError(null);
-      setLoading(false);
-      return;
-    }
+    let cancelled = false;
+    const stop = () => {
+      if (timer.current !== null) window.clearTimeout(timer.current);
+      timer.current = null;
+    };
 
     if (offerId === null) {
-      setReport(null);
-      setError({ notFound: true, message: `"${id ?? ''}" is not a valid report ID.` });
-      setLoading(false);
+      setView({ kind: 'error', notFound: true, message: `"${id ?? ''}" is not a valid report ID.` });
       return;
     }
 
-    if (preloaded && preloaded.offer_id === offerId && attempt === 0) {
-      setReport(preloaded);
-      setError(null);
-      setLoading(false);
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-    setReport(null);
-
-    api
-      .getOfferReport(offerId)
-      .then((data) => {
-        if (isMounted) {
-          setReport(data);
-          setLoading(false);
+    const poll = async (runId: string) => {
+      try {
+        const run = await api.getRun(offerId, runId);
+        if (cancelled) return;
+        if (isActive(run)) {
+          setView({ kind: 'progress', run });
+          timer.current = window.setTimeout(() => poll(runId), POLL_MS);
+        } else {
+          await settle(run);
         }
-      })
-      .catch((err: unknown) => {
-        if (!isMounted) return;
-        const notFound = err instanceof ApiError && err.isNotFound;
-        // The navbar's "Report" link points at a case the backend no longer has.
-        if (notFound && lastReport.get() === offerId) lastReport.clear();
-        setError({
-          notFound,
-          message: notFound
-            ? `No offer with ID ${offerId} exists. The link may be wrong, or the case was removed.`
-            : err instanceof Error && err.message
-            ? err.message
-            : 'The report could not be loaded.',
-        });
-        setLoading(false);
-      });
-
-    return () => {
-      isMounted = false;
+      } catch (err) {
+        if (!cancelled) fail(err);
+      }
     };
-  }, [offerId, sample, attempt]);
 
-  if (error) {
+    const load = async () => {
+      setView({ kind: 'loading' });
+      try {
+        api.getOffer(offerId).then((o) => !cancelled && setTitle(o.title)).catch(() => undefined);
+        if (runParam) return poll(runParam);
+        const runs = await api.getRuns(offerId);
+        if (cancelled) return;
+        setHistory(runs);
+        const newest = runs[0];
+        if (!newest) return setView({ kind: 'no-report' });
+        if (isActive(newest)) return poll(newest.run_id);
+        // GET /report reads the stored snapshot; it never starts a search.
+        try {
+          const report = await api.getReport(offerId);
+          if (cancelled) return;
+          if (newest.status === 'FAILED' && newest.version > report.version) {
+            setView({ kind: 'failed', run: newest, previous: report });
+          } else {
+            lastReport.set(offerId);
+            setView({ kind: 'report', run: report });
+          }
+        } catch (err) {
+          if (err instanceof ApiError && err.isNoReport) {
+            setView(newest.status === 'FAILED' ? { kind: 'failed', run: newest, previous: null } : { kind: 'no-report' });
+          } else throw err;
+        }
+      } catch (err) {
+        if (!cancelled) fail(err);
+      }
+    };
+
+    window.scrollTo(0, 0);
+    load();
+    return () => {
+      cancelled = true;
+      stop();
+    };
+  }, [offerId, runParam, attempt, settle]);
+
+  const runAgain = async (confirmed: ConfirmedClaim[]) => {
+    if (offerId === null) return;
+    setBusy(true);
+    setActionError(null);
+    try {
+      const run = await api.startRun(offerId, confirmed, true);
+      setParams({ run: run.run_id });
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Could not start a new investigation.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const deleteCase = async () => {
+    if (offerId === null) return;
+    if (!window.confirm('Delete this case permanently? The offer text and every report version will be removed.')) return;
+    setBusy(true);
+    try {
+      await api.deleteOffer(offerId);
+      if (lastReport.get() === offerId) lastReport.clear();
+      navigate('/', { replace: true });
+    } catch (err) {
+      setBusy(false);
+      setActionError(err instanceof Error ? err.message : 'Could not delete the case.');
+    }
+  };
+
+  if (view.kind === 'loading') {
+    return (
+      <div className="py-20 text-center text-sm text-slate-500">
+        <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+        Loading the report…
+      </div>
+    );
+  }
+
+  if (view.kind === 'error') {
     return (
       <div className="max-w-xl mx-auto py-20 text-center" role="alert">
         <div className="w-12 h-12 rounded-full bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center mx-auto mb-4">
           <AlertTriangle className="w-6 h-6" />
         </div>
-        <h1 className="text-xl font-bold text-slate-900">
-          {error.notFound ? 'Report not found' : 'Report could not be loaded'}
-        </h1>
-        <p className="text-sm text-slate-600 mt-2">{error.message}</p>
+        <h1 className="text-xl font-bold text-slate-900">{view.notFound ? 'Report not found' : 'Report could not be loaded'}</h1>
+        <p className="text-sm text-slate-600 mt-2">{view.message}</p>
         <div className="mt-6 flex items-center justify-center gap-3">
-          {!error.notFound && (
+          {!view.notFound && (
             <button
               onClick={() => setAttempt((n) => n + 1)}
-              className="px-4 py-2 rounded-lg text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-white transition-colors"
+              className="px-4 py-2 rounded-lg text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-white"
             >
               Try again
             </button>
           )}
-          <Link
-            to="/upload"
-            className="px-4 py-2 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white transition-colors"
-          >
+          <Link to="/upload" className="px-4 py-2 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white">
             Verify an offer
           </Link>
         </div>
@@ -129,320 +203,163 @@ export const OfferReport: React.FC<OfferReportProps> = ({ sample }) => {
     );
   }
 
-  if (loading || !report) {
+  if (view.kind === 'no-report') {
     return (
-      <div className="max-w-4xl mx-auto py-20 text-center">
-        <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-        <p className="text-slate-500 text-sm">Compiling forensic evidence audit...</p>
+      <div className="max-w-xl mx-auto py-20 text-center">
+        <h1 className="text-xl font-bold text-slate-900">No report yet</h1>
+        <p className="text-sm text-slate-600 mt-2">This offer has not been investigated. Check its details and start the investigation.</p>
+        <Link
+          to={`/offers/${offerId}/review`}
+          className="inline-block mt-6 px-4 py-2 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white"
+        >
+          Review and investigate
+        </Link>
       </div>
     );
   }
 
-  const isHighRisk = report.risk_level === 'HIGH_RISK';
-  const isVerified = report.risk_level === 'VERIFIED';
-  const isCannotVerify = report.risk_level === 'CANNOT_VERIFY';
-
-  return (
-    <div className="max-w-5xl mx-auto py-8 space-y-8 pb-20">
-      {/* Top Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <Link
-          to="/"
-          className="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-900 transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span>Back to Dashboard</span>
-        </Link>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => window.print()}
-            className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200 transition-colors flex items-center gap-1.5"
-          >
-            <Printer className="w-3.5 h-3.5" />
-            <span>Save Report</span>
-          </button>
-          <Link
-            to="/upload"
-            className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white transition-colors"
-          >
-            Scan Another Offer
-          </Link>
-        </div>
+  if (view.kind === 'progress') {
+    return (
+      <div className="py-10">
+        <RunProgress run={view.run} />
       </div>
+    );
+  }
 
-      {sample && (
-        <div
-          role="note"
-          className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-xs text-amber-900"
-        >
-          <strong className="font-semibold">Illustrative sample — {sample.label}.</strong> This report was written by
-          hand to show the report layout. It is not the result of a live investigation, and its sources were not
-          retrieved for you. <Link to="/upload" className="underline font-semibold">Verify a real offer</Link>.
+  if (view.kind === 'failed') {
+    return (
+      <div className="max-w-xl mx-auto py-16 text-center" role="alert">
+        <div className="w-12 h-12 rounded-full bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center mx-auto mb-4">
+          <AlertTriangle className="w-6 h-6" />
         </div>
-      )}
-
-      {/* Header Banner */}
-      <div
-        className={`glass-panel rounded-2xl p-6 sm:p-8 border-l-4 ${
-          isHighRisk
-            ? 'border-l-rose-500 glow-rose'
-            : isVerified
-            ? 'border-l-emerald-500 glow-emerald'
-            : isCannotVerify
-            ? 'border-l-slate-400 bg-slate-50/40'
-            : 'border-l-amber-500 glow-amber'
-        }`}
-      >
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
-          <div>
-            <div className="flex items-center gap-2 text-xs text-slate-500 font-mono mb-1">
-              <span>{sample ? 'ILLUSTRATIVE SAMPLE' : `REPORT #${report.offer_id}`}</span>
-              <span>•</span>
-              <span className="flex items-center gap-1">
-                <Clock className="w-3 h-3" />
-                {new Date(report.generated_at).toLocaleString()}
-              </span>
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900">
-              {report.title}
-            </h1>
-          </div>
-          <RiskBadge level={report.risk_level} score={report.risk_score} showScore size="lg" />
-        </div>
-
-        <p className="text-sm sm:text-base text-slate-700 leading-relaxed bg-slate-50/60 p-4 rounded-xl border border-slate-200">
-          {report.summary}
-        </p>
-
-        {report.reason_details && report.reason_details.length > 0 && (
-          <div className="mt-3 flex flex-wrap gap-2">
-            {report.reason_details.map((rd, i) => (
-              <span
-                key={i}
-                className="text-[11px] font-mono px-2.5 py-1 rounded-lg bg-slate-50/90 border border-slate-300 text-slate-600"
-              >
-                <strong className="text-emerald-600">{rd.code}</strong> — {rd.reason}
-              </span>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Flags Section (Red vs Green) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Red Flags */}
-        <div className="glass-panel rounded-2xl p-6 border-slate-200">
-          <h3 className="text-base font-bold text-rose-600 flex items-center gap-2 mb-4">
-            <AlertTriangle className="w-5 h-5" />
-            <span>Critical Red Flags ({report.red_flags.length})</span>
-          </h3>
-          {report.red_flags.length > 0 ? (
-            <ul className="space-y-2.5">
-              {report.red_flags.map((flag, idx) => (
-                <li
-                  key={idx}
-                  className="flex items-start gap-2.5 text-xs text-rose-800 bg-rose-50 p-3 rounded-xl border border-rose-200 leading-relaxed"
-                >
-                  <span className="w-1.5 h-1.5 rounded-full bg-rose-400 mt-1.5 shrink-0" />
-                  <span>{flag}</span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-xs text-slate-500 italic">No red flags identified in this offer.</p>
-          )}
-        </div>
-
-        {/* Green Flags */}
-        <div className="glass-panel rounded-2xl p-6 border-slate-200">
-          <h3 className="text-base font-bold text-emerald-600 flex items-center gap-2 mb-4">
-            <CheckCircle2 className="w-5 h-5" />
-            <span>Verified Green Flags ({report.green_flags.length})</span>
-          </h3>
-          {report.green_flags.length > 0 ? (
-            <ul className="space-y-2.5">
-              {report.green_flags.map((flag, idx) => (
-                <li
-                  key={idx}
-                  className="flex items-start gap-2.5 text-xs text-emerald-800 bg-emerald-50 p-3 rounded-xl border border-emerald-200 leading-relaxed"
-                >
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-1.5 shrink-0" />
-                  <span>{flag}</span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-xs text-slate-500 italic">No green flags verified.</p>
-          )}
-        </div>
-      </div>
-
-      {/* Extracted Entities */}
-      <EntityPanel entities={report.extracted_entities} />
-
-      {/* Agent Investigation Breakdown */}
-      <div className="glass-panel rounded-2xl p-6 sm:p-8 space-y-6">
-        <div className="flex items-center justify-between pb-4 border-b border-slate-200">
-          <div>
-            <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-              <Shield className="w-5 h-5 text-emerald-600" />
-              <span>Multi-Agent Investigation Evidence</span>
-            </h2>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Live SerpApi public search citations and cross-checked registries
-            </p>
-          </div>
-          <span className="text-xs font-mono px-2.5 py-1 rounded bg-slate-100 text-slate-600 border border-slate-300">
-            {report.findings.length} Agents Completed
-          </span>
-        </div>
-
-        <div className="space-y-6">
-          {report.findings.map((finding, idx) => (
-            <div key={idx} className="p-5 rounded-xl bg-slate-50/80 border border-slate-200">
-              <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-                <div className="flex items-center gap-2.5">
-                  <h4 className="text-sm font-bold text-slate-900">{finding.agent_name}</h4>
-                  <span
-                    className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
-                      finding.verdict === 'VERIFIED'
-                        ? 'bg-emerald-50 text-emerald-600 border border-emerald-200'
-                        : finding.verdict === 'HIGH_RISK'
-                        ? 'bg-rose-50 text-rose-600 border border-rose-200'
-                        : 'bg-amber-50 text-amber-600 border border-amber-200'
-                    }`}
-                  >
-                    {finding.verdict}
-                  </span>
-                </div>
-                <span className="text-xs text-slate-500 font-mono">
-                  {(finding.confidence * 100).toFixed(0)}% Confidence
-                </span>
-              </div>
-
-              <p className="text-xs text-slate-600 mb-4 leading-relaxed">
-                {finding.summary}
-              </p>
-
-              {/* Evidence Cards */}
-              {finding.evidence && finding.evidence.length > 0 && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
-                  {finding.evidence.map((ev, evIdx) => (
-                    <EvidenceCard key={evIdx} evidence={ev} />
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Official Company Footprint & Verification Contact */}
-      <div className="glass-panel rounded-2xl p-6 sm:p-8">
-        <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2 mb-2">
-          <Building2 className="w-5 h-5 text-blue-600" />
-          <span>Official Employer Public Footprint</span>
-        </h3>
-        <p className="text-xs text-slate-500 mb-5">
-          Always confirm recruitment details through the genuine corporate portal, not numbers provided in chat.
-        </p>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 min-w-0">
-            <span className="text-xs text-slate-500 block mb-1">Company Website</span>
-            <a
-              href={report.official_company_info.website || '#'}
-              target="_blank"
-              rel="noopener noreferrer"
-              title={report.official_company_info.website || undefined}
-              className="text-sm font-semibold text-emerald-600 hover:underline flex items-center gap-1 min-w-0"
-            >
-              <span className="truncate">{report.official_company_info.website || 'Not available'}</span>
-              <ExternalLink className="w-3 h-3 shrink-0" />
-            </a>
-          </div>
-
-          <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 min-w-0">
-            <span className="text-xs text-slate-500 block mb-1">Official Careers Page</span>
-            <a
-              href={report.official_company_info.careers_url || '#'}
-              target="_blank"
-              rel="noopener noreferrer"
-              title={report.official_company_info.careers_url || undefined}
-              className="text-sm font-semibold text-emerald-600 hover:underline flex items-center gap-1 min-w-0"
-            >
-              <span className="truncate">{report.official_company_info.careers_url || 'Not available'}</span>
-              <ExternalLink className="w-3 h-3 shrink-0" />
-            </a>
-          </div>
-
-          <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
-            <span className="text-xs text-slate-500 block mb-1">Corporate Registration</span>
-            <p className="text-sm font-semibold text-slate-700">
-              {report.official_company_info.mca_status || 'Not checked'}
-            </p>
-          </div>
-        </div>
-
-        {report.official_company_info.recruitment_policy && (
-          <div className="mt-4 p-3 rounded-xl bg-slate-50/60 border border-slate-200 text-xs text-slate-500">
-            <strong className="text-slate-600">Policy: </strong>
-            {report.official_company_info.recruitment_policy}
-          </div>
-        )}
-      </div>
-
-      {/* Actionable Next Steps & CyberCrime Helpline */}
-      <div
-        className={`glass-panel rounded-2xl p-6 sm:p-8 ${
-          isHighRisk ? 'border-rose-200 bg-rose-50' : 'border-slate-200'
-        }`}
-      >
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
-          <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-            <FileCheck className="w-5 h-5 text-emerald-600" />
-            <span>Recommended Next Steps</span>
-          </h3>
-
-          {isHighRisk && (
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-rose-50 text-rose-700 border border-rose-300 text-xs font-bold">
-              <PhoneCall className="w-3.5 h-3.5" />
-              <span>National Cyber Helpline: 1930</span>
-            </div>
-          )}
-        </div>
-
-        <ul className="space-y-2.5">
-          {report.recommended_actions.map((action, idx) => (
-            <li
-              key={idx}
-              className="flex items-start gap-2.5 text-xs sm:text-sm text-slate-700 leading-relaxed"
-            >
-              <span className="w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center text-xs font-semibold text-emerald-600 shrink-0 mt-0.5">
-                {idx + 1}
-              </span>
-              <span>{action}</span>
-            </li>
+        <h1 className="text-xl font-bold text-slate-900">The investigation did not finish</h1>
+        <ul className="text-sm text-slate-600 mt-2 space-y-1">
+          {view.run.errors.map((e, i) => (
+            <li key={i}>{e.message}</li>
           ))}
         </ul>
-
-        {isHighRisk && (
-          <div className="mt-6 pt-5 border-t border-rose-200 flex flex-wrap items-center justify-between gap-4">
-            <div className="text-xs text-rose-700">
-              Reported fraud helps safeguard thousands of vulnerable freshers across India.
-            </div>
-            <a
-              href="https://cybercrime.gov.in"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-colors inline-flex items-center gap-1.5"
+        <p className="text-xs text-slate-500 mt-2">No verdict was produced, and none has been filled in for you.</p>
+        <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+          <button
+            onClick={() => runAgain(view.previous?.report ? confirmationsFrom(view.previous.report) : [])}
+            disabled={busy}
+            className="px-4 py-2 rounded-lg text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-white disabled:opacity-60"
+          >
+            Try again
+          </button>
+          <Link to={`/offers/${offerId}/review`} className="px-4 py-2 rounded-lg text-xs font-semibold border border-slate-300 text-slate-700">
+            Review the details
+          </Link>
+          {view.previous && (
+            <button
+              onClick={() => setView({ kind: 'report', run: view.previous as RunSnapshot })}
+              className="px-4 py-2 rounded-lg text-xs font-semibold bg-emerald-600 text-white"
             >
-              <span>File NCRP Report (cybercrime.gov.in)</span>
-              <ExternalLink className="w-3 h-3" />
-            </a>
-          </div>
+              Show the previous report (version {view.previous.version})
+            </button>
+          )}
+        </div>
+        {actionError && <p className="mt-4 text-xs text-rose-700">{actionError}</p>}
+      </div>
+    );
+  }
+
+  const run = view.run;
+  const result = run.report as InvestigationResult;
+  const finished = history.filter(hasReport);
+  const newer = history.find((r) => r.version > run.version && hasReport(r));
+
+  const exportMarkdown = () =>
+    downloadText(
+      `aslioffer-report-${offerId}-v${run.version}.md`,
+      buildMarkdownReport(result, { title, includeContacts, generatedAt: run.finished_at, version: run.version }),
+    );
+
+  const actions = (
+    <>
+      <button
+        onClick={() => runAgain(confirmationsFrom(result))}
+        disabled={busy}
+        className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-white inline-flex items-center gap-1.5 disabled:opacity-60"
+      >
+        <RefreshCw className="w-3.5 h-3.5" /> Run again with fresh searches
+      </button>
+      <button
+        onClick={exportMarkdown}
+        className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-slate-300 text-slate-700 hover:bg-slate-50 inline-flex items-center gap-1.5"
+      >
+        <Download className="w-3.5 h-3.5" /> Download report
+      </button>
+      <label className="inline-flex items-center gap-1.5 text-xs text-slate-600 px-1">
+        <input type="checkbox" checked={includeContacts} onChange={(e) => setIncludeContacts(e.target.checked)} />
+        Include emails, phones and UPI IDs (for a cybercrime complaint)
+      </label>
+      <button
+        onClick={() => window.print()}
+        className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-slate-300 text-slate-700 hover:bg-slate-50 inline-flex items-center gap-1.5"
+      >
+        <Printer className="w-3.5 h-3.5" /> Print / save PDF
+      </button>
+      <button
+        onClick={deleteCase}
+        disabled={busy}
+        className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-rose-200 text-rose-700 hover:bg-rose-50 inline-flex items-center gap-1.5 disabled:opacity-60"
+      >
+        <Trash2 className="w-3.5 h-3.5" /> Delete case
+      </button>
+    </>
+  );
+
+  return (
+    <div className="max-w-5xl mx-auto py-8 space-y-4 pb-20">
+      <div className="flex flex-wrap items-center justify-between gap-3 print:hidden">
+        <Link to="/" className="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-900">
+          <ArrowLeft className="w-4 h-4" /> Back to Dashboard
+        </Link>
+        {finished.length > 1 && (
+          <label className="text-xs text-slate-600 inline-flex items-center gap-2">
+            Version
+            <select
+              value={run.run_id}
+              onChange={(e) => {
+                const picked = finished.find((r) => r.run_id === e.target.value);
+                if (picked) setView({ kind: 'report', run: picked });
+              }}
+              className="border border-slate-300 rounded-lg px-2 py-1 text-xs"
+            >
+              {finished.map((r) => (
+                <option key={r.run_id} value={r.run_id}>
+                  v{r.version} · {formatTime(r.finished_at)}
+                </option>
+              ))}
+            </select>
+          </label>
         )}
       </div>
+      {newer && (
+        <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+          You are viewing an older version. Version {newer.version} is newer.
+        </p>
+      )}
+      {actionError && (
+        <p role="alert" className="text-xs text-rose-700 bg-rose-50 border border-rose-200 rounded-xl px-3 py-2">
+          {actionError}
+        </p>
+      )}
+      <InvestigationReport
+        result={result}
+        title={title}
+        actions={actions}
+        meta={
+          <>
+            CASE #{run.case_id} · VERSION {run.version} · {run.status === 'PARTIAL' ? 'PARTIAL · ' : ''}FINISHED{' '}
+            {formatTime(run.finished_at)}
+          </>
+        }
+      />
+      <p className="text-[11px] text-slate-500 text-center">
+        This case and its reports are deleted automatically 7 days after upload, or now with “Delete case”.
+      </p>
     </div>
   );
 };

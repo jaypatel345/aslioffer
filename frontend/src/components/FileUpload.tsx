@@ -1,6 +1,9 @@
 import React, { useState, useRef } from 'react';
 import { Upload, FileText, Sparkles, AlertCircle, Check, HelpCircle } from 'lucide-react';
 
+const MAX_FILE_BYTES = 5 * 1024 * 1024;
+const MAX_TEXT_CHARS = 20000;
+
 interface FileUploadProps {
   onAnalyze: (payload: { title: string; content: string; file?: File; sample?: boolean }) => void;
   isLoading: boolean;
@@ -111,11 +114,28 @@ HR Manager`;
     setActiveTab('text');
   };
 
+  const [fileError, setFileError] = useState<string | null>(null);
+
+  // Mirrors the backend limits so the user hears about a bad file before uploading it.
+  const acceptFile = (file: File): boolean => {
+    if (!/\.(pdf|png|jpe?g|webp)$/i.test(file.name)) {
+      setFileError('Unsupported file type. Upload a PDF, PNG, JPG or WEBP file, or paste the text.');
+      return false;
+    }
+    if (file.size > MAX_FILE_BYTES) {
+      setFileError('This file is larger than 5 MB. Upload a smaller file or paste the text.');
+      return false;
+    }
+    setFileError(null);
+    return true;
+  };
+
   const handleFileDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setDragOver(false);
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       const file = e.dataTransfer.files[0];
+      if (!acceptFile(file)) return;
       setSelectedFile(file);
       if (!title) setTitle(file.name.replace(/\.[^/.]+$/, ''));
       setActiveTab('file');
@@ -125,6 +145,7 @@ HR Manager`;
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
+      if (!acceptFile(file)) return;
       setSelectedFile(file);
       if (!title) setTitle(file.name.replace(/\.[^/.]+$/, ''));
     }
@@ -140,6 +161,7 @@ HR Manager`;
       });
     } else {
       if (!content.trim()) return;
+      if (content.length > MAX_TEXT_CHARS) return;
       onAnalyze({
         title: title || 'Pasted Job Offer Message',
         content,
@@ -253,7 +275,7 @@ HR Manager`;
             <input
               ref={fileInputRef}
               type="file"
-              accept=".pdf,image/png,image/jpeg,image/webp,.txt"
+              accept=".pdf,.png,.jpg,.jpeg,.webp"
               onChange={handleFileSelect}
               className="hidden"
             />
@@ -291,7 +313,7 @@ HR Manager`;
                     Drop your offer letter PDF or screenshot here
                   </p>
                   <p className="text-xs text-slate-500 mt-1">
-                    Supports PDF, PNG, JPG, or screenshot images up to 10MB
+                    PDF, PNG, JPG or WEBP, up to 5 MB
                   </p>
                 </div>
               )}
@@ -299,30 +321,39 @@ HR Manager`;
           </div>
         )}
 
+        {fileError && (
+          <p role="alert" className="text-xs text-rose-700">{fileError}</p>
+        )}
+        {activeTab === 'text' && content.length > MAX_TEXT_CHARS && (
+          <p role="alert" className="text-xs text-rose-700">
+            The text is longer than {MAX_TEXT_CHARS.toLocaleString()} characters. Paste only the offer itself.
+          </p>
+        )}
+
         {/* Informational callout */}
         <div className="p-3.5 rounded-xl bg-slate-50/90 border border-slate-200 text-xs text-slate-500 flex items-start gap-2.5">
           <AlertCircle className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
           <p>
-            AsliOffer extracts entities and queries public search data in real-time via SerpApi.
-            We will never store private Aadhaar, PAN, or financial numbers.
+            ID numbers, bank details and one-time codes are removed before any search. The offer text is
+            kept for 7 days so you can reopen the report, then deleted.
           </p>
         </div>
 
         {/* Submit */}
         <button
           type="submit"
-          disabled={isLoading || (activeTab === 'text' && !content.trim()) || (activeTab === 'file' && !selectedFile)}
+          disabled={isLoading || (activeTab === 'text' && (!content.trim() || content.length > MAX_TEXT_CHARS)) || (activeTab === 'file' && !selectedFile)}
           className="w-full py-3.5 px-6 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-sm tracking-wide shadow-lg shadow-emerald-200 transition-all flex items-center justify-center gap-2"
         >
           {isLoading ? (
             <>
               <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              <span>Running Live Public Footprint Investigation...</span>
+              <span>Uploading and reading the offer…</span>
             </>
           ) : (
             <>
               <Sparkles className="w-4 h-4" />
-              <span>Investigate Offer with AI Agents</span>
+              <span>Continue: check the details</span>
             </>
           )}
         </button>

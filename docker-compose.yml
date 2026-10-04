@@ -15,6 +15,9 @@ services:
       - SERPAPI_API_KEY=${SERPAPI_API_KEY:-}
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}
       - GEMINI_MODEL=${GEMINI_MODEL:-gemini-3.8-flash}
+      - GROQ_API_KEY=${GROQ_API_KEY:-}
+      - GROQ_MODEL=${GROQ_MODEL:-qwen/qwen3.8-27b}
+      - CASE_RETENTION_DAYS=${CASE_RETENTION_DAYS:-7}
       - BACKEND_CORS_ORIGINS=["http://localhost:3000","http://localhost:5173","http://127.0.0.1:3000"]
     depends_on:
       db:
@@ -28,12 +31,13 @@ services:
     build:
       context: ./frontend
       dockerfile: ../docker/Dockerfile.frontend
+      # Vite bakes the API URL in at build time; a runtime env var has no effect.
+      args:
+        - VITE_API_BASE_URL=${VITE_API_BASE_URL:-http://localhost:8000}
     container_name: aslioffer-frontend
     restart: unless-stopped
     ports:
       - "3000:80"
-    environment:
-      - VITE_API_BASE_URL=http://localhost:8000
     depends_on:
       - backend
     networks:
