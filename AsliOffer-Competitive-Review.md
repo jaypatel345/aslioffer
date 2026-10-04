@@ -241,7 +241,7 @@ Benchmark outputs: false reassurance and false warnings with denominators, abste
 
 ### Task board: start here
 
-All implementation tasks below are initially **TODO**; writing this plan does not complete them.
+All implementation tasks below are initially **TODO**; writing this plan does not complete them. Current Jay status: J1 and J2 done (see *Jay's task status* below).
 
 | Owner | Immediate start | Next after dependency | Final deliverable |
 |---|---|---|---|
@@ -249,6 +249,21 @@ All implementation tasks below are initially **TODO**; writing this plan does no
 | Jay | J1 contract and J2 honest route/client failures | J3 snapshots; J4 fixture-based UI | J6/J7 setup, integration and submission |
 
 Shared decisions requiring a short sync: contract v1, scope cut on 7 October, final benchmark interpretation and submission claims. Everything else follows file ownership. The two workstreams can proceed concurrently without editing the same modules.
+
+#### Jay's task status
+
+Updated 4 October 2026 by Jay. Only J-tasks are listed here; Shriraj's S-task status is tracked in his own task docs (`docs/task-*.md`).
+
+| ID | Status | Delivered | Verification |
+|---|---|---|---|
+| J1 | **DONE**: contract v1 published. Needs Shriraj's one-time semantics review before freeze. | `docs/api-contract.md`; `backend/app/schemas/contract.py`; TS mirror in `frontend/src/types/index.ts`; 12 example payloads in `docs/contract/v1/examples/`, including the supported, contradictory, sparse and outage results | `backend/tests/integration/test_contract_v1.py` (33 tests): every example parses and round-trips in Python and type-checks against the TS types; each enforced rule has a negative test |
+| J2 | **DONE** | Unknown IDs return 404 on `/offers/{id}`, `/offers/{id}/report` and `/analysis/run`, and no search runs. The frontend has no fallback data: network/404/5xx failures show an error with retry. Samples are explicit (`/samples/:key` with a banner), and presets create real cases titled `Sample: …` | `backend/tests/test_api.py` (404s, no search on unknown IDs, former demo IDs 101/102, sample labels); full backend suite 426 passed; `npm run build` passes; browser checks of the 404, invalid-ID, offline-backend, sample and preset flows |
+| J3–J7 | TODO | | |
+
+Notes for Shriraj:
+- `InvestigationResult` reuses `OverallOutcome` and `AuthenticityStatus` from `risk/assessment_models.py`, so the two cannot drift.
+- Each `EvidenceRecord` belongs to exactly one claim. When one page supports two claims, emit two records.
+- The legacy `VerificationReport` stays the live response shape until J3.
 
 
 ## Evaluation and demonstration
