@@ -90,6 +90,21 @@ Execution bounds use `time.monotonic()`:
 - **Stop Condition:** Official caution advisory found or no policy matches.
 - **Safety:** Missing policy results never erase local high-risk document demands.
 
+### Priority 5: Job Role Corroboration (`JOB_ROLE_CORROBORATION`) - Task 12
+- **Trigger:** Grounded usable role claim, resolved canonical domain or ATS tenant, and job role corroboration check not yet executed.
+- **Query:** Scoped search against employer careers sources (`site:{canonical_domain} "{role}"` or `"{company_name}" "{role}" job careers`).
+- **Information Gain:** Verifies public vacancy existence and title/location alignment.
+
+### Priority 5 (Tied): Job Reference Corroboration (`JOB_REFERENCE_CORROBORATION`) - Task 12
+- **Trigger:** Grounded usable job reference passing `is_public_job_reference()` (rejects private candidate/offer codes), and check not yet executed.
+- **Query:** `site:{canonical_domain} "{ref_val}"` or `"{company_name}" "{ref_val}" requisition`.
+- **Information Gain:** Searches for exact public requisition ID matches.
+
+### Priority 6: Offer Confirmation Route Discovery (`CONFIRMATION_ROUTE_DISCOVERY`) - Task 12
+- **Trigger:** Grounded role or ref claim present, but no direct official recruitment email/phone yet corroborated.
+- **Query:** `"{company_name}" recruitment verification contact site:{canonical_domain}` or `"{company_name}" official careers HR contact`.
+- **Information Gain:** Discovers independent verification contact channels published by the employer.
+
 ---
 
 ## 5. Stop and Abstention Rules

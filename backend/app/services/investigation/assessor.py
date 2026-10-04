@@ -1,12 +1,15 @@
 """Conservative claim assessments without inventing executed corroboration."""
+from typing import Any, Dict, List, Optional
 from app.schemas.contract import (AssessedClaim, ClaimKind, ClaimStatus, EvidenceRelation,
                                   ExtractionStatus, RetrievalStatus, SourceKind)
 from app.services.investigation.claim_builder import is_redaction_placeholder
+from app.services.investigation.corroborator import is_public_job_reference
 
 
 class ClaimAssessor:
     def assess_claims(self, claims, evidence_records, findings, scam_assessments,
-                      canonical_employer_domain=None, provider_outage=False):
+                      canonical_employer_domain=None, provider_outage=False,
+                      corroboration_result=None):
         assessed = []
         agents = {ClaimKind.EMPLOYER: 'CompanyAgent', ClaimKind.SENDER_EMAIL: 'RecruiterAgent',
                   ClaimKind.CONTACT_PHONE: 'RecruiterAgent', ClaimKind.RECRUITER_NAME: 'RecruiterAgent',
@@ -31,9 +34,38 @@ class ClaimAssessor:
                 status, reason, codes = ClaimStatus.NOT_CHECKED, 'Extraction is uncertain; confirm the claim before using it in searches.', ['EXTRACTION_UNCERTAIN']
                 ids = []
             elif claim.kind in (ClaimKind.ROLE, ClaimKind.LOCATION, ClaimKind.JOB_REFERENCE, ClaimKind.APPLICATION_URL):
-                status = ClaimStatus.NOT_CHECKED
-                reason, codes = 'Independent corroboration for this claim is deferred; no targeted check was executed.', ['CORROBORATION_DEFERRED']
-                ids = []
+                if provider_outage:
+                    status = ClaimStatus.UNRESOLVED
+                    reason = 'The external search provider was unavailable; no completed vacancy corroboration was obtained.'
+                    codes = ['SEARCH_UNAVAILABLE']
+                    ids = []
+                elif corroboration_result and claim.claim_id in corroboration_result.observations:
+                    obs = corroboration_result.observations[claim.claim_id]
+                    status = obs.status
+                    reason = obs.explanation
+                    codes = list(obs.reason_codes)
+                    if status == ClaimStatus.SUPPORTED:
+                        support_ids = [e.evidence_id for e in usable if e.relation == EvidenceRelation.SUPPORTS]
+                        if support_ids:
+                            ids = support_ids
+                        else:
+                            status = ClaimStatus.UNRESOLVED
+                            ids = [e.evidence_id for e in usable]
+                    elif status == ClaimStatus.CONTRADICTED:
+                        contra_ids = [e.evidence_id for e in usable if e.relation == EvidenceRelation.CONTRADICTS]
+                        if contra_ids:
+                            ids = contra_ids
+                        else:
+                            status = ClaimStatus.UNRESOLVED
+                            ids = [e.evidence_id for e in usable]
+                    elif status == ClaimStatus.NOT_CHECKED:
+                        ids = []
+                    else:  # UNRESOLVED
+                        ids = [e.evidence_id for e in usable]
+                else:
+                    status = ClaimStatus.NOT_CHECKED
+                    reason, codes = 'Independent corroboration for this claim was not executed.', ['CHECK_NOT_EXECUTED']
+                    ids = []
             elif claim.kind in (ClaimKind.PAYMENT_REQUEST, ClaimKind.CREDENTIAL_REQUEST):
                 if any(e.source_kind == SourceKind.DOCUMENT and e.relation == EvidenceRelation.SUPPORTS for e in usable):
                     status = ClaimStatus.SUPPORTED

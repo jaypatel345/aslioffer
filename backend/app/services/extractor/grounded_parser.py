@@ -212,6 +212,9 @@ class GroundedEntityParser:
         if not employer_name:
             all_corps = []
             for m in CORPORATE_SUFFIX_RE.finditer(sanitized):
+                post = sanitized[m.end():m.end() + 25].strip().lower()
+                if any(post.startswith(rk) for rk in ["engineer", "developer", "trainee", "associate", "analyst", "specialist"]):
+                    continue
                 cand = m.group(0).strip().rstrip(".,")
                 if cand not in platform_found_names and cand.lower() not in STOPWORD_COMPANIES:
                     if cand not in all_corps:

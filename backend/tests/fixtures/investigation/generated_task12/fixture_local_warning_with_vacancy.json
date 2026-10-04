@@ -1,0 +1,285 @@
+{
+  "contract_version": "1.0.0",
+  "run_id": "run_task12_warning_with_vacancy",
+  "demo_mode": false,
+  "claims": [
+    {
+      "claim_id": "c1",
+      "kind": "employer",
+      "value": "Radiant Energy Solutions Ltd",
+      "source_quote": "Radiant Energy Solutions Ltd",
+      "start_offset": 22,
+      "end_offset": 50,
+      "page": null,
+      "extraction_status": "EXTRACTED"
+    },
+    {
+      "claim_id": "c2",
+      "kind": "sender_email",
+      "value": "recruitment@radiantenergy.example",
+      "source_quote": "recruitment@radiantenergy.example",
+      "start_offset": 205,
+      "end_offset": 238,
+      "page": null,
+      "extraction_status": "EXTRACTED"
+    },
+    {
+      "claim_id": "c6",
+      "kind": "role",
+      "value": "Systems Engineer",
+      "source_quote": "Systems Engineer",
+      "start_offset": 75,
+      "end_offset": 91,
+      "page": null,
+      "extraction_status": "EXTRACTED"
+    },
+    {
+      "claim_id": "c7",
+      "kind": "location",
+      "value": "Bengaluru",
+      "source_quote": "Bengaluru",
+      "start_offset": 102,
+      "end_offset": 111,
+      "page": null,
+      "extraction_status": "EXTRACTED"
+    },
+    {
+      "claim_id": "c10",
+      "kind": "payment_request",
+      "value": null,
+      "source_quote": null,
+      "start_offset": null,
+      "end_offset": null,
+      "page": null,
+      "extraction_status": "MISSING"
+    }
+  ],
+  "assessed_claims": [
+    {
+      "claim_id": "c1",
+      "status": "SUPPORTED",
+      "explanation": "Independent results support the employer public footprint; they do not authenticate this offer.",
+      "evidence_ids": [
+        "e1",
+        "e2",
+        "e3"
+      ],
+      "reason_codes": [
+        "OFFICIAL_DOMAIN_RESOLVED"
+      ]
+    },
+    {
+      "claim_id": "c2",
+      "status": "UNRESOLVED",
+      "explanation": "The completed check did not establish attributable corroboration. Empty results do not prove fraud or legitimacy.",
+      "evidence_ids": [],
+      "reason_codes": [
+        "NO_PUBLIC_LISTING_FOUND"
+      ]
+    },
+    {
+      "claim_id": "c6",
+      "status": "SUPPORTED",
+      "explanation": "Public hiring records for Radiant Energy Solutions Ltd corroborate an active vacancy for 'Systems Engineer'. This does not authenticate the individual offer.",
+      "evidence_ids": [
+        "e4"
+      ],
+      "reason_codes": [
+        "ROLE_CORROBORATED",
+        "PUBLIC_VACANCY_LISTED",
+        "PUBLIC_VACANCY_MATCH"
+      ]
+    },
+    {
+      "claim_id": "c7",
+      "status": "SUPPORTED",
+      "explanation": "Public hiring records corroborate the specified job location 'Bengaluru'.",
+      "evidence_ids": [
+        "e5"
+      ],
+      "reason_codes": [
+        "LOCATION_CORROBORATED",
+        "VACANCY_LOCATION_MATCH"
+      ]
+    },
+    {
+      "claim_id": "c10",
+      "status": "NOT_CHECKED",
+      "explanation": "Required claim value is absent; no check was executed for it.",
+      "evidence_ids": [],
+      "reason_codes": [
+        "MISSING_INPUT"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "evidence_id": "e1",
+      "claim_id": "c1",
+      "source_kind": "SEARCH_SNIPPET",
+      "source_url": "https://www.radiantenergy.example",
+      "title": "Radiant Energy Solutions Ltd",
+      "quote_or_snippet": "{\"title\": \"Radiant Energy Solutions Ltd\", \"website\": \"https://www.radiantenergy.example\", \"careers_url\": \"https://careers.radiantenergy.example\"}",
+      "retrieved_at": "2026-10-04T09:13:03.904347Z",
+      "query": "\"Radiant Energy Solutions Ltd\" official website careers",
+      "engine": "google",
+      "search_id": null,
+      "retrieval_status": "LIVE",
+      "source_tier": "OFFICIAL_EMPLOYER",
+      "relation": "SUPPORTS"
+    },
+    {
+      "evidence_id": "e2",
+      "claim_id": "c1",
+      "source_kind": "SEARCH_SNIPPET",
+      "source_url": "https://careers.radiantenergy.example/solar-eng",
+      "title": "Senior Solar Systems Engineer - Bengaluru - Radiant Energy Solutions Ltd",
+      "quote_or_snippet": "We are hiring a Senior Solar Systems Engineer in Bengaluru.",
+      "retrieved_at": "2026-10-04T09:13:03.904347Z",
+      "query": "\"Radiant Energy Solutions Ltd\" official website careers",
+      "engine": "google",
+      "search_id": null,
+      "retrieval_status": "LIVE",
+      "source_tier": "OFFICIAL_EMPLOYER",
+      "relation": "SUPPORTS"
+    },
+    {
+      "evidence_id": "e3",
+      "claim_id": "c1",
+      "source_kind": "SEARCH_SNIPPET",
+      "source_url": "https://careers.radiantenergy.example",
+      "title": "Radiant Energy Solutions Ltd",
+      "quote_or_snippet": "{\"title\": \"Radiant Energy Solutions Ltd\", \"website\": \"https://www.radiantenergy.example\", \"careers_url\": \"https://careers.radiantenergy.example\"}",
+      "retrieved_at": "2026-10-04T09:13:03.904347Z",
+      "query": "\"Radiant Energy Solutions Ltd\" official website careers",
+      "engine": "google",
+      "search_id": null,
+      "retrieval_status": "LIVE",
+      "source_tier": "OFFICIAL_EMPLOYER",
+      "relation": "SUPPORTS"
+    },
+    {
+      "evidence_id": "e4",
+      "claim_id": "c6",
+      "source_kind": "SEARCH_SNIPPET",
+      "source_url": "https://careers.radiantenergy.example/solar-eng",
+      "title": "Senior Solar Systems Engineer - Bengaluru - Radiant Energy Solutions Ltd",
+      "quote_or_snippet": "We are hiring a Senior Solar Systems Engineer in Bengaluru.",
+      "retrieved_at": "2026-10-04T09:13:03.904347Z",
+      "query": "\"Radiant Energy Solutions Ltd\" official website careers",
+      "engine": "google",
+      "search_id": null,
+      "retrieval_status": "LIVE",
+      "source_tier": "OFFICIAL_EMPLOYER",
+      "relation": "SUPPORTS"
+    },
+    {
+      "evidence_id": "e5",
+      "claim_id": "c7",
+      "source_kind": "SEARCH_SNIPPET",
+      "source_url": "https://careers.radiantenergy.example/solar-eng",
+      "title": "Radiant Energy Solutions Ltd Job Location Record",
+      "quote_or_snippet": "We are hiring a Senior Solar Systems Engineer in Bengaluru.",
+      "retrieved_at": "2026-10-04T09:13:03.904347Z",
+      "query": "\"Radiant Energy Solutions Ltd\" official website careers",
+      "engine": "google",
+      "search_id": null,
+      "retrieval_status": "LIVE",
+      "source_tier": "OFFICIAL_EMPLOYER",
+      "relation": "SUPPORTS"
+    }
+  ],
+  "overall_outcome": "CANNOT_VERIFY",
+  "authenticity_status": "UNCONFIRMED",
+  "coverage": {
+    "checked_claims": 4,
+    "total_claims": 5,
+    "unresolved_claims": 2,
+    "failed_checks": 0
+  },
+  "recommended_actions": [
+    "Ask the company for an official website or LinkedIn page and a contact you can reach independently.",
+    "Resolve the outstanding Recruiter Domain Alignment & Employer Affiliation Check independently before relying on that result.",
+    "Contact the employer through independently established published contact details to confirm that this specific offer was issued to you.",
+    "Review standard employment terms, scope of work, and contract conditions carefully before signing.",
+    "Never share sensitive banking passwords, OTPs, or pay any onboarding charges.",
+    "Do not pay any fee or share bank OTPs at any stage.",
+    "Matching public vacancy records were found, but a public listing does not authenticate individual offer issuance; confirm directly with the employer.",
+    "Use the independently verified careers portal (https://careers.radiantenergy.example) to confirm whether this offer was formally issued."
+  ],
+  "confirmation_route": {
+    "channel": "careers_portal",
+    "destination": "https://careers.radiantenergy.example",
+    "evidence_id": "e3",
+    "draft_message": "Navigate to Radiant Energy Solutions Ltd's official portal and locate their published human resources or recruitment contact. Inquire neutrally: 'I have received an employment offer for Systems Engineer (Reference: [Candidate/Offer Reference]); could you please verify whether this offer was officially issued?' State your name ([Your Name]) but do not disclose banking details, account passwords, or OTPs."
+  },
+  "tool_trace": [
+    {
+      "step": "resolve_employer_domain",
+      "tool": "serpapi.google",
+      "query": "\"Radiant Energy Solutions Ltd\" official website careers",
+      "reason": "Resolve the employer's official domain before checking contact details",
+      "status": "COMPLETED",
+      "started_at": "2026-10-04T09:13:03.904347Z",
+      "duration_ms": 0,
+      "evidence_ids": [
+        "e1",
+        "e2",
+        "e3",
+        "e4",
+        "e5"
+      ]
+    },
+    {
+      "step": "check_recruiter_contact",
+      "tool": "serpapi.google",
+      "query": "\"recruitment@radiantenergy.example\" scam fraud complaint",
+      "reason": "Verify recruiter email alignment with resolved domain",
+      "status": "COMPLETED",
+      "started_at": "2026-10-04T09:13:03.912722Z",
+      "duration_ms": 0,
+      "evidence_ids": []
+    },
+    {
+      "step": "check_recruiter_contact",
+      "tool": "serpapi.google",
+      "query": "\"recruitment@radiantenergy.example\" \"Radiant Energy Solutions Ltd\"",
+      "reason": "Verify recruiter email alignment with resolved domain",
+      "status": "COMPLETED",
+      "started_at": "2026-10-04T09:13:03.913340Z",
+      "duration_ms": 0,
+      "evidence_ids": []
+    },
+    {
+      "step": "check_scam_signals",
+      "tool": "serpapi.google",
+      "query": "\"Radiant Energy Solutions Ltd\" job scam fraud complaint telegram",
+      "reason": "Check for upfront fees, credential demands, and adverse reports",
+      "status": "COMPLETED",
+      "started_at": "2026-10-04T09:13:03.917371Z",
+      "duration_ms": 0,
+      "evidence_ids": []
+    },
+    {
+      "step": "adaptive_job_role_corroboration",
+      "tool": "serpapi.google",
+      "query": "site:careers.radiantenergy.example \"Systems Engineer\"",
+      "reason": "Checking the claimed role against established employer careers sources.",
+      "status": "COMPLETED",
+      "started_at": "2026-10-04T09:13:03.918303Z",
+      "duration_ms": 0,
+      "evidence_ids": []
+    },
+    {
+      "step": "adaptive_confirmation_route_discovery",
+      "tool": "serpapi.google",
+      "query": "\"Radiant Energy Solutions Ltd\" recruitment verification contact site:www.radiantenergy.example",
+      "reason": "Looking for employer-published guidance for confirming offer issuance.",
+      "status": "COMPLETED",
+      "started_at": "2026-10-04T09:13:03.918584Z",
+      "duration_ms": 0,
+      "evidence_ids": []
+    }
+  ],
+  "errors": []
+}

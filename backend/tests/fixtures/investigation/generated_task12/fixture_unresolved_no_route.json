@@ -1,0 +1,162 @@
+{
+  "contract_version": "1.0.0",
+  "run_id": "run_task12_unresolved_no_route",
+  "demo_mode": false,
+  "claims": [
+    {
+      "claim_id": "c1",
+      "kind": "employer",
+      "value": "PhantomAI Labs",
+      "source_quote": "PhantomAI Labs",
+      "start_offset": 11,
+      "end_offset": 25,
+      "page": null,
+      "extraction_status": "EXTRACTED"
+    },
+    {
+      "claim_id": "c2",
+      "kind": "sender_email",
+      "value": "hr@phantomai.example",
+      "source_quote": "hr@phantomai.example",
+      "start_offset": 83,
+      "end_offset": 103,
+      "page": null,
+      "extraction_status": "EXTRACTED"
+    },
+    {
+      "claim_id": "c7",
+      "kind": "location",
+      "value": "Remote",
+      "source_quote": "Remote",
+      "start_offset": 67,
+      "end_offset": 73,
+      "page": null,
+      "extraction_status": "EXTRACTED"
+    },
+    {
+      "claim_id": "c10",
+      "kind": "payment_request",
+      "value": null,
+      "source_quote": null,
+      "start_offset": null,
+      "end_offset": null,
+      "page": null,
+      "extraction_status": "MISSING"
+    }
+  ],
+  "assessed_claims": [
+    {
+      "claim_id": "c1",
+      "status": "UNRESOLVED",
+      "explanation": "The completed check did not establish attributable corroboration. Empty results do not prove fraud or legitimacy.",
+      "evidence_ids": [],
+      "reason_codes": [
+        "SPARSE_FOOTPRINT",
+        "OFFICIAL_DOMAIN_UNRESOLVED"
+      ]
+    },
+    {
+      "claim_id": "c2",
+      "status": "UNRESOLVED",
+      "explanation": "The completed check did not establish attributable corroboration. Empty results do not prove fraud or legitimacy.",
+      "evidence_ids": [],
+      "reason_codes": [
+        "NO_PUBLIC_LISTING_FOUND"
+      ]
+    },
+    {
+      "claim_id": "c7",
+      "status": "UNRESOLVED",
+      "explanation": "Identified records for PhantomAI Labs do not corroborate 'Remote' as the active hiring location for this position.",
+      "evidence_ids": [],
+      "reason_codes": [
+        "LOCATION_NOT_CORROBORATED",
+        "LOCATION_UNCORROBORATED",
+        "HEADQUARTERS_ONLY_NOT_JOB_LOCATION"
+      ]
+    },
+    {
+      "claim_id": "c10",
+      "status": "NOT_CHECKED",
+      "explanation": "Required claim value is absent; no check was executed for it.",
+      "evidence_ids": [],
+      "reason_codes": [
+        "MISSING_INPUT"
+      ]
+    }
+  ],
+  "evidence": [],
+  "overall_outcome": "CANNOT_VERIFY",
+  "authenticity_status": "UNCONFIRMED",
+  "coverage": {
+    "checked_claims": 3,
+    "total_claims": 4,
+    "unresolved_claims": 4,
+    "failed_checks": 0
+  },
+  "recommended_actions": [
+    "Ask the company for an official website or LinkedIn page and a contact you can reach independently.",
+    "Independently look up the employer using official public business registries (such as MCA India at mca.gov.in) or verified business directories.",
+    "Do not rely on website links, phone numbers, or addresses provided solely within the submitted document.",
+    "Resolve the outstanding Recruiter Domain Alignment & Employer Affiliation Check independently before relying on that result.",
+    "Contact the employer through independently established published contact details to confirm that this specific offer was issued to you.",
+    "Review standard employment terms, scope of work, and contract conditions carefully before signing.",
+    "Never share sensitive banking passwords, OTPs, or pay any onboarding charges.",
+    "Do not pay any fee or share bank OTPs at any stage.",
+    "No independently sourced offer-confirmation channel was identified; contact the employer via official published directory or registry contacts."
+  ],
+  "confirmation_route": null,
+  "tool_trace": [
+    {
+      "step": "resolve_employer_domain",
+      "tool": "serpapi.google",
+      "query": "\"PhantomAI Labs\" official website careers",
+      "reason": "Resolve the employer's official domain before checking contact details",
+      "status": "COMPLETED",
+      "started_at": "2026-10-04T09:13:03.775181Z",
+      "duration_ms": 0,
+      "evidence_ids": []
+    },
+    {
+      "step": "check_recruiter_contact",
+      "tool": "serpapi.google",
+      "query": "\"hr@phantomai.example\" scam fraud complaint",
+      "reason": "Verify recruiter email alignment with resolved domain",
+      "status": "COMPLETED",
+      "started_at": "2026-10-04T09:13:03.780270Z",
+      "duration_ms": 0,
+      "evidence_ids": []
+    },
+    {
+      "step": "check_recruiter_contact",
+      "tool": "serpapi.google",
+      "query": "\"hr@phantomai.example\" \"PhantomAI Labs\"",
+      "reason": "Verify recruiter email alignment with resolved domain",
+      "status": "COMPLETED",
+      "started_at": "2026-10-04T09:13:03.781042Z",
+      "duration_ms": 0,
+      "evidence_ids": []
+    },
+    {
+      "step": "check_scam_signals",
+      "tool": "serpapi.google",
+      "query": "\"PhantomAI Labs\" job scam fraud complaint telegram",
+      "reason": "Check for upfront fees, credential demands, and adverse reports",
+      "status": "COMPLETED",
+      "started_at": "2026-10-04T09:13:03.786812Z",
+      "duration_ms": 0,
+      "evidence_ids": []
+    },
+    {
+      "step": "adaptive_employer_context",
+      "tool": "serpapi.google",
+      "query": "\"PhantomAI Labs\" \"Remote\" official website",
+      "reason": "Employer identity remains unresolved; checking 'PhantomAI Labs' with grounded context 'Remote'.",
+      "status": "COMPLETED",
+      "started_at": "2026-10-04T09:13:03.788117Z",
+      "duration_ms": 0,
+      "evidence_ids": []
+    }
+  ],
+  "errors": []
+}

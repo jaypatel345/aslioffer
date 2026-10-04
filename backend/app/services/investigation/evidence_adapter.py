@@ -1,11 +1,13 @@
 """Claim-specific evidence adaptation. Missing provenance never becomes live evidence."""
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Any, Dict, List, Optional
 from urllib.parse import urlparse
+
 from app.schemas.contract import (ClaimKind, EvidenceRecord, EvidenceRelation, RetrievalStatus,
                                  SourceKind, SourceTier)
 from app.services.agents.scam_classifier import ScamModality, ScamSignalCode, sanitize_and_redact_secrets
 from app.services.risk.assessment_engine import canonicalize_url
+from app.services.search.domain_resolver import DomainResolver
 
 
 def determine_source_tier(url: Optional[str], canonical_domain: Optional[str] = None) -> SourceTier:
@@ -17,6 +19,9 @@ def determine_source_tier(url: Optional[str], canonical_domain: Optional[str] = 
         return SourceTier.OFFICIAL_EMPLOYER
     if host.endswith(('.gov', '.gov.in', '.nic.in')):
         return SourceTier.GOVERNMENT
+    # Hosted ATS platforms are established third parties, never labeled OFFICIAL_EMPLOYER
+    if DomainResolver.is_hosted_careers_platform(host):
+        return SourceTier.ESTABLISHED_THIRD_PARTY
     for domain in ('linkedin.com', 'naukri.com', 'glassdoor.com', 'glassdoor.co.in', 'ambitionbox.com',
                    'indeed.com', 'foundit.in', 'shine.com', 'economictimes.indiatimes.com', 'livemint.com', 'moneycontrol.com'):
         if host == domain or host.endswith('.' + domain):
@@ -32,15 +37,15 @@ class EvidenceAdapter:
         self.demo_mode = demo_mode
 
     def adapt_evidence(self, claims, findings, recording_client, scam_assessments,
-                       canonical_employer_domain=None):
-        records = []
+                       canonical_employer_domain=None, corroboration_result=None):
+        records: List[EvidenceRecord] = []
         seen = set()
         by_kind = {c.kind: c for c in claims}
 
         def add(claim, meta=None, quote=None, title='', relation=EvidenceRelation.CONTEXT):
             if not claim or not claim.value:
                 return
-            if meta and meta['retrieval_status'] == RetrievalStatus.DEMO and not self.demo_mode:
+            if meta and meta.get('retrieval_status') == RetrievalStatus.DEMO and not self.demo_mode:
                 return
             url = meta['source_url'] if meta else None
             if url and (urlparse(url).scheme not in ('http', 'https') or urlparse(url).username
@@ -52,15 +57,21 @@ class EvidenceAdapter:
             if key in seen:
                 return
             seen.add(key)
-            record = EvidenceRecord(evidence_id=f'e{len(records)+1}', claim_id=claim.claim_id,
+            record = EvidenceRecord(
+                evidence_id=f'e{len(records)+1}',
+                claim_id=claim.claim_id,
                 source_kind=SourceKind.SEARCH_SNIPPET if meta else SourceKind.DOCUMENT,
-                source_url=url, title=title, quote_or_snippet=quote,
+                source_url=url,
+                title=title,
+                quote_or_snippet=quote,
                 retrieved_at=meta['retrieved_at'] if meta else datetime.now(timezone.utc),
-                query=meta['query'] if meta else None, engine=meta['engine'] if meta else None,
+                query=meta.get('query') if meta else None,
+                engine=meta.get('engine') if meta else None,
                 search_id=meta.get('search_id') if meta else None,
-                retrieval_status=meta['retrieval_status'] if meta else RetrievalStatus.LIVE,
+                retrieval_status=meta.get('retrieval_status') if meta else RetrievalStatus.LIVE,
                 source_tier=determine_source_tier(url, canonical_employer_domain) if meta else SourceTier.OFFER_DOCUMENT,
-                relation=relation)
+                relation=relation,
+            )
             records.append(record)
             if meta:
                 call = meta.get('call')
@@ -73,7 +84,8 @@ class EvidenceAdapter:
                     for m in entries if m.get('step') == step
                     or (step == 'resolve_employer_domain' and m.get('step') == 'adaptive_employer_context')
                     or (step == 'check_recruiter_contact' and m.get('step') in ('resolve_employer_domain', 'adaptive_employer_context', 'adaptive_agency_authorization', 'adaptive_recruiter_affiliation'))
-                    or (step == 'check_scam_signals' and m.get('step') in ('adaptive_recruitment_fee_policy', 'check_scam_signals'))]
+                    or (step == 'check_scam_signals' and m.get('step') in ('adaptive_recruitment_fee_policy', 'check_scam_signals'))
+                    or (step in ('corroborate_job_role', 'corroborate_job_reference', 'discover_confirmation_contact') or m.get('step') in ('adaptive_job_role_corroboration', 'adaptive_job_reference_corroboration', 'adaptive_confirmation_route_discovery'))]
 
         company = findings.get('CompanyAgent')
         if company:
@@ -96,8 +108,6 @@ class EvidenceAdapter:
                         claim = by_kind.get(kind)
                         if not claim or not claim.value or claim.value.lower() not in text:
                             continue
-                        # A claim is not contradicted by mere mention of "scam"
-                        # or by the absence of a complaint.
                         relation = EvidenceRelation.CONTEXT
                         if strong_affiliation and item.source_url in affiliation_urls and determine_source_tier(item.source_url, canonical_employer_domain) == SourceTier.OFFICIAL_EMPLOYER:
                             relation = EvidenceRelation.SUPPORTS
@@ -131,6 +141,71 @@ class EvidenceAdapter:
             for item in salary.evidence:
                 for meta in provenance(item.source_url, 'check_compensation_benchmark'):
                     add(by_kind.get(ClaimKind.COMPENSATION), meta)
+
+        # Adapt Corroboration Observations (Task 12)
+        if corroboration_result and corroboration_result.observations:
+            for claim_id, obs in corroboration_result.observations.items():
+                claim = next((c for c in claims if c.claim_id == claim_id), None)
+                if not claim or not claim.value:
+                    continue
+                for ev_item in obs.evidence_items:
+                    if isinstance(ev_item, dict):
+                        url = ev_item.get("source_url")
+                        title = ev_item.get("title")
+                        desc = ev_item.get("description", "")
+                        rel = ev_item.get("relation")
+                    else:
+                        url = getattr(ev_item, "source_url", None)
+                        title = getattr(ev_item, "title", None)
+                        desc = getattr(ev_item, "description", "")
+                        rel = getattr(ev_item, "relation", None)
+
+                    if rel is None:
+                        if obs.status == ClaimStatus.SUPPORTED:
+                            rel = EvidenceRelation.SUPPORTS
+                        elif obs.status == ClaimStatus.CONTRADICTED:
+                            rel = EvidenceRelation.CONTRADICTS
+                        else:
+                            rel = EvidenceRelation.CONTEXT
+
+                    matching_metas = [
+                        m for key, entries in recording_client.snippets_by_url.items()
+                        if canonicalize_url(key) == canonicalize_url(url)
+                        for m in entries
+                    ] if url else []
+                    if matching_metas:
+                        for meta in matching_metas:
+                            add(claim, meta=meta, title=title, quote=desc, relation=rel)
+                    else:
+                        item_title = title or "Hiring record observation"
+                        add(claim, quote=desc, title=item_title, relation=rel)
+
+        # Resolve confirmation route evidence ID to actual EvidenceRecord
+        if corroboration_result and corroboration_result.confirmation_route:
+            ev_target = corroboration_result.confirmation_route.evidence_id
+            matching_rec = next(
+                (r for r in records if r.source_url and canonicalize_url(r.source_url) == canonicalize_url(ev_target)),
+                None,
+            )
+            if not matching_rec and ev_target:
+                # Check if ev_target was recorded in snippets_by_url
+                for key, entries in recording_client.snippets_by_url.items():
+                    if canonicalize_url(key) == canonicalize_url(ev_target):
+                        for m in entries:
+                            emp_claim = by_kind.get(ClaimKind.EMPLOYER)
+                            if emp_claim:
+                                add(emp_claim, meta=m, relation=EvidenceRelation.CONTEXT)
+                        break
+                matching_rec = next(
+                    (r for r in records if r.source_url and canonicalize_url(r.source_url) == canonicalize_url(ev_target)),
+                    None,
+                )
+
+            if matching_rec and (matching_rec.retrieval_status != RetrievalStatus.DEMO or self.demo_mode) and matching_rec.retrieval_status != RetrievalStatus.FAILED:
+                corroboration_result.confirmation_route.evidence_id = matching_rec.evidence_id
+            else:
+                corroboration_result.confirmation_route = None
+
         # A failed search is retained as context with its recorded provenance.
         for failure in recording_client.failed_searches:
             kind = ClaimKind.EMPLOYER if failure['step'] == 'resolve_employer_domain' else ClaimKind.COMPENSATION if failure['step'] == 'check_compensation_benchmark' else None

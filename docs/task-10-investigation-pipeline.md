@@ -42,7 +42,7 @@ Only recruiter/sender semantic contacts feed recruiter checks. Extraction uncert
 - Failed retrievals are CONTEXT only, with actual query/time/engine and no URL. DEMO is never relabelled LIVE.
 - Employer footprint support does not authenticate an offer. Recruiter support requires attributable employer-published affiliation evidence; mentions of words such as scam or matches do not independently establish a relation.
 - Grounded document demands use DOCUMENT/OFFER_DOCUMENT, null URLs and SUPPORTS for the presence of the demand. This does not support legitimacy. Generic external warnings are not invented employer no-fee policies.
-- Role, location, reference and application corroboration remain NOT_CHECKED until targeted checks exist. Empty search results do not prove falsehood.
+- Role, location, reference and application corroboration are implemented in Task 12 (see docs/task-12-job-and-confirmation.md) using JobCorroborationService, replacing the unconditional CORROBORATION_DEFERRED branch for executed checks. Empty search results do not prove falsehood.
 - Salary snippets/fixed bands are context, not comparable pay evidence. A legacy VERIFIED salary finding is conservatively adapted to CANNOT_VERIFY in this pipeline; shared agent and assessment algorithms are unchanged.
 - Every returned claim receives one assessment. UNCONFIRMED authenticity remains mandatory.
 

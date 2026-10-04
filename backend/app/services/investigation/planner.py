@@ -1,5 +1,5 @@
 """
-Deterministic adaptive investigation planner for AsliOffer (Task 11).
+Deterministic adaptive investigation planner for AsliOffer (Task 11 & Task 12).
 
 Examines unresolved or conflicting findings from initial checks and generates
 targeted, prioritized follow-up search steps with explicit rationale.
@@ -7,22 +7,24 @@ targeted, prioritized follow-up search steps with explicit rationale.
 from dataclasses import dataclass
 import re
 from typing import Any, Dict, List, Optional, Set
+from urllib.parse import urlparse
 
 from app.schemas.contract import CaseInput, Claim, ClaimKind, ExtractionStatus
 from app.schemas.analysis import AgentFinding
 from app.services.investigation.claim_builder import is_redaction_placeholder
 from app.services.agents.recruiter_agent import GENERIC_TITLES, FREE_EMAIL_DOMAINS
+from app.services.investigation.corroborator import is_public_job_reference
 
 
 @dataclass
 class PlanStep:
     """A single deterministic adaptive follow-up search step."""
     target_claim_id: str
-    strategy: str  # "EMPLOYER_CONTEXT", "AGENCY_AUTHORIZATION", "RECRUITER_AFFILIATION", "RECRUITMENT_FEE_POLICY"
+    strategy: str  # "EMPLOYER_CONTEXT", "AGENCY_AUTHORIZATION", "RECRUITER_AFFILIATION", "RECRUITMENT_FEE_POLICY", "JOB_ROLE_CORROBORATION", "JOB_REFERENCE_CORROBORATION", "CONFIRMATION_ROUTE_DISCOVERY"
     trigger: str
     query: str
     information_gain: str
-    priority: int  # 1 = highest, 4 = lowest
+    priority: int  # 1 = highest, 6 = lowest
     stop_condition: str
     rationale: str  # Specific explanation recorded in tool trace and events
 
@@ -39,6 +41,7 @@ class InvestigationPlanner:
         executed_queries: Set[str],
         canonical_domain: Optional[str] = None,
         case_input: Optional[CaseInput] = None,
+        careers_url: Optional[str] = None,
     ) -> List[PlanStep]:
         """
         Generates candidate follow-up steps ordered by priority.
@@ -68,6 +71,7 @@ class InvestigationPlanner:
         role_claim = claim_map.get(ClaimKind.ROLE)
         loc_claim = claim_map.get(ClaimKind.LOCATION)
         pay_claim = claim_map.get(ClaimKind.PAYMENT_REQUEST)
+        ref_claim = claim_map.get(ClaimKind.JOB_REFERENCE)
 
         company_name = (
             emp_claim.value.strip()
@@ -209,6 +213,83 @@ class InvestigationPlanner:
                     )
                 )
 
-        # Sort steps strictly by priority (1 to 4)
+        # --------------------------------------------------------------------
+        # Determine Careers Scope for Strategies E, F, G
+        # --------------------------------------------------------------------
+        scope = None
+        if careers_url:
+            p_careers = urlparse(careers_url)
+            if p_careers.netloc:
+                scope = p_careers.netloc.lower()
+                if scope.startswith("www."):
+                    scope = scope[4:]
+        if not scope and canonical_domain:
+            scope = canonical_domain
+
+        # --------------------------------------------------------------------
+        # Strategy E: Job Role Corroboration (Priority 5)
+        # --------------------------------------------------------------------
+        # Bounded query scoping claimed role to established employer/careers sources
+        if company_name and usable(role_claim) and (canonical_domain or careers_url):
+            role_val = role_claim.value.strip()
+            candidate_query = f'site:{scope} "{role_val}"' if scope else f'"{company_name}" "{role_val}" official careers'
+            if candidate_query.lower() not in executed_queries:
+                plan.append(
+                    PlanStep(
+                        target_claim_id=role_claim.claim_id,
+                        strategy="JOB_ROLE_CORROBORATION",
+                        trigger="Role claimed in offer document; corroborating vacancy existence on established employer careers sources.",
+                        query=candidate_query,
+                        information_gain="Corroborates public vacancy existence, title alignment, and role location.",
+                        priority=5,
+                        stop_condition="Stop if matching vacancy is corroborated on employer careers sources or query yields no matches.",
+                        rationale="Checking the claimed role against established employer careers sources.",
+                    )
+                )
+
+        # --------------------------------------------------------------------
+        # Strategy F: Public Job Reference Corroboration (Priority 5)
+        # --------------------------------------------------------------------
+        # Safe public requisition code check; strictly abstains from private candidate references
+        if company_name and usable(ref_claim) and (canonical_domain or careers_url):
+            is_pub, _ = is_public_job_reference(ref_claim.value)
+            if is_pub:
+                ref_val = ref_claim.value.strip()
+                candidate_query = f'site:{scope} "{ref_val}"' if scope else f'"{company_name}" "{ref_val}" job requisition'
+                if candidate_query.lower() not in executed_queries:
+                    plan.append(
+                        PlanStep(
+                            target_claim_id=ref_claim.claim_id,
+                            strategy="JOB_REFERENCE_CORROBORATION",
+                            trigger="Public job requisition reference detected; checking against public hiring records.",
+                            query=candidate_query,
+                            information_gain="Corroborates exact public vacancy requisition code.",
+                            priority=5,
+                            stop_condition="Stop if requisition code matches public vacancy or query yields zero matches.",
+                            rationale=f"Checking public requisition reference '{ref_val}' against public hiring records for '{company_name}'.",
+                        )
+                    )
+
+        # --------------------------------------------------------------------
+        # Strategy G: Confirmation Route Discovery (Priority 6)
+        # --------------------------------------------------------------------
+        # Looks for employer-published offer verification guidance or careers contact
+        if company_name and (canonical_domain or careers_url) and (usable(role_claim) or usable(ref_claim)):
+            candidate_query = f'"{company_name}" recruitment verification contact site:{canonical_domain}' if canonical_domain else f'"{company_name}" careers offer verification contact'
+            if candidate_query.lower() not in executed_queries:
+                plan.append(
+                    PlanStep(
+                        target_claim_id=emp_claim.claim_id if emp_claim else "c1",
+                        strategy="CONFIRMATION_ROUTE_DISCOVERY",
+                        trigger="Checking for employer-published offer verification channel or careers contact guidance.",
+                        query=candidate_query,
+                        information_gain="Identifies official HR/careers verification channels to confirm offer issuance.",
+                        priority=6,
+                        stop_condition="Stop if official verification route is discovered or query yields no published contacts.",
+                        rationale="Looking for employer-published guidance for confirming offer issuance.",
+                    )
+                )
+
+        # Sort steps strictly by priority (1 to 6)
         plan.sort(key=lambda s: s.priority)
         return plan

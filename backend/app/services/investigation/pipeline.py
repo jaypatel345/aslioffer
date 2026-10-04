@@ -20,6 +20,7 @@ from app.schemas.contract import (
     RunEvent,
     SourceTier,
     ClaimKind,
+    ClaimStatus,
     ExtractionStatus,
     CONTRACT_VERSION,
 )
@@ -38,6 +39,7 @@ from app.services.investigation.events import EventEmitter
 from app.services.investigation.evidence_adapter import EvidenceAdapter
 from app.services.investigation.planner import InvestigationPlanner, PlanStep
 from app.services.investigation.recording_search import RecordingSearchClient
+from app.services.investigation.corroborator import JobCorroborationService
 from app.services.search.serpapi_client import SearchResult
 from app.services.search.domain_resolver import DomainResolver, DomainResolutionState
 from app.core.logging import logger
@@ -303,6 +305,7 @@ async def investigate_case(
             executed_queries=executed_queries,
             canonical_domain=canonical_domain,
             case_input=case_input,
+            careers_url=careers_url,
         )
 
     if not plan_steps:
@@ -392,7 +395,7 @@ async def investigate_case(
                     current_findings["CompanyAgent"] = finding_comp
                     current_findings["RecruiterAgent"] = finding_rec
                     plan_steps = planner.create_plan(claims, current_findings, attempted_queries,
-                                                     canonical_domain, case_input)
+                                                     canonical_domain, case_input, careers_url)
 
             elif step.strategy == "AGENCY_AUTHORIZATION" and finding_rec:
                 agency_name = (
@@ -487,6 +490,16 @@ async def investigate_case(
     structured_assessment = assessment_engine.assess(active_findings)
     overall_outcome = structured_assessment.overall_outcome
 
+    # 4.5 Corroborate Job and Application Claims (Task 12)
+    corroborator = JobCorroborationService(demo_mode=case_input.demo_mode)
+    corroboration_res = corroborator.corroborate(
+        claims=claims,
+        findings=current_findings,
+        recording_client=recording_client,
+        canonical_domain=canonical_domain,
+        careers_url=careers_url,
+    )
+
     # 5. Adapt Evidence
     findings_map = {
         "CompanyAgent": finding_comp,
@@ -501,6 +514,7 @@ async def investigate_case(
         recording_client=recording_client,
         scam_assessments=scam_assessments,
         canonical_employer_domain=canonical_domain,
+        corroboration_result=corroboration_res,
     )
 
     # 6. Assess Claims
@@ -512,6 +526,7 @@ async def investigate_case(
         scam_assessments=scam_assessments,
         canonical_employer_domain=canonical_domain,
         provider_outage=provider_outage,
+        corroboration_result=corroboration_res,
     )
 
     # 7. Grounded Recommended Actions
@@ -531,6 +546,28 @@ async def investigate_case(
         actions.insert(0, f"No strong risk signals were found, but only {company_name or 'the employer'} can confirm this offer.")
         actions.append("Confirm offer issuance independently before accepting; do not rely solely on an emailed link.")
 
+    # 8. Confirmation Route (Task 12)
+    confirmation_route: Optional[ConfirmationRoute] = corroboration_res.confirmation_route
+
+    # Task 12 distinctions for Recommended Actions:
+    # 1. Job vacancy corroboration
+    has_role_supported = any(a.status == ClaimStatus.SUPPORTED and next((c.kind for c in claims if c.claim_id == a.claim_id), None) in (ClaimKind.ROLE, ClaimKind.JOB_REFERENCE) for a in assessed_claims)
+    has_role_unresolved = any(a.status == ClaimStatus.UNRESOLVED and next((c.kind for c in claims if c.claim_id == a.claim_id), None) == ClaimKind.ROLE for a in assessed_claims)
+    if has_role_supported:
+        actions.append("Matching public vacancy records were found, but a public listing does not authenticate individual offer issuance; confirm directly with the employer.")
+    elif has_role_unresolved:
+        actions.append("No matching public vacancy record was corroborated; verify role opening directly through official employer channels.")
+
+    # 2. Confirmation route
+    if confirmation_route:
+        actions.append(f"Use the independently verified {confirmation_route.channel.replace('_', ' ')} ({confirmation_route.destination}) to confirm whether this offer was formally issued.")
+    else:
+        actions.append("No independently sourced offer-confirmation channel was identified; contact the employer via official published directory or registry contacts.")
+
+    # 3. Budget / provider limitation
+    if any(e.code in ("INVESTIGATION_BUDGET_EXCEEDED", "INVESTIGATION_DEADLINE_EXCEEDED") for e in errors) or provider_outage:
+        actions.append("Investigation search budget or deadline limits were reached before all checks completed; independently confirm remaining details.")
+
     # Deduplicate actions preserving order
     deduped_actions: List[str] = []
     seen_act = set()
@@ -538,20 +575,6 @@ async def investigate_case(
         if a not in seen_act:
             seen_act.add(a)
             deduped_actions.append(a)
-
-    # 8. Confirmation Route
-    # Only if independently sourced, employer-published channel exists in evidence
-    confirmation_route: Optional[ConfirmationRoute] = None
-    if careers_url and canonical_domain:
-        from urllib.parse import urlparse
-        from app.services.risk.assessment_engine import canonicalize_url
-        matching_ev = next((e for e in evidence_records
-            if e.source_tier == SourceTier.OFFICIAL_EMPLOYER
-            and e.retrieval_status.value in ("LIVE", "CACHED")
-            and e.source_url and canonicalize_url(e.source_url) == canonicalize_url(careers_url)), None)
-        if matching_ev and urlparse(careers_url).scheme in ("https", "http"):
-            confirmation_route = ConfirmationRoute(channel="careers_portal", destination=careers_url,
-                                                    evidence_id=matching_ev.evidence_id)
 
     # 9. Tool Trace
     tool_trace = recording_client.tool_calls
@@ -567,6 +590,11 @@ async def investigate_case(
                     ClaimKind.CREDENTIAL_REQUEST: "ScamAgent"}
     for claim in claims:
         if not claim.value or is_redaction_placeholder(claim.value) or claim.extraction_status == ExtractionStatus.UNCERTAIN:
+            continue
+        if claim.kind in (ClaimKind.ROLE, ClaimKind.LOCATION, ClaimKind.JOB_REFERENCE, ClaimKind.APPLICATION_URL):
+            ass = next((a for a in assessed_claims if a.claim_id == claim.claim_id), None)
+            if ass and ass.status != ClaimStatus.NOT_CHECKED:
+                checked_claim_ids.add(claim.claim_id)
             continue
         finding = findings_map.get(claim_agents.get(claim.kind))
         if not finding:
