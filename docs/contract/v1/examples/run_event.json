@@ -1,0 +1,8 @@
+{
+  "run_id": "run_01J9X2IMPERSONATION",
+  "sequence": 2,
+  "step": "follow_up_sender_conflict",
+  "status": "STARTED",
+  "public_message": "Sender address doesn't match the employer's domain — checking the employer's recruitment policy.",
+  "timestamp": "2026-10-04T06:01:13Z"
+}
