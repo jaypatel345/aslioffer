@@ -13,3 +13,6 @@ pytest-asyncio>=0.23.0
 # Offline domain resolution with the bundled Public Suffix List snapshot.
 tldextract>=5.3,<6
 idna>=3.7,<4
+
+# Local PDF text extraction; documents are not automatically sent to vision APIs.
+pypdf>=5,<7

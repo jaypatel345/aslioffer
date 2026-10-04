@@ -8,11 +8,11 @@ Extraction identifies **document claims**, not verified facts.
 
 ### Exposed Service Methods
 
-In [`EntityExtractor`](file:///c:/Users/dyara/aslioffer/backend/app/services/extractor/entity_extractor.py):
+In [`EntityExtractor`](../backend/app/services/extractor/entity_extractor.py):
 
 1. **`extract_claims(text: str, source_type: str = "text") -> ExtractionResult`**:
    - Primary Task 7 entry point.
-   - Returns a validated [`ExtractionResult`](file:///c:/Users/dyara/aslioffer/backend/app/services/extractor/claim_models.py) complying with contract v1.0.1.
+   - Returns a validated [`ExtractionResult`](../backend/app/services/extractor/claim_models.py) complying with contract v1.0.1.
    - Performs secret sanitization, exact Unicode span offset verification, contextual employer/agency separation, contact role attribution, base unit compensation parsing, and explicit ambiguity recording.
 
 2. **`extract_regex(text: str) -> ExtractedData`**:
@@ -23,7 +23,7 @@ In [`EntityExtractor`](file:///c:/Users/dyara/aslioffer/backend/app/services/ext
    - Synchronous legacy wrapper returning `ExtractedEntities` for existing callers.
 
 4. **`async extract_entities(text: str) -> ExtractedData`**:
-   - Model-assisted extraction path with automated deterministic fallback on error, timeout, or model hallucination (e.g., if Gemini invents an employer name absent from the document).
+   - Uses `extract_claims_async()` and the same grounded legacy adapter as deterministic extraction. Model proposals cannot override contacts, compensation, URLs or other unsupported facts; rejection/failure warnings are available on the claim result.
 
 5. **`async extract_from_document(file_bytes: bytes, mime_type: str) -> Dict[str, Any]`**:
    - Privacy-preserving document extractor.
@@ -34,7 +34,7 @@ In [`EntityExtractor`](file:///c:/Users/dyara/aslioffer/backend/app/services/ext
 
 ## 2. Result Structure (Contract v1.0.1)
 
-The service result is modeled by [`ExtractionResult`](file:///c:/Users/dyara/aslioffer/backend/app/services/extractor/claim_models.py):
+The service result is modeled by [`ExtractionResult`](../backend/app/services/extractor/claim_models.py):
 
 ```python
 class ExtractionResult(BaseModel):
@@ -42,7 +42,7 @@ class ExtractionResult(BaseModel):
     source_type: str  # text, email, pdf, screenshot
     extraction_method: str  # regex, deterministic_contextual, hybrid, etc.
     sanitized_source_buffer: str  # sanitized text buffer with redacted secrets
-    raw_text: Optional[str] = None
+    raw_text: Optional[str] = None  # Unredacted input is never returned
     ocr_text: Optional[str] = None
     redacted_text: Optional[str] = None
     claims: List[Claim] = Field(default_factory=list)
@@ -50,7 +50,7 @@ class ExtractionResult(BaseModel):
     warnings: List[ExtractionWarning] = Field(default_factory=list)
 ```
 
-Each [`Claim`](file:///c:/Users/dyara/aslioffer/backend/app/services/extractor/claim_models.py) contains:
+Each [`Claim`](../backend/app/services/extractor/claim_models.py) contains:
 - `claim_id`: Unique stable identifier (e.g. `CLM-01-01`).
 - `kind`: Standardized claim kind (e.g. `claimed_employer`, `sender_recruiter`, `candidate_contact`, `compensation`, `meeting_platform`, etc.).
 - `value`: Grounded claim value.
@@ -75,7 +75,7 @@ Each [`Claim`](file:///c:/Users/dyara/aslioffer/backend/app/services/extractor/c
    - Emails without sender or candidate cues (e.g. `"For inquiries, contact support@thirdparty.org"`) remain `contact` with `semantic_role="unknown"`.
    - Never arbitrarily promoted to recruiter.
 4. **Multiple Recruiter Candidates**:
-   - When multiple candidate addresses exist (e.g. `"Reply to hr1@corp.com or hr2@corp.com"`), both are marked `ambiguous` and an [`UnresolvedAmbiguity`](file:///c:/Users/dyara/aslioffer/backend/app/services/extractor/claim_models.py) is recorded.
+   - When multiple candidate addresses exist (e.g. `"Reply to hr1@corp.com or hr2@corp.com"`), both are marked `ambiguous` and an [`UnresolvedAmbiguity`](../backend/app/services/extractor/claim_models.py) is recorded.
 
 ### Contextual Employer & Agency Attribution
 1. **Meeting Tools vs Real Employers**:
@@ -157,6 +157,38 @@ The following items are outside Task 7 scope and owned by Jay:
 ## 8. Known Limitations
 
 1. **Scanned Images Without Vision Credentials**:
-   - Raster images (PNG, JPG) without embedded text require Groq or Gemini vision credentials; if neither API key is set, the document cannot be locally OCR'd unless Tesseract is installed on the host.
+   - Raster images and scanned PDFs without locally readable text are not sent automatically to vision providers; the service returns LOCAL_READING_UNAVAILABLE until local OCR or a separately disclosed consent flow is implemented. API keys alone do not authorize binary transmission.
 2. **Complex Multi-Party Contracts**:
    - Documents with deeply nested subcontracting networks without standard grammatical cues (`"on behalf of"`, `"client"`, `"recruiting for"`) may flag multiple employers as ambiguous rather than discerning client hierarchy.
+
+
+## 9. Review cleanup (base a7c87cf)
+
+- Both model and deterministic legacy paths use the grounded claim adapter.
+  Unaccepted model proposals never bypass role/provenance validation. The current
+  implementation is conservative: model output does not expand deterministic
+  extraction coverage. Async claim results retain sanitized failure/rejection warnings.
+- Extraction results omit raw input, mask attributed candidate email/phone contacts
+  and recognizable labelled PAN/Aadhaar values, and reference redacted_text spans.
+  Repeated quotes retain quote-only provenance. Unknown contact roles remain
+  unresolved; the redactor cannot identify arbitrary unlabelled sensitive strings.
+- Multiple employer/recruiter choices remain null in legacy adapters. Repeated
+  identical recruiter contacts are not treated as distinct candidates.
+- Corrections validate target fields and timezone-bearing ISO timestamps. Their
+  effective values reach legacy adapters; original claims and resolved ambiguity
+  records remain preserved in the correction's audit attributes.
+- Dollar symbols do not imply INR. Explicit USD/EUR/GBP remain their stated
+  currency. Explicit monthly/annual stipend/CTC periods are retained; lakh alone
+  is a magnitude, not an annual period. Legacy numeric salary conventions remain
+  unchanged behind the adapter.
+- An arbitrary URL is not automatically a claimed official website. Tool hosts
+  are parsed rather than inferred from URL substrings. Malformed URLs produce warnings.
+- pypdf is an explicit dependency. Short readable PDFs are accepted. Unsupported
+  or unreadable local documents return an actionable refusal without calling
+  external vision providers, even when credentials are configured.
+
+Jay-owned integration still includes upload_offer/get_offer raw-content storage
+ and exposure, full claim persistence/public schemas, agency propagation, and
+correction UI. This service cleanup does not establish end-to-end API privacy.
+Image/scanned-PDF reading needs local OCR or a future explicit consent flow;
+users can paste redacted text meanwhile.

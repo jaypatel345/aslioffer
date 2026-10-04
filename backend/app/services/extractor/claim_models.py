@@ -9,7 +9,7 @@ and secret-safe redaction.
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, List, Optional, Union
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.schemas.analysis import ExtractedData, ExtractedEntities
 
@@ -56,13 +56,14 @@ class SourceSpan(BaseModel):
 
 
 class Claim(BaseModel):
+    model_config = ConfigDict(validate_assignment=True)
     claim_id: str = Field(..., description="Unique claim identifier, e.g. CLM-01-01")
-    kind: str = Field(..., description="Semantic claim category")
+    kind: ClaimKind = Field(..., description="Semantic claim category")
     value: Optional[Any] = Field(None, description="Extracted claim value; null only when absent")
     source_quote: Optional[str] = Field(None, description="Exact substring of the identified sanitized buffer")
     source_span: Optional[SourceSpan] = Field(None, description="Verified offset coordinates within the buffer")
-    extraction_status: str = Field(ExtractionStatus.EXTRACTED.value, description="Extraction state")
-    confidence_tier: Optional[str] = Field(ConfidenceTier.HIGH.value, description="Extraction clarity tier (not fraud probability)")
+    extraction_status: ExtractionStatus = Field(ExtractionStatus.EXTRACTED.value, description="Extraction state")
+    confidence_tier: Optional[ConfidenceTier] = Field(ConfidenceTier.HIGH.value, description="Extraction clarity tier (not fraud probability)")
     attributes: Dict[str, Any] = Field(default_factory=dict, description="Kind-specific claim attributes")
 
 
@@ -88,6 +89,28 @@ class ExtractionResult(BaseModel):
     claims: List[Claim] = Field(default_factory=list, description="Extracted claims")
     unresolved_ambiguities: List[UnresolvedAmbiguity] = Field(default_factory=list, description="Unresolved ambiguities")
     warnings: List[ExtractionWarning] = Field(default_factory=list, description="Sanitized extraction warnings")
+
+    @model_validator(mode="after")
+    def validate_provenance(self):
+        if self.raw_text is not None:
+            raise ValueError("Raw input must not be retained in extraction results")
+        ids = [c.claim_id for c in self.claims]
+        if len(ids) != len(set(ids)):
+            raise ValueError("Claim IDs must be unique")
+        for claim in self.claims:
+            if claim.source_quote and claim.source_quote not in self.sanitized_source_buffer:
+                raise ValueError("Quote is not grounded in the sanitized buffer")
+            span = claim.source_span
+            if span:
+                start, end = span.start_offset, span.end_offset
+                if (start is None or end is None or start < 0 or end <= start
+                    or end > len(self.sanitized_source_buffer)
+                    or span.target_text != "redacted_text"
+                    or self.sanitized_source_buffer[start:end] != claim.source_quote):
+                    raise ValueError("Invalid source span")
+        if any(a.claim_id not in ids for a in self.unresolved_ambiguities):
+            raise ValueError("Ambiguity target does not exist")
+        return self
 
     def to_dict(self) -> Dict[str, Any]:
         """Serializes result into contract-compliant dictionary."""
@@ -137,9 +160,22 @@ class ExtractionResult(BaseModel):
             raise ValueError("Cannot target a user_correction claim with another correction")
 
         corr_id = f"CLM-99-{len(self.claims) + 1:02d}"
+        if corrected_field != "value" and corrected_field not in target.attributes:
+            raise ValueError("Correction field is not an attribute of the target")
         ts = timestamp or datetime.now(timezone.utc).isoformat()
-        if not ts.endswith("Z") and "+" not in ts:
-            ts += "Z"
+        parsed_ts = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+        if parsed_ts.tzinfo is None:
+            raise ValueError("Correction timestamp must include a timezone")
+        from app.services.agents.scam_classifier import sanitize_and_redact_secrets
+        def sanitize_value(value):
+            if isinstance(value, str):
+                return sanitize_and_redact_secrets(value)
+            if isinstance(value, list):
+                return [sanitize_value(v) for v in value]
+            if isinstance(value, dict):
+                return {sanitize_value(k): sanitize_value(v) for k, v in value.items()}
+            return value
+        corrected_value = sanitize_value(corrected_value)
 
         corr_claim = Claim(
             claim_id=corr_id,
@@ -153,6 +189,7 @@ class ExtractionResult(BaseModel):
                 "target_claim_id": target_claim_id,
                 "corrected_field": corrected_field,
                 "corrected_value": corrected_value,
+                "resolved_ambiguities": [u.model_dump() for u in self.unresolved_ambiguities if u.claim_id == target_claim_id and u.field == corrected_field],
                 "attribution": {
                     "source": "user_interactive_confirmation",
                     "timestamp": ts,
@@ -175,17 +212,20 @@ class ExtractionResult(BaseModel):
         Adapter converting claim-based extraction result into legacy ExtractedData
         while strictly preserving Task 3-6 investigation behaviors.
         """
+        effective_claims = self.get_effective_claims()
         # 1. Employer
-        employer_claims = [c for c in self.claims if c.kind == ClaimKind.CLAIMED_EMPLOYER.value and c.value]
-        company = employer_claims[0].value if employer_claims else None
+        employer_claims = [c for c in effective_claims if c.kind == ClaimKind.CLAIMED_EMPLOYER.value and c.value]
+        company = employer_claims[0].value if len(employer_claims) == 1 and employer_claims[0].extraction_status != "ambiguous" else None
 
         # 2. Recruiter
-        recruiter_claims = [c for c in self.claims if c.kind == ClaimKind.SENDER_RECRUITER.value and c.value]
+        recruiter_claims = [c for c in effective_claims if c.kind == ClaimKind.SENDER_RECRUITER.value and c.value]
         recruiter_email = None
         recruiter_phone = None
         recruiter_name = None
 
         for rc in recruiter_claims:
+            if rc.extraction_status == "ambiguous":
+                continue
             ch = rc.attributes.get("channel")
             if ch == "email" and not recruiter_email:
                 recruiter_email = str(rc.value)
@@ -196,8 +236,8 @@ class ExtractionResult(BaseModel):
 
         # Check explicit contact claims if sender_recruiter wasn't found
         if not recruiter_email or not recruiter_phone:
-            for cc in self.claims:
-                if cc.kind == ClaimKind.CONTACT.value:
+            for cc in effective_claims:
+                if cc.kind == ClaimKind.CONTACT.value and cc.extraction_status != "ambiguous":
                     ch = cc.attributes.get("channel")
                     role = cc.attributes.get("semantic_role")
                     if role in ("recruiter_contact", "sender_contact"):
@@ -207,11 +247,11 @@ class ExtractionResult(BaseModel):
                             recruiter_phone = str(cc.value)
 
         # 3. Job Role
-        role_claims = [c for c in self.claims if c.kind == ClaimKind.JOB_ROLE.value and c.value]
+        role_claims = [c for c in effective_claims if c.kind == ClaimKind.JOB_ROLE.value and c.value]
         job_role = role_claims[0].value if role_claims else None
 
         # 4. Compensation
-        comp_claims = [c for c in self.claims if c.kind == ClaimKind.COMPENSATION.value and c.value]
+        comp_claims = [c for c in effective_claims if c.kind == ClaimKind.COMPENSATION.value and c.value]
         salary_str = None
         salary_amount = None
         salary_period = None
@@ -235,19 +275,19 @@ class ExtractionResult(BaseModel):
                 salary_period = None
 
         # 5. Dates & Location
-        date_claims = [c for c in self.claims if c.kind == ClaimKind.JOINING_DATE.value and c.value]
+        date_claims = [c for c in effective_claims if c.kind == ClaimKind.JOINING_DATE.value and c.value]
         joining_date = date_claims[0].value if date_claims else None
 
-        loc_claims = [c for c in self.claims if c.kind == ClaimKind.LOCATION.value and c.value]
+        loc_claims = [c for c in effective_claims if c.kind == ClaimKind.LOCATION.value and c.value]
         address = loc_claims[0].value if loc_claims else None
 
         # 6. Official Website
-        web_claims = [c for c in self.claims if c.kind == ClaimKind.OFFICIAL_DOMAIN_REFERENCE.value and c.value]
+        web_claims = [c for c in effective_claims if c.kind == ClaimKind.OFFICIAL_DOMAIN_REFERENCE.value and c.value]
         website = web_claims[0].value if web_claims else None
 
         # 7. Payment requests (active demands)
         active_payment_claims = [
-            c for c in self.claims
+            c for c in effective_claims
             if c.kind == ClaimKind.PAYMENT_REQUEST.value
             and c.attributes.get("is_active_demand") is True
         ]
@@ -282,8 +322,6 @@ class ExtractionResult(BaseModel):
                 flags.append("PUBLIC_EMAIL_DOMAIN_USED")
 
         buffer_text = self.sanitized_source_buffer or self.raw_text or ""
-        if "telegram" in buffer_text.lower():
-            flags.append("TELEGRAM_CONTACT_SUSPICIOUS")
 
         return ExtractedData(
             company=company,

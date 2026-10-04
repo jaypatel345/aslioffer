@@ -43,7 +43,8 @@ def test_contact_roles_candidate_first(parser):
     )
     result = parser.parse(text)
 
-    cand_claim = next(c for c in result.claims if c.value == "candidate.john@gmail.com")
+    cand_claim = next(c for c in result.claims if c.kind == ClaimKind.CANDIDATE_CONTACT.value)
+    assert cand_claim.value == "[REDACTED_CANDIDATE_EMAIL]"
     rec_claim = next(c for c in result.claims if c.value == "talent.acquisition@infosys.com")
 
     assert cand_claim.kind == ClaimKind.CANDIDATE_CONTACT.value

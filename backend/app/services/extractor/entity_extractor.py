@@ -23,7 +23,7 @@ class EntityExtractor:
     """
     Extracts key entities from offer letters, screenshots, recruiter messages, or emails.
     Supports both claim-based extraction (contract v1.0.1) and legacy ExtractedData adapters.
-    Document reading tries safe local text extraction for PDFs, then Groq vision, then Gemini.
+    Document reading uses local PDF text extraction; unavailable local reading returns a clear refusal.
     """
 
     def __init__(
@@ -48,22 +48,26 @@ class EntityExtractor:
         Handles timeout, invalid JSON, rate limit, and API errors transparently.
         Sanitizes text before passing to external models and validates output grounding.
         """
-        sanitized = sanitize_and_redact_secrets(text or "")
+        return (await self.extract_claims_async(text)).to_extracted_data()
+
+    async def extract_claims_async(self, text: str, source_type: str = "text") -> ExtractionResult:
+        """Model proposals never bypass deterministic role/provenance validation."""
+        result = self.extract_claims(text, source_type)
         if self.gemini_client and self.gemini_client.api_key:
             try:
-                logger.info("Attempting Gemini entity extraction (%d chars)", len(sanitized))
-                data = await self.gemini_client.extract_entities(sanitized)
-                # Model grounding check: reject ungrounded hallucinations
-                if data.company and data.company.lower() not in sanitized.lower():
-                    logger.warning("Gemini proposed ungrounded company '%s'; falling back to deterministic extraction.", data.company)
-                    return self.extract_regex(sanitized)
-                data.raw_text = sanitized
-                return self._backfill_salary_fields(data)
-            except Exception as e:
-                logger.warning("Gemini extraction failed (%s). Falling back to regex extractor.", type(e).__name__)
-
-        logger.info("Using regex extraction pipeline")
-        return self.extract_regex(sanitized)
+                proposal = await self.gemini_client.extract_entities(result.sanitized_source_buffer)
+                canonical = result.to_extracted_data()
+                fields = ("company", "recruiter_email", "recruiter_phone", "job_role", "salary",
+                          "website", "joining_date", "address", "payment_amount", "payment_method")
+                if any(getattr(proposal, field, None) not in (None, getattr(canonical, field)) for field in fields):
+                    result.warnings.append(ExtractionWarning(
+                        code="MODEL_PROPOSAL_REJECTED",
+                        message="Model proposals did not match grounded, role-attributed document claims."))
+            except Exception:
+                result.warnings.append(ExtractionWarning(
+                    code="MODEL_EXTRACTION_UNAVAILABLE",
+                    message="Model extraction unavailable; deterministic grounded extraction retained."))
+        return result
 
     def _backfill_salary_fields(self, data: ExtractedData) -> ExtractedData:
         """
@@ -98,7 +102,7 @@ class EntityExtractor:
     async def extract_from_document(self, file_bytes: bytes, mime_type: str) -> Dict[str, Any]:
         """
         Extracts text (OCR) and structured entities from PDF or image documents.
-        Prefers privacy-preserving local text reading for PDFs, falling back to vision models.
+        Reads PDFs locally and refuses automatic external processing of unreadable binaries.
         Returns:
             {
                 "ocr_text": str,
@@ -121,48 +125,18 @@ class EntityExtractor:
         # Local PDF extraction first (privacy-preserving, no external network call)
         if norm_mime == "application/pdf":
             local_pdf_text = self._extract_pdf_text_local(file_bytes)
-            if local_pdf_text and len(local_pdf_text.strip()) > 20:
-                sanitized_ocr = sanitize_and_redact_secrets(local_pdf_text)
+            if local_pdf_text and local_pdf_text.strip():
+                sanitized_ocr = self.extract_claims(local_pdf_text, "pdf").sanitized_source_buffer
                 return {
                     "ocr_text": sanitized_ocr,
                     "entities": self.extract_regex(sanitized_ocr),
                 }
 
-        # Groq first: higher free-tier limits, and fast. It only accepts raster
-        # images, so PDFs fall straight through to Gemini.
-        if self.groq_client and self.groq_client.api_key:
-            try:
-                logger.info("Attempting Groq document extraction (%s, %d bytes)", mime_type, len(file_bytes))
-                return await self.groq_client.extract_from_document(file_bytes, mime_type)
-            except ValueError as e:
-                # Unsupported format or oversized image: Gemini may still manage it.
-                logger.info("Groq cannot handle this document (%s); trying Gemini.", str(e))
-            except Exception as e:
-                logger.warning("Groq document extraction failed (%s). Trying Gemini.", str(e))
-                failures.append(f"Groq: {self._describe_failure(e)}")
-
-        if self.gemini_client and self.gemini_client.api_key:
-            try:
-                logger.info("Attempting Gemini document extraction (%s, %d bytes)", mime_type, len(file_bytes))
-                return await self.gemini_client.extract_from_document(file_bytes, mime_type)
-            except Exception as e:
-                logger.warning("Gemini document extraction failed (%s). Falling back to local text parsing.", str(e))
-                failures.append(f"Gemini: {self._describe_failure(e)}")
-
-        if not failures:
-            failures.append(
-                "No document-reading provider is configured. Set GROQ_API_KEY or "
-                "GEMINI_API_KEY in backend/.env."
-            )
-
-        failure = " ".join(failures)
-
-        ocr_text = self._fallback_text_extract(file_bytes, mime_type)
-        entities = self.extract_regex(ocr_text)
+        # No automatic transmission of unsanitized binaries to vision providers.
         return {
-            "ocr_text": ocr_text,
-            "entities": entities,
-            "error": failure,
+            "ocr_text": "", "entities": self.extract_regex(""),
+            "error": "Safe local document reading is unavailable. Paste redacted text; external document processing requires a separate consent flow.",
+            "processing_status": "LOCAL_READING_UNAVAILABLE",
         }
 
     @staticmethod

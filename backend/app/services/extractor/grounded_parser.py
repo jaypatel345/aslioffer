@@ -113,6 +113,8 @@ class GroundedEntityParser:
         Parses the text and returns an ExtractionResult conforming to contract v1.0.1.
         """
         sanitized = sanitize_and_redact_secrets(text or "")
+        sanitized = re.sub(r"(?i)(\b(?:aadhaar|aadhar)\s*(?:number|no\.?|id)?\s*[:=]?\s*)(\d{4}[ -]?\d{4}[ -]?\d{4})\b", r"\1[REDACTED_ID]", sanitized)
+        sanitized = re.sub(r"(?i)(\bpan\s*(?:number|no\.?|id)?\s*[:=]?\s*)([A-Z]{5}\d{4}[A-Z])\b", r"\1[REDACTED_ID]", sanitized)
         claims: List[Claim] = []
         ambiguities: List[UnresolvedAmbiguity] = []
         warnings: List[ExtractionWarning] = []
@@ -130,12 +132,7 @@ class GroundedEntityParser:
                 return None
             start = sanitized.find(quote)
             if start == -1 or sanitized.count(quote) != 1:
-                # If multiple matches exist, locate best offset or leave span None
-                if sanitized.count(quote) > 1:
-                    # Provide span for first unambiguous occurrence
-                    start = sanitized.find(quote)
-                else:
-                    return None
+                return None
             end = start + len(quote)
             # Unicode verification check
             if sanitized[start:end] != quote:
@@ -143,7 +140,7 @@ class GroundedEntityParser:
             return SourceSpan(
                 start_offset=start,
                 end_offset=end,
-                target_text="raw_text",
+                target_text="redacted_text",
             )
 
         # --------------------------------------------------------------------
@@ -296,7 +293,7 @@ class GroundedEntityParser:
                 "Wipro", "Accenture", "Cognizant", "Tata Elxsi", "V-Guard Industries Ltd.",
                 "V-Guard Industries Ltd", "V-Guard", "India Post", "Google", "Microsoft", "Amazon",
             ]:
-                if brand not in platform_found_names and re.search(rf"\b{re.escape(brand)}\b", sanitized, re.IGNORECASE):
+                if brand not in platform_found_names and re.search(r"\b(?:offer|selected|hiring|welcome|package|ctc)\b", sanitized, re.I) and re.search(rf"\b{re.escape(brand)}\b", sanitized, re.IGNORECASE):
                     employer_name = brand
                     employer_quote = brand
                     break
@@ -339,7 +336,7 @@ class GroundedEntityParser:
             start_idx = span.start_offset if span else em.start()
 
             # Determine local context before the email (up to 120 chars)
-            pre_context = sanitized[max(0, start_idx - 120):start_idx].lower()
+            pre_context = re.split(r"[\n;]", sanitized[max(0, em.start() - 120):em.start()])[-1].lower()
             post_context = sanitized[start_idx + len(email_addr):min(len(sanitized), start_idx + len(email_addr) + 80)].lower()
 
             # If preceded by 'via upi to' or used strictly as payment rail, skip contact extraction
@@ -357,7 +354,7 @@ class GroundedEntityParser:
             is_hr_label = (
                 not is_general_mailbox and (
                     bool(re.search(r"\b(?:contact\s+hr|official\s+hr|hr\s+team|with\s+hr|to\s+hr|at\s+hr|recruiter|talent\s+acquisition|regards|sincerely)\b", pre_context))
-                    or email_addr.lower().startswith(("hr@", "hr.", "recruiter@", "recruiting@", "talent@", "careers@", "talent."))
+
                     or (bool(re.search(r"\bcontact\s*:?\s*$", pre_context.strip())) and not bool(re.search(r"\bhiring\s+contact\b", pre_context)))
                 )
             )
@@ -442,15 +439,15 @@ class GroundedEntityParser:
                 )
 
         # Phone numbers
-        phone_matches = list(re.finditer(r"(?:\+91[\-\s]?)?[6789]\d{9}", sanitized))
+        phone_matches = list(re.finditer(r"(?<![\w+])(?:\+\d{1,3}[ -]?(?:\d[ ()-]?){7,12}\d|[6789]\d{9})(?!\w)", sanitized))
         for pm in phone_matches:
             phone_num = pm.group(0)
             span = make_span(phone_num)
             start_idx = span.start_offset if span else pm.start()
-            pre_context = sanitized[max(0, start_idx - 80):start_idx].lower()
+            pre_context = re.split(r"[\n;]", sanitized[max(0, pm.start() - 80):pm.start()])[-1].lower()
 
             is_candidate = "candidate" in pre_context or "applicant" in pre_context
-            is_recruiter = any(w in pre_context for w in ["hr", "recruiter", "call", "contact", "desk"])
+            is_recruiter = bool(re.search(r"\b(?:hr|recruiter|call|contact|desk)\b", pre_context))
 
             if is_candidate:
                 claims.append(
@@ -508,6 +505,18 @@ class GroundedEntityParser:
                         issue="Phone number has no explicit sender or candidate role attribution.",
                     )
                 )
+
+        for channel in ("email", "phone"):
+            contacts = [c for c in claims if c.kind == ClaimKind.SENDER_RECRUITER.value and c.attributes.get("channel") == channel]
+            if len({c.value for c in contacts}) > 1:
+                for contact in contacts:
+                    contact.extraction_status = ExtractionStatus.AMBIGUOUS.value
+                    if not any(a.claim_id == contact.claim_id for a in ambiguities):
+                        ambiguities.append(UnresolvedAmbiguity(claim_id=contact.claim_id, field="sender_recruiter", issue="Multiple recruiter contacts require a primary-contact choice."))
+            else:
+                for contact in contacts:
+                    contact.extraction_status = ExtractionStatus.EXTRACTED.value
+                    ambiguities[:] = [a for a in ambiguities if not (a.claim_id == contact.claim_id and a.field == "sender_recruiter")]
 
         # --------------------------------------------------------------------
         # D. Job Role & Job Reference ID
@@ -581,6 +590,28 @@ class GroundedEntityParser:
         # E. Compensation (Base Units & Ambiguity)
         # --------------------------------------------------------------------
         self._extract_compensation(sanitized, make_span, next_claim_id, claims, ambiguities)
+        for comp in [c for c in claims if c.kind == ClaimKind.COMPENSATION.value]:
+            quote = comp.source_quote or ""
+            location = sanitized.find(quote)
+            following = sanitized[location + len(quote):location + len(quote) + 30]
+            explicit = re.match(r"\s*(per\s+month|per\s+annum|monthly|annually|p\.m\.|p\.a\.)", following, re.I)
+            if explicit:
+                comp.source_quote = quote + explicit.group()
+                comp.value = comp.source_quote
+                comp.attributes.pop("period_ambiguity", None)
+                comp.attributes["period"] = "MONTHLY" if re.search(r"month|p\.m", explicit.group(), re.I) else "ANNUAL"
+                comp.extraction_status = ExtractionStatus.EXTRACTED.value
+                ambiguities[:] = [a for a in ambiguities if not (a.claim_id == comp.claim_id and a.field == "period")]
+            if re.search(r"\blakhs?\b", quote, re.I) and not re.search(r"LPA|per\s+annum", comp.source_quote, re.I):
+                comp.attributes["period"] = None
+                comp.extraction_status = ExtractionStatus.AMBIGUOUS.value
+                ambiguities.append(UnresolvedAmbiguity(claim_id=comp.claim_id, field="period", issue="Lakh is an amount unit, not a payment period."))
+            currency = "INR" if re.search(r"INR|Rs\.?|₹", quote, re.I) else next((code for code in ("USD", "EUR", "GBP") if re.search(r"\b" + code + r"\b", quote, re.I)), None)
+            if currency is None:
+                comp.extraction_status = ExtractionStatus.AMBIGUOUS.value
+                ambiguities.append(UnresolvedAmbiguity(claim_id=comp.claim_id, field="currency", issue="Currency is not explicitly unambiguous."))
+            comp.attributes["currency"] = currency
+
 
         # --------------------------------------------------------------------
         # F. Location & Joining Date
@@ -632,10 +663,14 @@ class GroundedEntityParser:
         url_matches = list(re.finditer(r"https?://[^\s\"<>]+", sanitized))
         for um in url_matches:
             url_str = um.group(0).rstrip(".,;:)")
-            parsed = urlparse(url_str)
+            try:
+                parsed = urlparse(url_str)
+            except ValueError:
+                warnings.append(ExtractionWarning(code="INVALID_URL", message="Malformed URL could not be classified."))
+                continue
             host = (parsed.hostname or "").lower()
 
-            if host in MEETING_URL_HOSTS or any(k in url_str for k in ["meet.", "teams.", "zoom.us"]):
+            if any(host == h or host.endswith("." + h) for h in MEETING_URL_HOSTS):
                 claims.append(
                     Claim(
                         claim_id=next_claim_id(),
@@ -648,7 +683,7 @@ class GroundedEntityParser:
                         attributes={"destination_type": "meeting_room", "purpose": "interview_platform"},
                     )
                 )
-            elif host in APPLICATION_URL_HOSTS or any(k in url_str for k in ["forms.", "/apply", "/application"]):
+            elif host in APPLICATION_URL_HOSTS or parsed.path.startswith(("/apply", "/application")):
                 claims.append(
                     Claim(
                         claim_id=next_claim_id(),
@@ -661,7 +696,7 @@ class GroundedEntityParser:
                         attributes={"destination_type": "application_form", "purpose": "application_destination"},
                     )
                 )
-            else:
+            elif re.search(r"\b(?:website|official site|company site|company portal)\b", sanitized[max(0, um.start()-65):um.start()].lower()):
                 claims.append(
                     Claim(
                         claim_id=next_claim_id(),
@@ -680,12 +715,37 @@ class GroundedEntityParser:
         # --------------------------------------------------------------------
         self._extract_payment_and_credentials(sanitized, make_span, next_claim_id, claims, warnings)
 
+        for candidate in [c for c in claims if c.kind == ClaimKind.CANDIDATE_CONTACT.value]:
+            original = str(candidate.value)
+            marker = "[REDACTED_CANDIDATE_" + candidate.attributes["channel"].upper() + "]"
+            sanitized = sanitized.replace(original, marker)
+            def mask_value(value):
+                if isinstance(value, str):
+                    return value.replace(original, marker)
+                if isinstance(value, list):
+                    return [mask_value(v) for v in value]
+                if isinstance(value, dict):
+                    return {k: mask_value(v) for k, v in value.items()}
+                return value
+            for claim in claims:
+                claim.attributes = mask_value(claim.attributes)
+                if isinstance(claim.value, str):
+                    claim.value = claim.value.replace(original, marker)
+                if claim.source_quote:
+                    claim.source_quote = claim.source_quote.replace(original, marker)
+        for claim in claims:
+            if claim.source_quote and claim.source_quote not in sanitized:
+                actual = re.search(re.escape(claim.source_quote), sanitized, re.I)
+                claim.source_quote = actual.group() if actual else None
+            claim.source_span = make_span(claim.source_quote) if claim.source_quote else None
+
         return ExtractionResult(
             contract_version="1.0.1",
             source_type=source_type,
             extraction_method="regex",
             sanitized_source_buffer=sanitized,
-            raw_text=text,
+            raw_text=None,
+            redacted_text=sanitized,
             claims=claims,
             unresolved_ambiguities=ambiguities,
             warnings=warnings,
@@ -705,7 +765,7 @@ class GroundedEntityParser:
         """
         # Range pattern: e.g. "INR 25,000 - 35,000 per month"
         range_match = re.search(
-            r"(?:INR|Rs\.?|₹|\$)\s*([\d,]+)\s*(?:-|to)\s*([\d,]+)\s*(per\s+month|per\s+annum|p\.m\.|p\.a\.)",
+            r"(?:INR|USD|EUR|GBP|Rs\.?|₹|\$)\s*([\d,]+)\s*(?:-|to)\s*([\d,]+)\s*(per\s+month|per\s+annum|p\.m\.|p\.a\.)",
             sanitized,
             re.IGNORECASE,
         )
@@ -738,7 +798,7 @@ class GroundedEntityParser:
 
         # Explicit LPA pattern: "INR 7.2 LPA", "₹8 LPA", "Package INR 8.5 LPA"
         lpa_match = re.search(
-            r"(?:(?:Package|CTC|Salary)\s*:?\s*)?((?:INR|Rs\.?|₹|\$)?\s*[\d]+(?:\.\d+)?\s*(?:LPA|Lakhs?(?:\s+per\s+annum)?))\b",
+            r"(?:(?:Package|CTC|Salary)\s*:?\s*)?((?:INR|USD|EUR|GBP|Rs\.?|₹|\$)?\s*[\d]+(?:\.\d+)?\s*(?:LPA|Lakhs?(?:\s+per\s+annum)?))\b",
             sanitized,
             re.IGNORECASE,
         )
@@ -847,7 +907,7 @@ class GroundedEntityParser:
 
         # Generic salary with period: "INR 15,000 per month" or "INR 6,00,000 per annum"
         gen_salary = re.search(
-            r"(?:INR|Rs\.?|₹|\$)\s*([\d,]+(?:\.\d+)?)\s*(per\s+month|per\s+annum|p\.m\.|p\.a\.)",
+            r"(?:INR|USD|EUR|GBP|Rs\.?|₹|\$)\s*([\d,]+(?:\.\d+)?)\s*(per\s+month|per\s+annum|p\.m\.|p\.a\.)",
             sanitized,
             re.IGNORECASE,
         )
@@ -962,7 +1022,7 @@ class GroundedEntityParser:
                                 "modality": modality,
                                 "is_active_demand": is_active,
                                 "requested_action": "solicit_credentials",
-                                "credential_categories": ["bank_otp", "netbanking_password"],
+                                "credential_categories": (["bank_otp"] if "otp" in quote.lower() else []) + (["netbanking_password"] if "password" in quote.lower() else []) + (["pin"] if re.search(r"\bpin\b", quote.lower()) else []),
                                 "secret_values_omitted": True,
                                 "secret_payload": None,
                                 "recipient": recipient,

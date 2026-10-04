@@ -97,7 +97,7 @@ async def test_non_json_output_raises_parse_error():
 
 
 @pytest.mark.asyncio
-async def test_extractor_prefers_groq_and_never_calls_gemini():
+async def test_extractor_refuses_automatic_external_image_processing():
     from app.services.extractor.entity_extractor import EntityExtractor
 
     groq, gemini = GroqClient(api_key="k"), AsyncMock()
@@ -108,12 +108,13 @@ async def test_extractor_prefers_groq_and_never_calls_gemini():
         post.return_value = _response(200, _ok_body())
         result = await extractor.extract_from_document(PNG, "image/png")
 
-    assert result["entities"].company == "Coorix"
+    assert result["ocr_text"] == ""
+    post.assert_not_awaited()
     gemini.extract_from_document.assert_not_awaited()
 
 
 @pytest.mark.asyncio
-async def test_extractor_falls_back_to_gemini_when_groq_rate_limited():
+async def test_extractor_never_falls_back_to_external_vision():
     """The whole point of the chain: Groq 429 must not end the upload."""
     from app.services.extractor.entity_extractor import EntityExtractor
 
@@ -129,12 +130,13 @@ async def test_extractor_falls_back_to_gemini_when_groq_rate_limited():
         post.return_value = _response(429, {"error": "rate limited"})
         result = await extractor.extract_from_document(PNG, "image/png")
 
-    assert result["ocr_text"] == "via gemini"
-    gemini.extract_from_document.assert_awaited_once()
+    assert result["ocr_text"] == ""
+    post.assert_not_awaited()
+    gemini.extract_from_document.assert_not_awaited()
 
 
 @pytest.mark.asyncio
-async def test_pdf_skips_groq_and_goes_straight_to_gemini():
+async def test_unreadable_pdf_does_not_go_to_gemini():
     from app.services.extractor.entity_extractor import EntityExtractor
 
     groq, gemini = GroqClient(api_key="k"), AsyncMock()
@@ -149,5 +151,5 @@ async def test_pdf_skips_groq_and_goes_straight_to_gemini():
         result = await extractor.extract_from_document(b"%PDF-1.4", "application/pdf")
         post.assert_not_awaited()
 
-    assert result["ocr_text"] == "pdf text"
-    gemini.extract_from_document.assert_awaited_once()
+    assert result["ocr_text"] == ""
+    gemini.extract_from_document.assert_not_awaited()
