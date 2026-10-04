@@ -1,0 +1,192 @@
+{
+  "contract_version": "1.0.0",
+  "run_id": "run_01J9X1GAPRESOLVED",
+  "demo_mode": false,
+  "claims": [
+    {
+      "claim_id": "c1",
+      "kind": "employer",
+      "value": "Radiant Energy Solutions Ltd",
+      "source_quote": "Radiant Energy Solutions Ltd",
+      "start_offset": 25,
+      "end_offset": 53,
+      "page": null,
+      "extraction_status": "EXTRACTED"
+    },
+    {
+      "claim_id": "c2",
+      "kind": "sender_email",
+      "value": "careers@radiantenergy.example",
+      "source_quote": "careers@radiantenergy.example",
+      "start_offset": 96,
+      "end_offset": 125,
+      "page": null,
+      "extraction_status": "EXTRACTED"
+    },
+    {
+      "claim_id": "c7",
+      "kind": "location",
+      "value": "Hyderabad, Telangana",
+      "source_quote": "Hyderabad, Telangana",
+      "start_offset": 65,
+      "end_offset": 85,
+      "page": null,
+      "extraction_status": "EXTRACTED"
+    },
+    {
+      "claim_id": "c10",
+      "kind": "payment_request",
+      "value": null,
+      "source_quote": null,
+      "start_offset": null,
+      "end_offset": null,
+      "page": null,
+      "extraction_status": "MISSING"
+    }
+  ],
+  "assessed_claims": [
+    {
+      "claim_id": "c1",
+      "status": "SUPPORTED",
+      "explanation": "Independent results support the employer public footprint; they do not authenticate this offer.",
+      "evidence_ids": [
+        "e1",
+        "e2"
+      ],
+      "reason_codes": [
+        "OFFICIAL_DOMAIN_RESOLVED"
+      ]
+    },
+    {
+      "claim_id": "c2",
+      "status": "UNRESOLVED",
+      "explanation": "The completed check did not establish attributable corroboration. Empty results do not prove fraud or legitimacy.",
+      "evidence_ids": [],
+      "reason_codes": [
+        "NO_PUBLIC_LISTING_FOUND"
+      ]
+    },
+    {
+      "claim_id": "c7",
+      "status": "NOT_CHECKED",
+      "explanation": "Independent corroboration for this claim is deferred; no targeted check was executed.",
+      "evidence_ids": [],
+      "reason_codes": [
+        "CORROBORATION_DEFERRED"
+      ]
+    },
+    {
+      "claim_id": "c10",
+      "status": "NOT_CHECKED",
+      "explanation": "Required claim value is absent; no check was executed for it.",
+      "evidence_ids": [],
+      "reason_codes": [
+        "MISSING_INPUT"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "evidence_id": "e1",
+      "claim_id": "c1",
+      "source_kind": "SEARCH_SNIPPET",
+      "source_url": "https://www.radiantenergy.example/",
+      "title": "Radiant Energy Solutions Ltd",
+      "quote_or_snippet": "Official website in Hyderabad.",
+      "retrieved_at": "2026-10-04T07:55:24.024752Z",
+      "query": "\"Radiant Energy Solutions Ltd\" \"Hyderabad\" official website",
+      "engine": "google",
+      "search_id": null,
+      "retrieval_status": "LIVE",
+      "source_tier": "OFFICIAL_EMPLOYER",
+      "relation": "SUPPORTS"
+    },
+    {
+      "evidence_id": "e2",
+      "claim_id": "c1",
+      "source_kind": "SEARCH_SNIPPET",
+      "source_url": "https://www.radiantenergy.example",
+      "title": "Radiant Energy Solutions Ltd",
+      "quote_or_snippet": "{\"title\": \"Radiant Energy Solutions Ltd\", \"website\": \"https://www.radiantenergy.example\", \"careers_url\": \"https://careers.radiantenergy.example\"}",
+      "retrieved_at": "2026-10-04T07:55:24.024752Z",
+      "query": "\"Radiant Energy Solutions Ltd\" \"Hyderabad\" official website",
+      "engine": "google",
+      "search_id": null,
+      "retrieval_status": "LIVE",
+      "source_tier": "OFFICIAL_EMPLOYER",
+      "relation": "SUPPORTS"
+    }
+  ],
+  "overall_outcome": "NO_STRONG_RISK_SIGNALS",
+  "authenticity_status": "UNCONFIRMED",
+  "coverage": {
+    "checked_claims": 2,
+    "total_claims": 4,
+    "unresolved_claims": 3,
+    "failed_checks": 0
+  },
+  "recommended_actions": [
+    "No strong risk signals were found, but only Radiant Energy Solutions Ltd can confirm this offer.",
+    "Contact the employer through independently established published contact details to confirm that this specific offer was issued to you.",
+    "Review standard employment terms, scope of work, and contract conditions carefully before signing.",
+    "Never share sensitive banking passwords, OTPs, or pay any onboarding charges.",
+    "Confirm offer issuance independently before accepting; do not rely solely on an emailed link."
+  ],
+  "confirmation_route": null,
+  "tool_trace": [
+    {
+      "step": "resolve_employer_domain",
+      "tool": "serpapi.google",
+      "query": "\"Radiant Energy Solutions Ltd\" official website careers",
+      "reason": "Resolve the employer's official domain before checking contact details",
+      "status": "COMPLETED",
+      "started_at": "2026-10-04T07:55:24.022715Z",
+      "duration_ms": 0,
+      "evidence_ids": []
+    },
+    {
+      "step": "check_recruiter_contact",
+      "tool": "serpapi.google",
+      "query": "\"careers@radiantenergy.example\" scam fraud complaint",
+      "reason": "Verify recruiter email alignment with resolved domain",
+      "status": "COMPLETED",
+      "started_at": "2026-10-04T07:55:24.023664Z",
+      "duration_ms": 0,
+      "evidence_ids": []
+    },
+    {
+      "step": "check_recruiter_contact",
+      "tool": "serpapi.google",
+      "query": "\"careers@radiantenergy.example\" \"Radiant Energy Solutions Ltd\"",
+      "reason": "Verify recruiter email alignment with resolved domain",
+      "status": "COMPLETED",
+      "started_at": "2026-10-04T07:55:24.023782Z",
+      "duration_ms": 0,
+      "evidence_ids": []
+    },
+    {
+      "step": "check_scam_signals",
+      "tool": "serpapi.google",
+      "query": "\"Radiant Energy Solutions Ltd\" job scam fraud complaint telegram",
+      "reason": "Check for upfront fees, credential demands, and adverse reports",
+      "status": "COMPLETED",
+      "started_at": "2026-10-04T07:55:24.024527Z",
+      "duration_ms": 0,
+      "evidence_ids": []
+    },
+    {
+      "step": "adaptive_employer_context",
+      "tool": "serpapi.google",
+      "query": "\"Radiant Energy Solutions Ltd\" \"Hyderabad\" official website",
+      "reason": "Employer identity remains unresolved; checking 'Radiant Energy Solutions Ltd' with grounded context 'Hyderabad'.",
+      "status": "COMPLETED",
+      "started_at": "2026-10-04T07:55:24.024752Z",
+      "duration_ms": 0,
+      "evidence_ids": [
+        "e1",
+        "e2"
+      ]
+    }
+  ],
+  "errors": []
+}

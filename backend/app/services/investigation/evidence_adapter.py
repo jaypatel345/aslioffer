@@ -70,7 +70,10 @@ class EvidenceAdapter:
         def provenance(url, step):
             return [m for key, entries in recording_client.snippets_by_url.items()
                     if canonicalize_url(key) == canonicalize_url(url)
-                    for m in entries if m.get('step') == step or (step == 'check_recruiter_contact' and m.get('step') == 'resolve_employer_domain')]
+                    for m in entries if m.get('step') == step
+                    or (step == 'resolve_employer_domain' and m.get('step') == 'adaptive_employer_context')
+                    or (step == 'check_recruiter_contact' and m.get('step') in ('resolve_employer_domain', 'adaptive_employer_context', 'adaptive_agency_authorization', 'adaptive_recruiter_affiliation'))
+                    or (step == 'check_scam_signals' and m.get('step') in ('adaptive_recruitment_fee_policy', 'check_scam_signals'))]
 
         company = findings.get('CompanyAgent')
         if company:
@@ -119,6 +122,8 @@ class EvidenceAdapter:
         if scam:
             for item in scam.evidence:
                 for meta in provenance(item.source_url, 'check_scam_signals'):
+                    if by_kind.get(ClaimKind.PAYMENT_REQUEST) and by_kind.get(ClaimKind.PAYMENT_REQUEST).value:
+                        add(by_kind.get(ClaimKind.PAYMENT_REQUEST), meta, relation=EvidenceRelation.CONTEXT)
                     add(by_kind.get(ClaimKind.EMPLOYER), meta)
 
         salary = findings.get('SalaryAgent')

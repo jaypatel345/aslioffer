@@ -23,7 +23,7 @@ RecordingSearchClient accepts an injected async `search(query, engine='google', 
 
 Missing employer input does not trigger an `Unknown Company` search. Local scam detection still runs, while external company/scam checks are skipped. Redaction placeholders and empty employer queries never reach the provider. Failed and synthetic production responses are stripped of usable results. Exceptions expose fixed messages rather than raw credentials or transport payloads.
 
-Existing per-search deadlines/retries remain in use. Adaptive planning, a shared query budget and run-wide deadline belong to Task 11.
+Per-search deadlines and retries remain in SerpApiClient. Task 11 adds a shared query budget (InvestigationBudget), monotonic deadline enforcement, and bounded deterministic adaptive investigation planning (see docs/task-11-adaptive-planning.md).
 
 ## Claims and confirmations
 

@@ -1,0 +1,159 @@
+{
+  "contract_version": "1.0.0",
+  "run_id": "run_01J9X2ABSTAINSEXHAUSTED",
+  "demo_mode": false,
+  "claims": [
+    {
+      "claim_id": "c1",
+      "kind": "employer",
+      "value": "NexaCore Technologies Ltd",
+      "source_quote": "NexaCore Technologies Ltd",
+      "start_offset": 11,
+      "end_offset": 36,
+      "page": null,
+      "extraction_status": "EXTRACTED"
+    },
+    {
+      "claim_id": "c2",
+      "kind": "sender_email",
+      "value": "hr@nexacore.example",
+      "source_quote": "hr@nexacore.example",
+      "start_offset": 80,
+      "end_offset": 99,
+      "page": null,
+      "extraction_status": "EXTRACTED"
+    },
+    {
+      "claim_id": "c6",
+      "kind": "role",
+      "value": "Frontend Developer",
+      "source_quote": "Frontend Developer",
+      "start_offset": 45,
+      "end_offset": 63,
+      "page": null,
+      "extraction_status": "EXTRACTED"
+    },
+    {
+      "claim_id": "c10",
+      "kind": "payment_request",
+      "value": null,
+      "source_quote": null,
+      "start_offset": null,
+      "end_offset": null,
+      "page": null,
+      "extraction_status": "MISSING"
+    }
+  ],
+  "assessed_claims": [
+    {
+      "claim_id": "c1",
+      "status": "UNRESOLVED",
+      "explanation": "The completed check did not establish attributable corroboration. Empty results do not prove fraud or legitimacy.",
+      "evidence_ids": [],
+      "reason_codes": [
+        "SPARSE_FOOTPRINT",
+        "OFFICIAL_DOMAIN_UNRESOLVED"
+      ]
+    },
+    {
+      "claim_id": "c2",
+      "status": "UNRESOLVED",
+      "explanation": "The completed check did not establish attributable corroboration. Empty results do not prove fraud or legitimacy.",
+      "evidence_ids": [],
+      "reason_codes": [
+        "NO_PUBLIC_LISTING_FOUND"
+      ]
+    },
+    {
+      "claim_id": "c6",
+      "status": "NOT_CHECKED",
+      "explanation": "Independent corroboration for this claim is deferred; no targeted check was executed.",
+      "evidence_ids": [],
+      "reason_codes": [
+        "CORROBORATION_DEFERRED"
+      ]
+    },
+    {
+      "claim_id": "c10",
+      "status": "NOT_CHECKED",
+      "explanation": "Required claim value is absent; no check was executed for it.",
+      "evidence_ids": [],
+      "reason_codes": [
+        "MISSING_INPUT"
+      ]
+    }
+  ],
+  "evidence": [],
+  "overall_outcome": "CANNOT_VERIFY",
+  "authenticity_status": "UNCONFIRMED",
+  "coverage": {
+    "checked_claims": 2,
+    "total_claims": 4,
+    "unresolved_claims": 4,
+    "failed_checks": 0
+  },
+  "recommended_actions": [
+    "Ask the company for an official website or LinkedIn page and a contact you can reach independently.",
+    "Independently look up the employer using official public business registries (such as MCA India at mca.gov.in) or verified business directories.",
+    "Do not rely on website links, phone numbers, or addresses provided solely within the submitted document.",
+    "Resolve the outstanding Recruiter Domain Alignment & Employer Affiliation Check independently before relying on that result.",
+    "Contact the employer through independently established published contact details to confirm that this specific offer was issued to you.",
+    "Review standard employment terms, scope of work, and contract conditions carefully before signing.",
+    "Never share sensitive banking passwords, OTPs, or pay any onboarding charges.",
+    "Do not pay any fee or share bank OTPs at any stage."
+  ],
+  "confirmation_route": null,
+  "tool_trace": [
+    {
+      "step": "resolve_employer_domain",
+      "tool": "serpapi.google",
+      "query": "\"NexaCore Technologies Ltd\" official website careers",
+      "reason": "Resolve the employer's official domain before checking contact details",
+      "status": "COMPLETED",
+      "started_at": "2026-10-04T07:55:24.030580Z",
+      "duration_ms": 0,
+      "evidence_ids": []
+    },
+    {
+      "step": "check_recruiter_contact",
+      "tool": "serpapi.google",
+      "query": "\"hr@nexacore.example\" scam fraud complaint",
+      "reason": "Verify recruiter email alignment with resolved domain",
+      "status": "COMPLETED",
+      "started_at": "2026-10-04T07:55:24.031555Z",
+      "duration_ms": 0,
+      "evidence_ids": []
+    },
+    {
+      "step": "check_recruiter_contact",
+      "tool": "serpapi.google",
+      "query": "\"hr@nexacore.example\" \"NexaCore Technologies Ltd\"",
+      "reason": "Verify recruiter email alignment with resolved domain",
+      "status": "COMPLETED",
+      "started_at": "2026-10-04T07:55:24.031733Z",
+      "duration_ms": 0,
+      "evidence_ids": []
+    },
+    {
+      "step": "check_scam_signals",
+      "tool": "serpapi.google",
+      "query": "\"NexaCore Technologies Ltd\" job scam fraud complaint telegram",
+      "reason": "Check for upfront fees, credential demands, and adverse reports",
+      "status": "COMPLETED",
+      "started_at": "2026-10-04T07:55:24.032857Z",
+      "duration_ms": 0,
+      "evidence_ids": []
+    },
+    {
+      "step": "adaptive_employer_context",
+      "tool": "serpapi.google",
+      "query": "\"NexaCore Technologies Ltd\" \"Frontend Developer\" official careers",
+      "reason": "Employer identity remains unresolved; checking 'NexaCore Technologies Ltd' with grounded context 'Frontend Developer'.",
+      "status": "COMPLETED",
+      "started_at": "2026-10-04T07:55:24.033227Z",
+      "duration_ms": 0,
+      "evidence_ids": []
+    }
+  ],
+  "errors": []
+}

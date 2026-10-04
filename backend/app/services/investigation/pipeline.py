@@ -28,12 +28,17 @@ from app.services.agents.salary_agent import SalaryAgent
 from app.services.agents.scam_agent import ScamAgent
 from app.services.risk.assessment_engine import AssessmentEngine
 from app.services.report.presentation_helper import derive_recommended_actions
+from app.schemas.analysis import EvidenceItem
 from app.services.investigation.assessor import ClaimAssessor
+from app.services.investigation.budget import BudgetManager, InvestigationBudget
 from app.services.investigation.claim_builder import ClaimBuilder, is_redaction_placeholder
 from app.services.investigation.coverage import compute_coverage
 from app.services.investigation.events import EventEmitter
 from app.services.investigation.evidence_adapter import EvidenceAdapter
+from app.services.investigation.planner import InvestigationPlanner, PlanStep
 from app.services.investigation.recording_search import RecordingSearchClient
+from app.services.search.serpapi_client import SearchResult
+from app.services.search.domain_resolver import DomainResolver, DomainResolutionState
 from app.core.logging import logger
 
 
@@ -41,6 +46,7 @@ async def investigate_case(
     case_input: CaseInput,
     search_client: Optional[Any] = None,
     emit_event: Optional[Callable[[RunEvent], Any]] = None,
+    budget: Optional[InvestigationBudget] = None,
 ) -> InvestigationResult:
     """
     Executes one isolated investigation run from CaseInput and returns an InvestigationResult.
@@ -49,11 +55,17 @@ async def investigate_case(
         case_input: Grounded case parameters including redacted document text and confirmed claims.
         search_client: Injected search client (or mock) for reproducible execution.
         emit_event: Optional async callback for streaming RunEvent updates.
+        budget: Optional InvestigationBudget configuring call limits, follow-up limits, and deadlines.
     """
     if case_input.contract_version != CONTRACT_VERSION:
         raise ValueError("Unsupported investigation contract version")
+    budget_manager = BudgetManager(budget=budget)
     events = EventEmitter(run_id=case_input.run_id, emit_fn=emit_event)
-    recording_client = RecordingSearchClient(underlying_client=search_client, demo_mode=case_input.demo_mode)
+    recording_client = RecordingSearchClient(
+        underlying_client=search_client,
+        demo_mode=case_input.demo_mode,
+        budget_manager=budget_manager,
+    )
     errors: List[RunError] = []
 
     # 1. Claim extraction stage
@@ -253,6 +265,171 @@ async def investigate_case(
             errors.append(RunError(code="SEARCH_CHECK_UNAVAILABLE", message="An external retrieval was unavailable",
                                    step=failure["step"], retryable=True))
             recorded_steps.add(failure["step"])
+
+    # 3.5 Adaptive Planning Stage (Task 11)
+    # Examines initial unresolved/conflicting findings and executes bounded follow-ups.
+    await events.emit("plan_investigation", EventStatus.STARTED, "Evaluating adaptive investigation plan")
+    planner = InvestigationPlanner()
+    executed_queries = {c.query.lower() for c in recording_client.tool_calls if c.query}
+
+    current_findings = {
+        "CompanyAgent": finding_comp,
+        "RecruiterAgent": finding_rec,
+        "SalaryAgent": finding_sal,
+        "ScamAgent": finding_scam,
+    }
+
+    plan_steps: List[PlanStep] = []
+    if not provider_outage and not budget_manager.auth_failure_detected and not budget_manager.is_deadline_exceeded:
+        plan_steps = planner.create_plan(
+            claims=claims,
+            findings=current_findings,
+            executed_queries=executed_queries,
+            canonical_domain=canonical_domain,
+            case_input=case_input,
+        )
+
+    if not plan_steps:
+        await events.emit("plan_investigation", EventStatus.SKIPPED, "No productive follow-up checks required")
+    else:
+        executed_followups = 0
+        for step in plan_steps:
+            if budget_manager.is_deadline_exceeded or budget_manager.auth_failure_detected:
+                break
+
+            step_name = f"adaptive_{step.strategy.lower()}"
+            await events.emit(step_name, EventStatus.STARTED, step.rationale)
+            try:
+                with recording_client.step(step_name, step.rationale):
+                    raw_res = await recording_client.search(step.query)
+                search_res = SearchResult.from_dict_or_result(raw_res, query=step.query)
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                logger.error("Adaptive step %s failed: %s", step_name, exc)
+                await events.emit(step_name, EventStatus.FAILED, f"Adaptive search failed for step {step_name}")
+                continue
+
+            if search_res.get("budget_denied"):
+                await events.emit(step_name, EventStatus.SKIPPED, "Adaptive check skipped: search budget reached")
+                break
+
+            if not search_res.is_live:
+                await events.emit(step_name, EventStatus.FAILED, "Adaptive search returned no usable results or provider error")
+                continue
+
+            executed_followups += 1
+            await events.emit(step_name, EventStatus.COMPLETED, f"Adaptive search completed for {step_name}")
+
+            # Merge follow-up evidence into active findings
+            if step.strategy == "EMPLOYER_CONTEXT" and company_name:
+                resolution = DomainResolver.resolve(company_name, search_res)
+                if resolution.state == DomainResolutionState.RESOLVED and resolution.canonical_domain:
+                    canonical_domain = resolution.canonical_domain
+                    careers_url = resolution.careers_url
+                    if finding_comp:
+                        finding_comp.details.update({
+                            "official_domain_resolved": True,
+                            "canonical_domain": resolution.canonical_domain,
+                            "official_domain": resolution.canonical_url,
+                            "careers_url": resolution.careers_url,
+                            "resolution_state": resolution.state.value,
+                            "resolution_basis": resolution.basis,
+                        })
+                        finding_comp.verdict = "VERIFIED"
+                        for item in resolution.evidence:
+                            finding_comp.evidence.append(EvidenceItem(
+                                source_url=item["source_url"],
+                                title=item.get("title", f"{company_name} Official Domain"),
+                                description=item.get("description", ""),
+                                evidence_type="COMPANY",
+                                confidence=item.get("confidence", resolution.confidence),
+                            ))
+                    # If recruiter email was waiting on domain match:
+                    if recruiter_email and finding_rec and not finding_rec.details.get("is_free_email"):
+                        email_domain = recruiter_email.split("@")[-1].lower().strip()
+                        if DomainResolver.is_matching_domain(email_domain, resolution.canonical_domain):
+                            finding_rec.details["domain_match"] = True
+                            finding_rec.details["recruiter_email_status"] = "SUPPORTED"
+                            finding_rec.details["employer_domain_status"] = "SUPPORTED"
+                            finding_rec.verdict = "VERIFIED"
+                            finding_rec.evidence.append(EvidenceItem(
+                                source_url=resolution.canonical_url or f"https://{resolution.canonical_domain}",
+                                title="Corporate Email Domain Matched",
+                                description="Submitted recruiter email domain matches official company domain confirmed in contextual follow-up.",
+                                evidence_type="RECRUITER",
+                                confidence=0.88,
+                            ))
+
+            elif step.strategy == "AGENCY_AUTHORIZATION" and finding_rec:
+                agency_name = (
+                    finding_rec.details.get("agency_identity_facts", {}).get("agency_name")
+                    or finding_rec.details.get("agency_name")
+                    or (recruiter_email.split("@")[-1] if recruiter_email else "")
+                )
+                agency_domain = finding_rec.details.get("canonical_domain")
+                auth_status, auth_expl, auth_ev, auth_str = rec_agent._evaluate_agency_authorization(
+                    search_res, agency_name, agency_domain, company_name or "", canonical_domain
+                )
+                if auth_status == "SUPPORTED":
+                    finding_rec.details["agency_authorization_status"] = "SUPPORTED"
+                    finding_rec.details["agency_authorization_expl"] = auth_expl
+                    finding_rec.details["agency_authorization_strength"] = auth_str
+                    finding_rec.verdict = "VERIFIED"
+                    for ev in auth_ev:
+                        finding_rec.evidence.append(ev)
+
+            elif step.strategy == "RECRUITER_AFFILIATION" and finding_rec:
+                aff_status, aff_expl, aff_ev, aff_str = rec_agent._evaluate_affiliation_evidence(
+                    search_res, recruiter_name, recruiter_email, company_name or "", canonical_domain
+                )
+                if aff_status == "SUPPORTED":
+                    finding_rec.details["recruiter_affiliation_status"] = "SUPPORTED"
+                    finding_rec.details["recruiter_affiliation_expl"] = aff_expl
+                    finding_rec.details["recruiter_affiliation_strength"] = aff_str
+                    finding_rec.verdict = "VERIFIED"
+                    for ev in aff_ev:
+                        finding_rec.evidence.append(ev)
+
+            elif step.strategy == "RECRUITMENT_FEE_POLICY" and finding_scam:
+                for item in search_res.organic_results or []:
+                    link = item.get("link", "")
+                    parsed = DomainResolver.normalize_and_parse_url(link)
+                    if parsed.is_valid and canonical_domain and DomainResolver.is_matching_domain(parsed.hostname, canonical_domain):
+                        text = f"{item.get('title', '')} {item.get('snippet', '')}".lower()
+                        if any(kw in text for kw in ("never ask for fee", "never charge", "no fee", "free recruitment", "caution", "fraud alert", "advisory")):
+                            finding_scam.evidence.append(EvidenceItem(
+                                source_url=link,
+                                title=f"{company_name} Recruitment Fraud Policy",
+                                description=item.get("snippet", "Employer explicitly publishes a zero-fee recruitment policy."),
+                                evidence_type="SCAM",
+                                confidence=0.90,
+                            ))
+                            break
+
+        await events.emit("plan_investigation", EventStatus.COMPLETED, f"Adaptive investigation completed {executed_followups} follow-up checks")
+
+    # Record budget or deadline errors
+    if budget_manager.is_deadline_exceeded:
+        errors.append(
+            RunError(
+                code="INVESTIGATION_DEADLINE_EXCEEDED",
+                message="Investigation external elapsed deadline expired; partial findings retained",
+                step="external_investigation",
+                retryable=True,
+            )
+        )
+    if budget_manager.denied_calls:
+        if any(d["type"] in ("BUDGET_EXCEEDED", "FOLLOWUP_BUDGET_EXCEEDED") for d in budget_manager.denied_calls):
+            if not any(e.code == "INVESTIGATION_BUDGET_EXCEEDED" for e in errors):
+                errors.append(
+                    RunError(
+                        code="INVESTIGATION_BUDGET_EXCEEDED",
+                        message="Investigation search budget reached; remaining checks left unverified",
+                        step="search_budget_gate",
+                        retryable=False,
+                    )
+                )
 
     # 4. Synthesize findings using AssessmentEngine (Task 8 policy)
     await events.emit("assess_verdict", EventStatus.STARTED, "Computing unified assessment policy")
