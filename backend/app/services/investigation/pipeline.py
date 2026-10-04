@@ -6,6 +6,7 @@ Produces valid contract-v1 InvestigationResult objects.
 """
 
 import asyncio
+import re
 from datetime import datetime, timezone
 from typing import Any, Callable, Dict, List, Optional
 
@@ -117,16 +118,20 @@ async def investigate_case(
                 finding_comp = await comp_agent.investigate(company_name)
 
             if finding_comp.details.get("provider_status") == "FAILED" or finding_comp.details.get("resolution_state") == "SEARCH_UNAVAILABLE":
-                provider_outage = True
-                await events.emit("resolve_company", EventStatus.FAILED, "Search provider unavailable for employer resolution")
-                errors.append(
-                    RunError(
-                        code="SEARCH_PROVIDER_OUTAGE",
-                        message="Search provider request timed out or was unavailable",
-                        step="resolve_employer_domain",
-                        retryable=True,
+                denied = any(d["step"] == "resolve_employer_domain" for d in budget_manager.denied_calls)
+                if denied and not any(f["step"] == "resolve_employer_domain" for f in recording_client.failed_searches):
+                    await events.emit("resolve_company", EventStatus.SKIPPED, "Employer search skipped by investigation admission limits")
+                else:
+                    provider_outage = True
+                    await events.emit("resolve_company", EventStatus.FAILED, "Search provider unavailable for employer resolution")
+                    errors.append(
+                        RunError(
+                            code="SEARCH_PROVIDER_OUTAGE",
+                            message="Search provider request timed out or was unavailable",
+                            step="resolve_employer_domain",
+                            retryable=True,
+                        )
                     )
-                )
             else:
                 canonical_domain = finding_comp.details.get("canonical_domain") or finding_comp.details.get("official_domain")
                 if canonical_domain and "://" in canonical_domain:
@@ -170,7 +175,11 @@ async def investigate_case(
                 recruiter_phone=recruiter_phone,
             )
 
+    essential_done = asyncio.Event()
+    essential_remaining = 2
+
     async def run_salary():
+        await essential_done.wait()
         if not has_salary_claim or not company_name:
             await events.emit("check_compensation", EventStatus.SKIPPED, "No compensation or employer to benchmark")
             return None
@@ -206,12 +215,19 @@ async def investigate_case(
             )
 
     async def finish_step(fn, name):
-        result = await fn()
-        if result is not None:
-            failed = result.details.get("provider_status") in ("FAILED", "PARTIAL")
-            await events.emit(name, EventStatus.FAILED if failed else EventStatus.COMPLETED,
-                              "Check retained partial results; external retrieval was unavailable" if failed else "Check completed")
-        return result
+        nonlocal essential_remaining
+        try:
+            result = await fn()
+            if result is not None:
+                failed = result.details.get("provider_status") in ("FAILED", "PARTIAL")
+                await events.emit(name, EventStatus.FAILED if failed else EventStatus.COMPLETED,
+                                  "Check retained partial results; external retrieval was unavailable" if failed else "Check completed")
+            return result
+        finally:
+            if name in ("check_recruiter", "check_scam_signals"):
+                essential_remaining -= 1
+                if essential_remaining == 0:
+                    essential_done.set()
 
     tasks = [
         asyncio.create_task(finish_step(run_recruiter, "check_recruiter")),
@@ -293,7 +309,12 @@ async def investigate_case(
         await events.emit("plan_investigation", EventStatus.SKIPPED, "No productive follow-up checks required")
     else:
         executed_followups = 0
-        for step in plan_steps:
+        attempted_queries = set(executed_queries)
+        while plan_steps:
+            step = plan_steps.pop(0)
+            if step.query.lower() in attempted_queries:
+                continue
+            attempted_queries.add(step.query.lower())
             if budget_manager.is_deadline_exceeded or budget_manager.auth_failure_detected:
                 break
 
@@ -303,15 +324,17 @@ async def investigate_case(
                 with recording_client.step(step_name, step.rationale):
                     raw_res = await recording_client.search(step.query)
                 search_res = SearchResult.from_dict_or_result(raw_res, query=step.query)
+                if raw_res.get("budget_denied"):
+                    search_res.update(budget_denied=True, denial_type=raw_res.get("denial_type"))
             except asyncio.CancelledError:
                 raise
             except Exception as exc:
-                logger.error("Adaptive step %s failed: %s", step_name, exc)
+                logger.error("Adaptive step %s failed", step_name)
                 await events.emit(step_name, EventStatus.FAILED, f"Adaptive search failed for step {step_name}")
                 continue
 
             if search_res.get("budget_denied"):
-                await events.emit(step_name, EventStatus.SKIPPED, "Adaptive check skipped: search budget reached")
+                await events.emit(step_name, EventStatus.SKIPPED, f"Adaptive check skipped: {search_res.get("denial_type", "investigation limit")}")
                 break
 
             if not search_res.is_live:
@@ -345,29 +368,40 @@ async def investigate_case(
                                 evidence_type="COMPANY",
                                 confidence=item.get("confidence", resolution.confidence),
                             ))
-                    # If recruiter email was waiting on domain match:
-                    if recruiter_email and finding_rec and not finding_rec.details.get("is_free_email"):
+                    # Domain alignment is one dimension, not recruiter authentication.
+                    if recruiter_email and finding_rec:
                         email_domain = recruiter_email.split("@")[-1].lower().strip()
-                        if DomainResolver.is_matching_domain(email_domain, resolution.canonical_domain):
-                            finding_rec.details["domain_match"] = True
-                            finding_rec.details["recruiter_email_status"] = "SUPPORTED"
-                            finding_rec.details["employer_domain_status"] = "SUPPORTED"
-                            finding_rec.verdict = "VERIFIED"
-                            finding_rec.evidence.append(EvidenceItem(
-                                source_url=resolution.canonical_url or f"https://{resolution.canonical_domain}",
-                                title="Corporate Email Domain Matched",
-                                description="Submitted recruiter email domain matches official company domain confirmed in contextual follow-up.",
-                                evidence_type="RECRUITER",
-                                confidence=0.88,
-                            ))
+                        aligned = DomainResolver.is_matching_domain(email_domain, resolution.canonical_domain)
+                        finding_rec.details["domain_match"] = aligned
+                        dimensions = finding_rec.details.setdefault("assessment_dimensions", {})
+                        dimensions.setdefault("employer_domain_resolution", {}).update(status="SUPPORTED", source_urls=[e.source_url for e in finding_comp.evidence])
+                        dimensions.setdefault("recruiter_email_domain", {}).update(status="SUPPORTED" if aligned else "CONFLICTING", domain_match=aligned)
+                        # Preserve adverse reports, agency uncertainty and unavailable checks.
+                        if finding_rec.verdict != "HIGH_RISK":
+                            finding_rec.verdict = "NEEDS_REVIEW" if not aligned else "CANNOT_VERIFY"
+                        finding_rec.details.pop("reason_code", None) if aligned and finding_rec.details.get("reason_code") == "RECRUITER_DOMAIN_MISMATCH" else None
+                    if finding_rec:
+                        aff_status, aff_expl, aff_ev, aff_str = rec_agent._evaluate_affiliation_evidence(
+                            search_res, recruiter_name, recruiter_email, company_name, canonical_domain)
+                        if aff_status == "SUPPORTED":
+                            finding_rec.details.update(recruiter_affiliation_status=aff_status,
+                                recruiter_affiliation_strength=aff_str)
+                            finding_rec.details.setdefault("assessment_dimensions", {}).setdefault("recruiter_affiliation", {}).update(
+                                status=aff_status, evidence_strength=aff_str, source_urls=[e.source_url for e in aff_ev], explanation=aff_expl)
+                            finding_rec.evidence.extend(aff_ev)
+                    current_findings["CompanyAgent"] = finding_comp
+                    current_findings["RecruiterAgent"] = finding_rec
+                    plan_steps = planner.create_plan(claims, current_findings, attempted_queries,
+                                                     canonical_domain, case_input)
 
             elif step.strategy == "AGENCY_AUTHORIZATION" and finding_rec:
                 agency_name = (
-                    finding_rec.details.get("agency_identity_facts", {}).get("agency_name")
+                    finding_rec.details.get("assessment_dimensions", {}).get("agency_identity", {}).get("raw_facts", {}).get("agency_name")
+                    or finding_rec.details.get("agency_identity_facts", {}).get("agency_name")
                     or finding_rec.details.get("agency_name")
                     or (recruiter_email.split("@")[-1] if recruiter_email else "")
                 )
-                agency_domain = finding_rec.details.get("canonical_domain")
+                agency_domain = finding_rec.details.get("agency_domain") or finding_rec.details.get("assessment_dimensions", {}).get("agency_identity", {}).get("raw_facts", {}).get("canonical_domain")
                 auth_status, auth_expl, auth_ev, auth_str = rec_agent._evaluate_agency_authorization(
                     search_res, agency_name, agency_domain, company_name or "", canonical_domain
                 )
@@ -375,7 +409,9 @@ async def investigate_case(
                     finding_rec.details["agency_authorization_status"] = "SUPPORTED"
                     finding_rec.details["agency_authorization_expl"] = auth_expl
                     finding_rec.details["agency_authorization_strength"] = auth_str
-                    finding_rec.verdict = "VERIFIED"
+                    finding_rec.details.setdefault("assessment_dimensions", {}).setdefault("agency_authorization", {}).update(
+                        status="SUPPORTED", evidence_strength=auth_str, explanation=auth_expl,
+                        source_urls=[e.source_url for e in auth_ev])
                     for ev in auth_ev:
                         finding_rec.evidence.append(ev)
 
@@ -387,7 +423,9 @@ async def investigate_case(
                     finding_rec.details["recruiter_affiliation_status"] = "SUPPORTED"
                     finding_rec.details["recruiter_affiliation_expl"] = aff_expl
                     finding_rec.details["recruiter_affiliation_strength"] = aff_str
-                    finding_rec.verdict = "VERIFIED"
+                    finding_rec.details.setdefault("assessment_dimensions", {}).setdefault("recruiter_affiliation", {}).update(
+                        status="SUPPORTED", evidence_strength=aff_str, explanation=aff_expl,
+                        source_urls=[e.source_url for e in aff_ev])
                     for ev in aff_ev:
                         finding_rec.evidence.append(ev)
 
@@ -397,17 +435,27 @@ async def investigate_case(
                     parsed = DomainResolver.normalize_and_parse_url(link)
                     if parsed.is_valid and canonical_domain and DomainResolver.is_matching_domain(parsed.hostname, canonical_domain):
                         text = f"{item.get('title', '')} {item.get('snippet', '')}".lower()
-                        if any(kw in text for kw in ("never ask for fee", "never charge", "no fee", "free recruitment", "caution", "fraud alert", "advisory")):
+                        if re.search(r"\b(?:never\s+(?:ask|charge)|do\s+not\s+(?:ask|charge)|no\s+(?:recruitment\s+)?fees?|free recruitment)\b", text):
                             finding_scam.evidence.append(EvidenceItem(
                                 source_url=link,
-                                title=f"{company_name} Recruitment Fraud Policy",
-                                description=item.get("snippet", "Employer explicitly publishes a zero-fee recruitment policy."),
+                                title=item.get("title") or "Recruitment policy search observation",
+                                description=item.get("snippet") or "",
                                 evidence_type="SCAM",
                                 confidence=0.90,
                             ))
                             break
 
         await events.emit("plan_investigation", EventStatus.COMPLETED, f"Adaptive investigation completed {executed_followups} follow-up checks")
+
+    recorded_failure_steps = {e.step for e in errors}
+    for failure in recording_client.failed_searches:
+        if failure["step"] not in recorded_failure_steps:
+            errors.append(RunError(code="SEARCH_CHECK_UNAVAILABLE", message="External retrieval unavailable; partial evidence retained",
+                                   step=failure["step"], retryable=True))
+            recorded_failure_steps.add(failure["step"])
+
+    for denial in budget_manager.denied_calls:
+        await events.emit(denial["step"], EventStatus.SKIPPED, f"External check skipped: {denial['type']}")
 
     # Record budget or deadline errors
     if budget_manager.is_deadline_exceeded:

@@ -110,7 +110,7 @@
       "query": "\"NexaCore Technologies Ltd\" official website careers",
       "reason": "Resolve the employer's official domain before checking contact details",
       "status": "COMPLETED",
-      "started_at": "2026-10-04T07:55:24.030580Z",
+      "started_at": "2026-10-04T08:11:24.019384Z",
       "duration_ms": 0,
       "evidence_ids": []
     },
@@ -120,7 +120,7 @@
       "query": "\"hr@nexacore.example\" scam fraud complaint",
       "reason": "Verify recruiter email alignment with resolved domain",
       "status": "COMPLETED",
-      "started_at": "2026-10-04T07:55:24.031555Z",
+      "started_at": "2026-10-04T08:11:24.019987Z",
       "duration_ms": 0,
       "evidence_ids": []
     },
@@ -130,7 +130,7 @@
       "query": "\"hr@nexacore.example\" \"NexaCore Technologies Ltd\"",
       "reason": "Verify recruiter email alignment with resolved domain",
       "status": "COMPLETED",
-      "started_at": "2026-10-04T07:55:24.031733Z",
+      "started_at": "2026-10-04T08:11:24.020300Z",
       "duration_ms": 0,
       "evidence_ids": []
     },
@@ -140,7 +140,7 @@
       "query": "\"NexaCore Technologies Ltd\" job scam fraud complaint telegram",
       "reason": "Check for upfront fees, credential demands, and adverse reports",
       "status": "COMPLETED",
-      "started_at": "2026-10-04T07:55:24.032857Z",
+      "started_at": "2026-10-04T08:11:24.021108Z",
       "duration_ms": 0,
       "evidence_ids": []
     },
@@ -150,7 +150,7 @@
       "query": "\"NexaCore Technologies Ltd\" \"Frontend Developer\" official careers",
       "reason": "Employer identity remains unresolved; checking 'NexaCore Technologies Ltd' with grounded context 'Frontend Developer'.",
       "status": "COMPLETED",
-      "started_at": "2026-10-04T07:55:24.033227Z",
+      "started_at": "2026-10-04T08:11:24.021450Z",
       "duration_ms": 0,
       "evidence_ids": []
     }

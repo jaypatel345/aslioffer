@@ -93,7 +93,7 @@
       "source_url": "https://www.radiantenergy.example/",
       "title": "Radiant Energy Solutions Ltd",
       "quote_or_snippet": "Official website in Hyderabad.",
-      "retrieved_at": "2026-10-04T07:55:24.024752Z",
+      "retrieved_at": "2026-10-04T08:11:24.014814Z",
       "query": "\"Radiant Energy Solutions Ltd\" \"Hyderabad\" official website",
       "engine": "google",
       "search_id": null,
@@ -108,7 +108,7 @@
       "source_url": "https://www.radiantenergy.example",
       "title": "Radiant Energy Solutions Ltd",
       "quote_or_snippet": "{\"title\": \"Radiant Energy Solutions Ltd\", \"website\": \"https://www.radiantenergy.example\", \"careers_url\": \"https://careers.radiantenergy.example\"}",
-      "retrieved_at": "2026-10-04T07:55:24.024752Z",
+      "retrieved_at": "2026-10-04T08:11:24.014814Z",
       "query": "\"Radiant Energy Solutions Ltd\" \"Hyderabad\" official website",
       "engine": "google",
       "search_id": null,
@@ -117,7 +117,7 @@
       "relation": "SUPPORTS"
     }
   ],
-  "overall_outcome": "NO_STRONG_RISK_SIGNALS",
+  "overall_outcome": "CANNOT_VERIFY",
   "authenticity_status": "UNCONFIRMED",
   "coverage": {
     "checked_claims": 2,
@@ -126,11 +126,12 @@
     "failed_checks": 0
   },
   "recommended_actions": [
-    "No strong risk signals were found, but only Radiant Energy Solutions Ltd can confirm this offer.",
+    "Ask the company for an official website or LinkedIn page and a contact you can reach independently.",
+    "Resolve the outstanding Recruiter Domain Alignment & Employer Affiliation Check independently before relying on that result.",
     "Contact the employer through independently established published contact details to confirm that this specific offer was issued to you.",
     "Review standard employment terms, scope of work, and contract conditions carefully before signing.",
     "Never share sensitive banking passwords, OTPs, or pay any onboarding charges.",
-    "Confirm offer issuance independently before accepting; do not rely solely on an emailed link."
+    "Do not pay any fee or share bank OTPs at any stage."
   ],
   "confirmation_route": null,
   "tool_trace": [
@@ -140,7 +141,7 @@
       "query": "\"Radiant Energy Solutions Ltd\" official website careers",
       "reason": "Resolve the employer's official domain before checking contact details",
       "status": "COMPLETED",
-      "started_at": "2026-10-04T07:55:24.022715Z",
+      "started_at": "2026-10-04T08:11:23.987665Z",
       "duration_ms": 0,
       "evidence_ids": []
     },
@@ -150,7 +151,7 @@
       "query": "\"careers@radiantenergy.example\" scam fraud complaint",
       "reason": "Verify recruiter email alignment with resolved domain",
       "status": "COMPLETED",
-      "started_at": "2026-10-04T07:55:24.023664Z",
+      "started_at": "2026-10-04T08:11:24.013478Z",
       "duration_ms": 0,
       "evidence_ids": []
     },
@@ -160,7 +161,7 @@
       "query": "\"careers@radiantenergy.example\" \"Radiant Energy Solutions Ltd\"",
       "reason": "Verify recruiter email alignment with resolved domain",
       "status": "COMPLETED",
-      "started_at": "2026-10-04T07:55:24.023782Z",
+      "started_at": "2026-10-04T08:11:24.013646Z",
       "duration_ms": 0,
       "evidence_ids": []
     },
@@ -170,7 +171,7 @@
       "query": "\"Radiant Energy Solutions Ltd\" job scam fraud complaint telegram",
       "reason": "Check for upfront fees, credential demands, and adverse reports",
       "status": "COMPLETED",
-      "started_at": "2026-10-04T07:55:24.024527Z",
+      "started_at": "2026-10-04T08:11:24.014401Z",
       "duration_ms": 0,
       "evidence_ids": []
     },
@@ -180,7 +181,7 @@
       "query": "\"Radiant Energy Solutions Ltd\" \"Hyderabad\" official website",
       "reason": "Employer identity remains unresolved; checking 'Radiant Energy Solutions Ltd' with grounded context 'Hyderabad'.",
       "status": "COMPLETED",
-      "started_at": "2026-10-04T07:55:24.024752Z",
+      "started_at": "2026-10-04T08:11:24.014814Z",
       "duration_ms": 0,
       "evidence_ids": [
         "e1",

@@ -61,7 +61,6 @@ from app.services.search.serpapi_client import SearchOutcome, SearchResult, Sear
 
 
 GENERATED_FIXTURES_DIR = Path(__file__).resolve().parent.parent / "fixtures" / "investigation" / "generated_task11"
-GENERATED_FIXTURES_DIR.mkdir(parents=True, exist_ok=True)
 
 
 class MockSearchClient:
@@ -376,7 +375,8 @@ async def test_unresolved_employer_gets_justified_bounded_contextual_search():
 
     result = await investigate_case(case_input, search_client=search_mock)
 
-    assert result.overall_outcome == OverallOutcome.NO_STRONG_RISK_SIGNALS
+    assert result.overall_outcome == OverallOutcome.CANNOT_VERIFY
+    assert next(a for a in result.assessed_claims if a.claim_id == "c2").status == ClaimStatus.UNRESOLVED
     emp_assessed = next(a for a in result.assessed_claims if a.claim_id == "c1")
     assert emp_assessed.status == ClaimStatus.SUPPORTED
     assert "OFFICIAL_DOMAIN_RESOLVED" in emp_assessed.reason_codes
@@ -639,7 +639,8 @@ async def test_event_and_trace_reasons_explain_actual_planner_decisions():
 # ---------------------------------------------------------------------------
 
 @pytest.mark.asyncio
-async def test_generate_and_roundtrip_task11_fixtures():
+async def test_generate_and_roundtrip_task11_fixtures(tmp_path):
+    GENERATED_FIXTURES_DIR = tmp_path
     """Generates two Task 11 handoff fixtures (gap resolved and abstains exhausted) and verifies round-tripping."""
     # 1. Gap Resolved Fixture
     text1 = (
@@ -679,7 +680,9 @@ async def test_generate_and_roundtrip_task11_fixtures():
         }
     )
     res1 = await investigate_case(case1, search_client=mock1)
-    assert res1.overall_outcome == OverallOutcome.NO_STRONG_RISK_SIGNALS
+    assert res1.overall_outcome == OverallOutcome.CANNOT_VERIFY
+    assert next(a for a in res1.assessed_claims if a.claim_id == "c1").status == ClaimStatus.SUPPORTED
+    assert next(a for a in res1.assessed_claims if a.claim_id == "c2").status == ClaimStatus.UNRESOLVED
     dump1 = res1.model_dump_json(indent=2)
     assert InvestigationResult.model_validate_json(dump1) == res1
     (GENERATED_FIXTURES_DIR / "fixture_adaptive_gap_resolved.json").write_text(dump1, encoding="utf-8")

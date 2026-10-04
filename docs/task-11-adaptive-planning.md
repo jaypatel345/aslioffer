@@ -19,10 +19,10 @@ All initial agent queries and adaptive follow-up queries draw from a single shar
 
 ### Budget Model Defaults & Validation
 Configured via `InvestigationBudget`:
-- `max_search_calls: int = 6` (Validated range: 1–20): Upper bound on unique search operations admitted to the search provider.
-- `max_followup_calls: int = 3` (Validated range: 0–10): Upper bound on adaptive follow-up searches. Automatically clamped to `min(max_followup_calls, max_search_calls)`.
-- `max_concurrent_calls: int = 3` (Validated range: 1–10): Maximum concurrent in-flight external provider calls (enforced by an `asyncio.Semaphore`).
-- `deadline_seconds: float = 20.0` (Validated range: 1.0–120.0): Monotonic deadline for external provider calls and concurrency waits.
+- `max_search_calls: int = 8` (Validated positive integer): Upper bound on unique search operations admitted to the search provider.
+- `max_followup_calls: int = 3` (Validated non-negative integer): Upper bound on adaptive follow-up searches. Automatically clamped to `min(max_followup_calls, max_search_calls)`.
+- `max_concurrent_calls: int = 3` (Validated positive integer): Maximum concurrent in-flight external provider calls (enforced by an `asyncio.Semaphore`).
+- `deadline_seconds: float = 15.0` (Validated finite positive number): Monotonic deadline for external provider calls and concurrency waits.
 
 ### Search Operations vs. Physical HTTP Attempts
 - **Search Operation (Budget Allowance):** One admitted call to the underlying search client (e.g. SerpApi). Exactly one allowance is reserved per admitted operation.
@@ -140,3 +140,11 @@ Both fixtures validate against `InvestigationResult` schema and round-trip throu
 
 - Active confirmation routing, deep careers application API corroboration, and applicant corroboration belong to Task 12.
 - Jay owns database persistence (J3), HTTP route integration, polling, and frontend migration.
+
+## Cleanup semantics
+
+Concurrency waits are bounded by the remaining deadline. Admission is reserved only after a slot is acquired, immediately before dispatch; cancelled or expired waiters create no provider call or failed-retrieval observation. Booleans, fractional call limits and non-finite deadlines are rejected. Cached observations remain readable without another admission. Denial metadata is checked before canonical SearchResult normalization can discard internal fields; denied adaptive steps are SKIPPED and stop the queue. Public failures use fixed messages rather than raw provider errors.
+
+Recruiter and scam checks complete before optional compensation begins, so optional salary calls do not race essential initial checks for the last available allowance. Employer context resolution replans subsequent strategies against new evidence without replaying attempted queries. Supported dimension updates retain earlier observations, adverse findings and unresolved dimensions; domain alignment alone never upgrades recruiter identity to VERIFIED. Actual employer-published affiliation can be assessed separately. Agency metadata reads the existing nested raw_facts/status fields. Uncertain contacts/names and ungrounded payment values do not trigger follow-ups. A generic advisory is not labelled an explicit no-fee policy.
+
+The gap-resolved fixture demonstrates resolution of employer identity while recruiter affiliation remains unresolved; its conservative overall outcome is CANNOT_VERIFY. Normal tests generate fixtures in temporary directories. Committed examples are regenerated explicitly. Final local assembly and awaited event callbacks remain outside an externally enforced wall-clock guarantee: elapsed time spent in them can exhaust the remaining external deadline, but they are not forcibly interrupted by that deadline.

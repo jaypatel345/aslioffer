@@ -48,6 +48,10 @@ class InvestigationPlanner:
         - Previously executed queries are skipped.
         - Questions already resolved are skipped.
         """
+        def usable(claim):
+            return bool(claim and claim.value and claim.extraction_status != ExtractionStatus.UNCERTAIN
+                        and not is_redaction_placeholder(claim.value))
+
         plan: List[PlanStep] = []
 
         finding_comp = findings.get("CompanyAgent")
@@ -78,7 +82,7 @@ class InvestigationPlanner:
         # but corporate domain remained UNRESOLVED (e.g. sparse startup, generic name).
         if company_name and not canonical_domain:
             comp_failed = finding_comp and finding_comp.details.get("provider_status") == "FAILED"
-            comp_unresolved = not finding_comp or not finding_comp.details.get("official_domain_resolved", False)
+            comp_unresolved = bool(finding_comp and finding_comp.details.get("provider_status") == "SUCCESS" and not finding_comp.details.get("official_domain_resolved", False))
 
             if comp_unresolved and not comp_failed:
                 # Seek grounded location or role context to disambiguate
@@ -122,7 +126,7 @@ class InvestigationPlanner:
         # --------------------------------------------------------------------
         # Triggered when sender domain differs from resolved employer domain,
         # is not a free webmail, and staffing agency representation is unconfirmed.
-        if company_name and canonical_domain and email_claim and email_claim.value and not is_redaction_placeholder(email_claim.value):
+        if company_name and canonical_domain and usable(email_claim):
             email_val = email_claim.value.strip()
             if "@" in email_val:
                 email_domain = email_val.split("@")[-1].lower().strip()
@@ -134,12 +138,13 @@ class InvestigationPlanner:
                     agency_name = None
                     if finding_rec:
                         agency_name = (
-                            finding_rec.details.get("agency_identity_facts", {}).get("agency_name")
+                            finding_rec.details.get("assessment_dimensions", {}).get("agency_identity", {}).get("raw_facts", {}).get("agency_name")
+                            or finding_rec.details.get("agency_identity_facts", {}).get("agency_name")
                             or finding_rec.details.get("agency_name")
                         )
                     clean_agency = (agency_name or email_domain).strip()
 
-                    auth_status = finding_rec.details.get("agency_authorization_status") if finding_rec else None
+                    auth_status = (finding_rec.details.get("assessment_dimensions", {}).get("agency_authorization", {}).get("status") or finding_rec.details.get("agency_authorization_status")) if finding_rec else None
                     if auth_status != "SUPPORTED":
                         candidate_query = f'"{company_name}" "{clean_agency}" recruitment partner authorized'
                         if candidate_query.lower() not in executed_queries:
@@ -161,12 +166,12 @@ class InvestigationPlanner:
         # --------------------------------------------------------------------
         # Triggered when recruiter name is supplied (not generic), employer domain is resolved,
         # but affiliation with the employer remains unconfirmed.
-        if company_name and canonical_domain and name_claim and name_claim.value and not is_redaction_placeholder(name_claim.value):
+        if company_name and canonical_domain and usable(name_claim):
             name_val = name_claim.value.strip()
             is_generic = name_val.lower() in GENERIC_TITLES
 
             if not is_generic:
-                aff_status = finding_rec.details.get("recruiter_affiliation_status") if finding_rec else None
+                aff_status = (finding_rec.details.get("assessment_dimensions", {}).get("recruiter_affiliation", {}).get("status") or finding_rec.details.get("recruiter_affiliation_status")) if finding_rec else None
                 if aff_status in ("UNCONFIRMED", "NOT_CHECKED", None):
                     candidate_query = f'"{name_val}" "{canonical_domain}" talent acquisition recruiter'
                     if candidate_query.lower() not in executed_queries:
@@ -188,7 +193,7 @@ class InvestigationPlanner:
         # --------------------------------------------------------------------
         # Triggered when offer document contains a payment request and employer domain is resolved.
         # Checks if employer explicitly publishes a no-fee policy.
-        if company_name and canonical_domain and pay_claim and pay_claim.value and not is_redaction_placeholder(pay_claim.value):
+        if company_name and canonical_domain and usable(pay_claim) and pay_claim.source_quote:
             candidate_query = f'"{company_name}" recruitment fraud policy fee warning'
             if candidate_query.lower() not in executed_queries:
                 plan.append(

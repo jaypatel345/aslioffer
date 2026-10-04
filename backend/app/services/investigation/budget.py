@@ -7,6 +7,7 @@ concurrent in-flight provider calls, and elapsed execution time.
 from dataclasses import dataclass, field
 import asyncio
 import time
+import math
 from typing import Any, Dict, List, Optional, Tuple
 
 
@@ -24,7 +25,7 @@ class InvestigationBudget:
 
     Note: An underlying client (e.g. SerpApiClient) may execute internal HTTP retries
     for a single admitted operation on transient 5xx errors; that is bounded by the client's
-    retry policy (max 2 retries) and the remaining investigation deadline.
+    configured retry policy and the remaining investigation deadline.
     """
     max_search_calls: int = 8
     max_followup_calls: int = 3
@@ -32,21 +33,21 @@ class InvestigationBudget:
     deadline_seconds: float = 15.0
 
     def __post_init__(self):
-        if self.max_search_calls < 1:
-            raise ValueError("max_search_calls must be at least 1")
-        if self.max_followup_calls < 0:
-            raise ValueError("max_followup_calls must be non-negative")
+        for name in ('max_search_calls', 'max_followup_calls', 'max_concurrent_calls'):
+            value = getattr(self, name)
+            if isinstance(value, bool) or not isinstance(value, int):
+                raise ValueError(f"{name} must be an integer")
+        if self.max_search_calls < 1 or self.max_followup_calls < 0 or self.max_concurrent_calls < 1:
+            raise ValueError("Call limits must be positive, except follow-ups may be zero")
         if self.max_followup_calls > self.max_search_calls:
             self.max_followup_calls = self.max_search_calls
-        if self.max_concurrent_calls < 1:
-            raise ValueError("max_concurrent_calls must be at least 1")
-        if self.deadline_seconds <= 0:
-            raise ValueError("deadline_seconds must be positive")
+        if isinstance(self.deadline_seconds, bool) or not isinstance(self.deadline_seconds, (int, float)) or not math.isfinite(self.deadline_seconds) or self.deadline_seconds <= 0:
+            raise ValueError("deadline_seconds must be finite and positive")
 
 
 class BudgetManager:
     """
-    Thread-safe and coroutine-safe admission controller for external search operations.
+    Coroutine-safe admission controller for external search operations.
 
     Enforces:
     - Atomic reservation immediately prior to provider invocation.
