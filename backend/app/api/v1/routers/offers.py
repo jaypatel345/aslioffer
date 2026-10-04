@@ -190,6 +190,7 @@ async def get_offer_report(id: int, session: Session = Depends(get_session)):
         red_flags=red_flags,
         green_flags=green_flags,
         reason_details=verdict_result.reason_details,
+        structured_assessment=verdict_result.structured_assessment,
     )
 
     return report

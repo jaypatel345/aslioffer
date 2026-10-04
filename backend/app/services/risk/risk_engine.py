@@ -1,86 +1,87 @@
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 from app.schemas.analysis import AgentFinding, RiskLevel
+from app.services.risk.assessment_engine import AssessmentEngine
+from app.services.risk.assessment_models import (
+    OverallOutcome,
+    ExecutionStatus,
+    ResolutionStatus,
+    StructuredAssessment,
+)
 from app.core.logging import logger
 
 
 class RiskEngine:
     """
     Synthesizes findings from CompanyAgent, RecruiterAgent, SalaryAgent, and ScamAgent.
-    Computes a transparent, evidence-weighted risk score and determines risk tier:
-      - VERIFIED: Consistent footprint, legitimate domain, no scam markers
-      - NEEDS_REVIEW: Ambiguous recruiter presence, unverified domain, or salary outlier
-      - HIGH_RISK: Advance fee demanded, free email for corporate role, or known scam match
+    Delegates to the unified AssessmentEngine (Task 8) to maintain a single coherent policy
+    across RiskEngine and VerdictReasoner.
+    
+    Warning index (risk_score) is an uncalibrated signal metric (0.0 to 1.0), never a fraud probability.
+    Artificial minimum of 0.05 is removed: clean or unavailable checks with zero supported
+    adverse signals yield warning strength 0.0.
     """
 
+    def __init__(self, assessment_engine: Optional[AssessmentEngine] = None):
+        self.engine = assessment_engine or AssessmentEngine()
+
+    def assess(self, findings: List[AgentFinding]) -> StructuredAssessment:
+        """New structured assessment entrypoint."""
+        return self.engine.assess(findings)
+
     def compute_risk(self, findings: List[AgentFinding]) -> Tuple[float, RiskLevel, List[str], List[str]]:
-        logger.info("RiskEngine evaluating %d agent findings", len(findings))
+        """
+        Backward-compatible risk calculation entrypoint.
+        Returns (risk_score, risk_level, red_flags, green_flags).
+        """
+        logger.info("RiskEngine evaluating %d agent findings via unified AssessmentEngine", len(findings))
 
-        base_score = 0.0
+        assessment = self.engine.assess(findings)
+
+        # Map overall outcome to legacy RiskLevel
+        outcome_map = {
+            OverallOutcome.HIGH_RISK: RiskLevel.HIGH_RISK,
+            OverallOutcome.NEEDS_REVIEW: RiskLevel.NEEDS_REVIEW,
+            OverallOutcome.CANNOT_VERIFY: RiskLevel.CANNOT_VERIFY,
+            OverallOutcome.NO_STRONG_RISK_SIGNALS: RiskLevel.VERIFIED,
+        }
+        risk_level = outcome_map[assessment.overall_outcome]
+        risk_score = assessment.warning_strength
+
+        # Red flags: from supported strong signals and review concerns
         red_flags: List[str] = []
+        for s in assessment.supported_warning_signals:
+            red_flags.append(s.description)
+        for c in assessment.review_only_concerns:
+            red_flags.append(c.description)
+
+        # Green flags: generated ONLY for checks that genuinely ran and were supported/clean
         green_flags: List[str] = []
-        cautions: List[str] = []
+        check_dict = {c.check_id: c for c in assessment.individual_checks}
 
-        agent_map = {f.agent_name: f for f in findings}
+        local_scan = check_dict.get("LOCAL_DOCUMENT_SCAN")
+        ext_scam = check_dict.get("EXTERNAL_SCAM_REPORTS")
+        if (
+            local_scan
+            and local_scan.execution_status == ExecutionStatus.COMPLETED
+            and local_scan.resolution_status == ResolutionStatus.NO_MATCH
+            and ext_scam
+            and ext_scam.execution_status == ExecutionStatus.COMPLETED
+        ):
+            green_flags.append("No advance fee demands, security deposits, or OTP requests found.")
 
-        # 1. Scam Agent Weight (Highest priority)
-        scam_finding = agent_map.get("ScamAgent")
-        if scam_finding:
-            if scam_finding.verdict == "HIGH_RISK":
-                base_score += 0.50
-                red_flags.append(scam_finding.summary)
-            elif scam_finding.verdict == "VERIFIED":
-                green_flags.append("No advance fee demands, security deposits, or OTP requests found.")
+        comp_check = check_dict.get("COMPANY_IDENTITY_CHECK")
+        if comp_check and comp_check.execution_status == ExecutionStatus.COMPLETED and comp_check.resolution_status == ResolutionStatus.SUPPORTED:
+            green_flags.append("Company public web presence matched; registration has not been checked.")
 
-        # 2. Recruiter Agent Weight
-        recruiter_finding = agent_map.get("RecruiterAgent")
-        if recruiter_finding:
-            if recruiter_finding.verdict == "HIGH_RISK":
-                base_score += 0.35
-                red_flags.append(recruiter_finding.summary)
-            elif recruiter_finding.verdict == "NEEDS_REVIEW":
-                base_score += 0.20
-                red_flags.append(recruiter_finding.summary)
-            elif recruiter_finding.verdict in ("CANNOT_VERIFY", "UNVERIFIED"):
-                # Unchecked is not the same as clean. Falling through to the green
-                # branch let a mail with no sender address earn a green flag.
-                cautions.append(recruiter_finding.summary)
-            elif recruiter_finding.verdict == "VERIFIED":
-                green_flags.append("Recruiter credentials consistent with corporate domain standards.")
+        rec_aff = check_dict.get("RECRUITER_AFFILIATION_CHECK")
+        if rec_aff and rec_aff.execution_status == ExecutionStatus.COMPLETED and rec_aff.resolution_status == ResolutionStatus.SUPPORTED:
+            green_flags.append("Recruiter credentials consistent with corporate domain standards; does not authenticate individual offer.")
 
-        # 3. Company Agent Weight
-        company_finding = agent_map.get("CompanyAgent")
-        if company_finding:
-            if company_finding.verdict in ("UNVERIFIED", "CANNOT_VERIFY"):
-                cautions.append(company_finding.summary)
-            elif company_finding.verdict == "VERIFIED":
-                green_flags.append("Company public web presence matched; registration has not been checked.")
+        sal_check = check_dict.get("COMPENSATION_BENCHMARK")
+        if sal_check and sal_check.execution_status == ExecutionStatus.COMPLETED and sal_check.resolution_status == ResolutionStatus.SUPPORTED:
+            green_flags.append("Compensation package falls within expected market baseline.")
 
-        # 4. Salary Agent Weight
-        salary_finding = agent_map.get("SalaryAgent")
-        if salary_finding:
-            if salary_finding.verdict == "NEEDS_REVIEW":
-                base_score += 0.15
-                red_flags.append(salary_finding.summary)
-            elif salary_finding.verdict == "CANNOT_VERIFY":
-                cautions.append(salary_finding.summary)
-            elif salary_finding.verdict == "VERIFIED":
-                green_flags.append("Compensation package falls within expected market baseline.")
-
-        # Inconclusive findings remain visible in the report's findings. They are
-        # coverage gaps, not adverse evidence or red flags.
-
-        # Normalization (0.0 to 1.0)
-        risk_score = min(max(round(base_score, 2), 0.05), 0.99)
-
-        # Determine level
-        if risk_score >= 0.50 or any(f.verdict == "HIGH_RISK" for f in findings):
-            risk_level = RiskLevel.HIGH_RISK
-        elif risk_score >= 0.25 or any(f.verdict == "NEEDS_REVIEW" for f in findings):
-            risk_level = RiskLevel.NEEDS_REVIEW
-        elif cautions or any(f.verdict == "CANNOT_VERIFY" for f in findings):
-            risk_level = RiskLevel.CANNOT_VERIFY
-        else:
-            risk_level = RiskLevel.VERIFIED
-
-        logger.info("Risk calculation complete: score=%.2f, level=%s", risk_score, risk_level.value)
+        logger.info("RiskEngine assessment complete: outcome=%s, score=%.2f, level=%s",
+                    assessment.overall_outcome.value, risk_score, risk_level.value)
         return risk_score, risk_level, red_flags, green_flags
+

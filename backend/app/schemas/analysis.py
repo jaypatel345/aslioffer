@@ -85,6 +85,14 @@ class AnalysisRequest(BaseModel):
     force_refresh: bool = False
 
 
+from app.services.risk.assessment_models import (
+    OverallOutcome,
+    AuthenticityStatus,
+    WarningBand,
+    StructuredAssessment,
+)
+
+
 class VerdictReason(BaseModel):
     code: str = Field(..., description="Machine-readable reason code, e.g. COMPANY_NOT_VERIFIED")
     reason: str = Field(..., description="Human-readable explanation")
@@ -96,6 +104,11 @@ class VerdictResult(BaseModel):
     reasons: List[str] = Field(default_factory=list)
     reason_details: List[VerdictReason] = Field(default_factory=list)
     evidence: List[EvidenceItem] = Field(default_factory=list)
+    overall_outcome: Optional[OverallOutcome] = None
+    authenticity_status: Optional[AuthenticityStatus] = AuthenticityStatus.UNCONFIRMED
+    warning_strength: Optional[float] = None
+    warning_band: Optional[WarningBand] = None
+    structured_assessment: Optional[StructuredAssessment] = None
 
 
 class VerificationReport(BaseModel):
@@ -111,4 +124,9 @@ class VerificationReport(BaseModel):
     official_company_info: Dict[str, Optional[str]]
     recommended_actions: List[str]
     reason_details: List[VerdictReason] = Field(default_factory=list)
+    overall_outcome: Optional[OverallOutcome] = None
+    authenticity_status: Optional[AuthenticityStatus] = AuthenticityStatus.UNCONFIRMED
+    warning_band: Optional[WarningBand] = None
+    structured_assessment: Optional[StructuredAssessment] = None
     generated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+

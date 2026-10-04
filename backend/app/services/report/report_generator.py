@@ -7,6 +7,13 @@ from app.schemas.analysis import (
     RiskLevel,
     VerdictReason,
 )
+from app.services.risk.assessment_engine import AssessmentEngine
+from app.services.risk.assessment_models import (
+    OverallOutcome,
+    AuthenticityStatus,
+    WarningBand,
+    StructuredAssessment,
+)
 from app.core.logging import logger
 
 
@@ -14,6 +21,7 @@ class ReportGenerator:
     """
     Assembles a comprehensive, human-readable forensic verification report.
     Produces evidence citations, official company contacts, and specific safety advisories.
+    Separates warning signals, check coverage, and offer authenticity (Task 8).
     
     TODO: Add automated draft generation for NCRP (National Cyber Crime Reporting Portal - cybercrime.gov.in)
     TODO: Add Community Intelligence submission hook
@@ -30,14 +38,16 @@ class ReportGenerator:
         red_flags: List[str],
         green_flags: List[str],
         reason_details: Optional[List[VerdictReason]] = None,
+        structured_assessment: Optional[StructuredAssessment] = None,
     ) -> VerificationReport:
         logger.info("ReportGenerator compiling report for offer_id=%d (risk_level=%s)", offer_id, risk_level.value)
 
+        # Derive or use provided structured assessment
+        assessment = structured_assessment or AssessmentEngine().assess(findings)
+
         company_name = extracted_entities.company_name or "Company"
 
-        # Report the domain the CompanyAgent actually matched. Guessing
-        # "https://www.<name>.com" printed an unvisited URL under the heading
-        # "Company Website" — an invented fact in an evidence report.
+        # Report the domain the CompanyAgent actually matched.
         company_finding = next((f for f in findings if f.agent_name == "CompanyAgent"), None)
         company_details = (company_finding.details or {}) if company_finding else {}
         official_domain = company_details.get("official_domain")
@@ -53,9 +63,6 @@ class ReportGenerator:
 
         # Contextual summary & actions based on RiskLevel
         if risk_level == RiskLevel.HIGH_RISK:
-            # Describe what actually fired. The old fixed string asserted
-            # impersonation and advance-fee demands on every high-risk report,
-            # contradicting its own red-flag list when neither was present.
             headline = red_flags[0] if red_flags else "multiple verification checks failed"
             extra = f" ({len(red_flags) - 1} further concern(s) listed below.)" if len(red_flags) > 1 else ""
             summary = (
@@ -96,10 +103,12 @@ class ReportGenerator:
             ]
         else:
             summary = (
-                f"VERIFIED EVIDENCE FOOTPRINT: The extracted credentials, company presence, and compensation parameters "
-                f"align with legitimate employment practices for {company_name}."
+                f"NO STRONG RISK SIGNALS: The extracted credentials, company presence, and compensation parameters "
+                f"align with legitimate employment practices for {company_name}. "
+                "Note: The employer has not authenticated this individual offer; public web checks cannot establish offer authenticity."
             )
             actions = [
+                "Confirm this specific offer with the employer through their official published careers contact.",
                 "Review standard employment terms and non-disclosure agreements carefully.",
                 "Verify the offer reference code on the company's internal applicant tracking system if provided.",
                 "Never share bank login details or passwords during onboarding.",
@@ -118,5 +127,10 @@ class ReportGenerator:
             official_company_info=official_info,
             recommended_actions=actions,
             reason_details=reason_details or [],
+            overall_outcome=assessment.overall_outcome,
+            authenticity_status=assessment.authenticity_status,
+            warning_band=assessment.warning_band,
+            structured_assessment=assessment,
             generated_at=datetime.now(timezone.utc),
         )
+

@@ -287,9 +287,14 @@ def test_no_evidence_available(reasoner):
 
 def test_documented_confidence_formula(reasoner):
     """
-    Verify confidence calculation matches documented formula:
-    evidence_strength = min(evidence_count / 4.0, 1.0)
-    confidence = round((average_agent_confidence + evidence_strength) / 2.0, 2)
+    Task 8 replacement of flawed evidence-count-based confidence synthesis:
+    The legacy formula 'evidence_strength = min(evidence_count / 4.0, 1.0)' counted raw evidence
+    items regardless of duplication or authentic coverage.
+    
+    Under the corrected Task 8 policy:
+    Confidence reflects categorical evidence strength and check completion ratio,
+    never offer authenticity. For clean, fully investigated checks (NO_STRONG_RISK_SIGNALS / VERIFIED),
+    conservative confidence is bounded between 0.70 and 0.85 based on applicable check completion.
     """
     ev1 = EvidenceItem(source_url="http://a.com", title="A", description="A", evidence_type="COMPANY", confidence=0.8)
     ev2 = EvidenceItem(source_url="http://b.com", title="B", description="B", evidence_type="RECRUITER", confidence=0.8)
@@ -299,10 +304,6 @@ def test_documented_confidence_formula(reasoner):
     sal = AgentFinding(agent_name="SalaryAgent", verdict="VERIFIED", confidence=0.80, summary="Sal", evidence=[])
     scam = AgentFinding(agent_name="ScamAgent", verdict="VERIFIED", confidence=0.80, summary="Scam", evidence=[])
 
-    # average_agent_confidence = (0.8 + 0.8 + 0.8 + 0.8) / 4 = 0.80
-    # evidence_count = 2 -> evidence_strength = 2/4 = 0.50
-    # expected_confidence = (0.80 + 0.50) / 2.0 = 0.65
-
     result = reasoner.evaluate(
         company_result=comp,
         recruiter_result=rec,
@@ -311,4 +312,5 @@ def test_documented_confidence_formula(reasoner):
         initial_risk_score=0.10,
     )
 
-    assert result.confidence == 0.65
+    # All applicable checks complete cleanly -> completion_ratio = 1.0 -> confidence = 0.85
+    assert result.confidence == 0.85
