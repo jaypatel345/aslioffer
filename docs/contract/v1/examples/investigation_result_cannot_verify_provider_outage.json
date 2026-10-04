@@ -1,0 +1,120 @@
+{
+  "contract_version": "1.0.0",
+  "run_id": "run_01J9X4PROVIDEROUTAGE",
+  "demo_mode": false,
+  "claims": [
+    {
+      "claim_id": "c1",
+      "kind": "employer",
+      "value": "Vardhan Analytics Pvt Ltd",
+      "source_quote": "Vardhan Analytics Pvt Ltd",
+      "start_offset": 25,
+      "end_offset": 50,
+      "page": null,
+      "extraction_status": "EXTRACTED"
+    },
+    {
+      "claim_id": "c2",
+      "kind": "sender_email",
+      "value": "careers@vardhananalytics.example",
+      "source_quote": "careers@vardhananalytics.example",
+      "start_offset": 90,
+      "end_offset": 122,
+      "page": null,
+      "extraction_status": "EXTRACTED"
+    },
+    {
+      "claim_id": "c3",
+      "kind": "role",
+      "value": "Data Analyst",
+      "source_quote": "Data Analyst",
+      "start_offset": 67,
+      "end_offset": 79,
+      "page": null,
+      "extraction_status": "EXTRACTED"
+    }
+  ],
+  "assessed_claims": [
+    {
+      "claim_id": "c1",
+      "status": "UNRESOLVED",
+      "explanation": "The search provider was unavailable, so the employer could not be checked. This says nothing about the offer either way.",
+      "evidence_ids": [
+        "e1"
+      ],
+      "reason_codes": [
+        "SEARCH_UNAVAILABLE"
+      ]
+    },
+    {
+      "claim_id": "c2",
+      "status": "UNRESOLVED",
+      "explanation": "Depends on the employer domain, which could not be resolved.",
+      "evidence_ids": [],
+      "reason_codes": [
+        "DEPENDENCY_UNRESOLVED"
+      ]
+    },
+    {
+      "claim_id": "c3",
+      "status": "NOT_CHECKED",
+      "explanation": "Skipped after the provider failure.",
+      "evidence_ids": [],
+      "reason_codes": [
+        "SKIPPED_AFTER_FAILURE"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "evidence_id": "e1",
+      "claim_id": "c1",
+      "source_kind": "SEARCH_SNIPPET",
+      "source_url": null,
+      "title": "Search failed",
+      "quote_or_snippet": "No results: the search provider timed out after 2 retries.",
+      "retrieved_at": "2026-10-04T06:20:31Z",
+      "query": "Vardhan Analytics Pvt Ltd official website",
+      "engine": "google",
+      "search_id": null,
+      "retrieval_status": "FAILED",
+      "source_tier": "UNKNOWN",
+      "relation": "CONTEXT"
+    }
+  ],
+  "overall_outcome": "CANNOT_VERIFY",
+  "authenticity_status": "UNCONFIRMED",
+  "coverage": {
+    "checked_claims": 2,
+    "total_claims": 3,
+    "unresolved_claims": 2,
+    "failed_checks": 1
+  },
+  "recommended_actions": [
+    "Run the check again in a few minutes.",
+    "Do not pay any fee or share bank OTPs at any stage."
+  ],
+  "confirmation_route": null,
+  "tool_trace": [
+    {
+      "step": "resolve_employer_domain",
+      "tool": "serpapi.google",
+      "query": "Vardhan Analytics Pvt Ltd official website",
+      "reason": "Resolve the employer's official domain before checking any contact details.",
+      "status": "FAILED",
+      "started_at": "2026-10-04T06:20:06Z",
+      "duration_ms": 25000,
+      "evidence_ids": [
+        "e1"
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": "SEARCH_PROVIDER_UNAVAILABLE",
+      "message": "Search provider timed out after 2 retries.",
+      "step": "resolve_employer_domain",
+      "retryable": true
+    }
+  ]
+}

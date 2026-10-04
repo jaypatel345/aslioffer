@@ -7,6 +7,7 @@ from app.db.models.offer import Offer
 from app.db.models.evidence import Evidence
 from app.schemas.offer import OfferCreate, OfferRead, OfferUploadResponse
 from app.schemas.analysis import VerificationReport, RiskLevel
+from app.schemas.contract import ErrorResponse
 from app.services.extractor.entity_extractor import EntityExtractor
 from app.services.agents.company_agent import CompanyAgent
 from app.services.agents.recruiter_agent import RecruiterAgent
@@ -18,6 +19,16 @@ from app.services.report.report_generator import ReportGenerator
 from app.core.logging import logger
 
 router = APIRouter(tags=["Offers"])
+
+SAMPLE_TITLE_PREFIX = "Sample: "
+
+
+def _get_offer_or_404(session: Session, offer_id: int) -> Offer:
+    """Return the requested offer or raise 404. Never substitutes another case."""
+    offer = session.get(Offer, offer_id)
+    if offer is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Offer {offer_id} not found.")
+    return offer
 
 extractor = EntityExtractor()
 company_agent = CompanyAgent()
@@ -35,11 +46,16 @@ async def upload_offer(
     source_type: str = Form("text"),
     raw_content: Optional[str] = Form(None),
     file: Optional[UploadFile] = File(None),
+    sample: bool = Form(False),
     session: Session = Depends(get_session),
 ):
     """
     Upload an offer letter (PDF, screenshot, email text, or direct message).
     Extracts initial text and persists an Offer record ready for investigation.
+
+    ``sample=true`` marks a case started from a built-in preset: it is investigated
+    like any other case but its title is prefixed with "Sample: " so it can never
+    be mistaken for a user's own offer.
     """
     content = raw_content or ""
     offer_title = title or "Job Offer Verification"
@@ -72,6 +88,9 @@ async def upload_offer(
     if not content:
         raise HTTPException(status_code=400, detail="Either file or raw_content must be provided.")
 
+    if sample and not offer_title.startswith(SAMPLE_TITLE_PREFIX):
+        offer_title = SAMPLE_TITLE_PREFIX + offer_title
+
     new_offer = Offer(
         title=offer_title,
         source_type=source_type,
@@ -92,38 +111,23 @@ async def upload_offer(
     )
 
 
-@router.get("/offers/{id}", response_model=OfferRead)
+@router.get("/offers/{id}", response_model=OfferRead, responses={404: {"model": ErrorResponse}})
 async def get_offer(id: int, session: Session = Depends(get_session)):
     """Retrieve an offer by ID."""
-    offer = session.get(Offer, id)
-    if not offer:
-        # Fallback mock for demo convenience if ID doesn't exist
-        return OfferRead(
-            id=id,
-            title="TCS Associate Software Engineer Offer Letter",
-            source_type="pdf",
-            raw_content="Mock offer letter content for demonstration.",
-            risk_score=0.88,
-            status="COMPLETED",
-            risk_level="HIGH_RISK",
-            created_at=Offer(title="mock", source_type="text", raw_content="mock").created_at,
-        )
-    return offer
+    return _get_offer_or_404(session, id)
 
 
-@router.get("/offers/{id}/report", response_model=VerificationReport)
+@router.get("/offers/{id}/report", response_model=VerificationReport, responses={404: {"model": ErrorResponse}})
 async def get_offer_report(id: int, session: Session = Depends(get_session)):
     """
     Retrieve or compute the forensic investigation report for an offer.
     Runs extraction, agents, risk engine, and compiles verifiable findings.
+    Unknown offer IDs return 404 before any extraction or search runs.
     """
-    offer = session.get(Offer, id)
-    raw_content = offer.raw_content if offer else (
-        "Dear Candidate, Congratulations on being selected for Tata Consultancy Services as a "
-        "Graduate Software Trainee. Your package is INR 8.5 LPA. Kindly deposit INR 15,000 as "
-        "refundable laptop security deposit via UPI to tcs-recruiter@upi. Contact HR: rohit.tcs@gmail.com."
-    )
-    offer_title = offer.title if offer else "Offer Letter Verification"
+    # A missing case is a 404 — never a built-in sample letter analysed in its place.
+    offer = _get_offer_or_404(session, id)
+    raw_content = offer.raw_content
+    offer_title = offer.title
 
     # Step 1: Entity Extraction (Gemini structured extraction with regex fallback)
     extracted_data = await extractor.extract_entities(raw_content)
@@ -171,13 +175,12 @@ async def get_offer_report(id: int, session: Session = Depends(get_session)):
     )
     final_verdict = verdict_result.verdict
 
-    # Step 5: Update offer status in DB if exists
-    if offer:
-        offer.risk_score = risk_score
-        offer.risk_level = final_verdict.value
-        offer.status = "COMPLETED"
-        session.add(offer)
-        session.commit()
+    # Step 5: Update offer status in DB
+    offer.risk_score = risk_score
+    offer.risk_level = final_verdict.value
+    offer.status = "COMPLETED"
+    session.add(offer)
+    session.commit()
 
     # Step 6: Generate Report
     report = report_generator.generate(

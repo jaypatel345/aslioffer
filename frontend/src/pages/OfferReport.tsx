@@ -12,20 +12,32 @@ import {
   Clock,
   Printer,
 } from 'lucide-react';
-import { api } from '../services/api';
+import { api, ApiError } from '../services/api';
+import { lastReport } from '../services/lastReport';
 import { VerificationReport } from '../types';
 import { RiskBadge } from '../components/RiskBadge';
 import { EntityPanel } from '../components/EntityPanel';
 import { EvidenceCard } from '../components/EvidenceCard';
 
-export const OfferReport: React.FC = () => {
+interface OfferReportProps {
+  /** Render a built-in illustrative sample instead of fetching a case. */
+  sample?: { label: string; report: VerificationReport };
+}
+
+type LoadError = { notFound: boolean; message: string };
+
+export const OfferReport: React.FC<OfferReportProps> = ({ sample }) => {
   const { id } = useParams<{ id: string }>();
-  const offerId = Number(id) || 101;
+  // No default ID: a missing or malformed ID is an error, not a sample case.
+  const parsedId = Number(id);
+  const offerId = Number.isInteger(parsedId) && parsedId > 0 ? parsedId : null;
   const location = useLocation();
   // Handed over by the upload page, which already ran the agents.
   const preloaded = (location.state as { report?: VerificationReport } | null)?.report;
-  const [report, setReport] = useState<VerificationReport | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [report, setReport] = useState<VerificationReport | null>(sample?.report ?? null);
+  const [loading, setLoading] = useState(!sample);
+  const [error, setError] = useState<LoadError | null>(null);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     let isMounted = true;
@@ -33,13 +45,30 @@ export const OfferReport: React.FC = () => {
     // Arriving from the upload form, which the user had scrolled down to submit.
     window.scrollTo(0, 0);
 
-    if (preloaded && preloaded.offer_id === offerId) {
+    if (sample) {
+      setReport(sample.report);
+      setError(null);
+      setLoading(false);
+      return;
+    }
+
+    if (offerId === null) {
+      setReport(null);
+      setError({ notFound: true, message: `"${id ?? ''}" is not a valid report ID.` });
+      setLoading(false);
+      return;
+    }
+
+    if (preloaded && preloaded.offer_id === offerId && attempt === 0) {
       setReport(preloaded);
+      setError(null);
       setLoading(false);
       return;
     }
 
     setLoading(true);
+    setError(null);
+    setReport(null);
 
     api
       .getOfferReport(offerId)
@@ -49,14 +78,56 @@ export const OfferReport: React.FC = () => {
           setLoading(false);
         }
       })
-      .catch(() => {
-        if (isMounted) setLoading(false);
+      .catch((err: unknown) => {
+        if (!isMounted) return;
+        const notFound = err instanceof ApiError && err.isNotFound;
+        // The navbar's "Report" link points at a case the backend no longer has.
+        if (notFound && lastReport.get() === offerId) lastReport.clear();
+        setError({
+          notFound,
+          message: notFound
+            ? `No offer with ID ${offerId} exists. The link may be wrong, or the case was removed.`
+            : err instanceof Error && err.message
+            ? err.message
+            : 'The report could not be loaded.',
+        });
+        setLoading(false);
       });
 
     return () => {
       isMounted = false;
     };
-  }, [offerId]);
+  }, [offerId, sample, attempt]);
+
+  if (error) {
+    return (
+      <div className="max-w-xl mx-auto py-20 text-center" role="alert">
+        <div className="w-12 h-12 rounded-full bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center mx-auto mb-4">
+          <AlertTriangle className="w-6 h-6" />
+        </div>
+        <h1 className="text-xl font-bold text-slate-900">
+          {error.notFound ? 'Report not found' : 'Report could not be loaded'}
+        </h1>
+        <p className="text-sm text-slate-600 mt-2">{error.message}</p>
+        <div className="mt-6 flex items-center justify-center gap-3">
+          {!error.notFound && (
+            <button
+              onClick={() => setAttempt((n) => n + 1)}
+              className="px-4 py-2 rounded-lg text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-white transition-colors"
+            >
+              Try again
+            </button>
+          )}
+          <Link
+            to="/upload"
+            className="px-4 py-2 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white transition-colors"
+          >
+            Verify an offer
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   if (loading || !report) {
     return (
@@ -99,6 +170,17 @@ export const OfferReport: React.FC = () => {
         </div>
       </div>
 
+      {sample && (
+        <div
+          role="note"
+          className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-xs text-amber-900"
+        >
+          <strong className="font-semibold">Illustrative sample — {sample.label}.</strong> This report was written by
+          hand to show the report layout. It is not the result of a live investigation, and its sources were not
+          retrieved for you. <Link to="/upload" className="underline font-semibold">Verify a real offer</Link>.
+        </div>
+      )}
+
       {/* Header Banner */}
       <div
         className={`glass-panel rounded-2xl p-6 sm:p-8 border-l-4 ${
@@ -114,7 +196,7 @@ export const OfferReport: React.FC = () => {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
           <div>
             <div className="flex items-center gap-2 text-xs text-slate-500 font-mono mb-1">
-              <span>REPORT #{report.offer_id}</span>
+              <span>{sample ? 'ILLUSTRATIVE SAMPLE' : `REPORT #${report.offer_id}`}</span>
               <span>•</span>
               <span className="flex items-center gap-1">
                 <Clock className="w-3 h-3" />
@@ -297,7 +379,7 @@ export const OfferReport: React.FC = () => {
           <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
             <span className="text-xs text-slate-500 block mb-1">Corporate Registration</span>
             <p className="text-sm font-semibold text-slate-700">
-              {report.official_company_info.mca_status || 'Verified Entity'}
+              {report.official_company_info.mca_status || 'Not checked'}
             </p>
           </div>
         </div>

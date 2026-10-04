@@ -1,0 +1,213 @@
+{
+  "contract_version": "1.0.0",
+  "run_id": "run_01J9X5NOSTRONGSIGNALS",
+  "demo_mode": false,
+  "claims": [
+    {
+      "claim_id": "c1",
+      "kind": "employer",
+      "value": "Kestrel Systems Pvt Ltd",
+      "source_quote": "Kestrel Systems Pvt Ltd",
+      "start_offset": 80,
+      "end_offset": 103,
+      "page": null,
+      "extraction_status": "EXTRACTED"
+    },
+    {
+      "claim_id": "c2",
+      "kind": "sender_email",
+      "value": "ananya.rao@kestrelsystems.example",
+      "source_quote": "ananya.rao@kestrelsystems.example",
+      "start_offset": 266,
+      "end_offset": 299,
+      "page": null,
+      "extraction_status": "EXTRACTED"
+    },
+    {
+      "claim_id": "c3",
+      "kind": "application_url",
+      "value": "https://careers.kestrelsystems.example/offers",
+      "source_quote": "https://careers.kestrelsystems.example/offers",
+      "start_offset": 178,
+      "end_offset": 223,
+      "page": null,
+      "extraction_status": "EXTRACTED"
+    },
+    {
+      "claim_id": "c4",
+      "kind": "role",
+      "value": "Associate Consultant",
+      "source_quote": "Associate Consultant",
+      "start_offset": 56,
+      "end_offset": 76,
+      "page": null,
+      "extraction_status": "EXTRACTED"
+    }
+  ],
+  "assessed_claims": [
+    {
+      "claim_id": "c1",
+      "status": "SUPPORTED",
+      "explanation": "Official domain kestrelsystems.example resolved from independent results.",
+      "evidence_ids": [
+        "e1"
+      ],
+      "reason_codes": [
+        "OFFICIAL_DOMAIN_RESOLVED"
+      ]
+    },
+    {
+      "claim_id": "c2",
+      "status": "SUPPORTED",
+      "explanation": "The sender's domain matches the resolved employer domain. This checks the domain only; it does not prove this person sent the letter.",
+      "evidence_ids": [
+        "e4"
+      ],
+      "reason_codes": [
+        "SENDER_DOMAIN_ALIGNED"
+      ]
+    },
+    {
+      "claim_id": "c3",
+      "status": "SUPPORTED",
+      "explanation": "The application link is on the employer's resolved careers domain.",
+      "evidence_ids": [
+        "e2"
+      ],
+      "reason_codes": [
+        "APPLICATION_URL_ON_OFFICIAL_DOMAIN"
+      ]
+    },
+    {
+      "claim_id": "c4",
+      "status": "SUPPORTED",
+      "explanation": "A public listing for this role and city exists on the employer's careers site. This shows the vacancy exists, not that this letter was issued.",
+      "evidence_ids": [
+        "e3"
+      ],
+      "reason_codes": [
+        "PUBLIC_LISTING_MATCH"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "evidence_id": "e1",
+      "claim_id": "c1",
+      "source_kind": "SEARCH_SNIPPET",
+      "source_url": "https://www.kestrelsystems.example/",
+      "title": "Kestrel Systems — Consulting & Engineering",
+      "quote_or_snippet": "Kestrel Systems Pvt Ltd is a Bengaluru-based technology consulting firm.",
+      "retrieved_at": "2026-10-04T06:30:02Z",
+      "query": "Kestrel Systems Pvt Ltd official website",
+      "engine": "google",
+      "search_id": "serp_6700c4f0b1",
+      "retrieval_status": "LIVE",
+      "source_tier": "OFFICIAL_EMPLOYER",
+      "relation": "SUPPORTS"
+    },
+    {
+      "evidence_id": "e2",
+      "claim_id": "c3",
+      "source_kind": "SEARCH_SNIPPET",
+      "source_url": "https://careers.kestrelsystems.example/",
+      "title": "Careers at Kestrel Systems",
+      "quote_or_snippet": "Explore open roles and manage your applications on the Kestrel candidate portal.",
+      "retrieved_at": "2026-10-04T06:30:04Z",
+      "query": "site:kestrelsystems.example careers",
+      "engine": "google",
+      "search_id": "serp_6700c4f0c2",
+      "retrieval_status": "CACHED",
+      "source_tier": "OFFICIAL_EMPLOYER",
+      "relation": "SUPPORTS"
+    },
+    {
+      "evidence_id": "e3",
+      "claim_id": "c4",
+      "source_kind": "SEARCH_SNIPPET",
+      "source_url": "https://careers.kestrelsystems.example/jobs/assoc-consultant-blr",
+      "title": "Associate Consultant — Bengaluru",
+      "quote_or_snippet": "Associate Consultant · Bengaluru · Full-time · Apply via Kestrel Careers",
+      "retrieved_at": "2026-10-04T06:30:06Z",
+      "query": "Associate Consultant Kestrel Systems Bengaluru",
+      "engine": "google_jobs",
+      "search_id": "serp_6700c4f0d3",
+      "retrieval_status": "LIVE",
+      "source_tier": "OFFICIAL_EMPLOYER",
+      "relation": "SUPPORTS"
+    },
+    {
+      "evidence_id": "e4",
+      "claim_id": "c2",
+      "source_kind": "SEARCH_SNIPPET",
+      "source_url": "https://www.kestrelsystems.example/",
+      "title": "Kestrel Systems — Consulting & Engineering",
+      "quote_or_snippet": "Kestrel Systems Pvt Ltd is a Bengaluru-based technology consulting firm.",
+      "retrieved_at": "2026-10-04T06:30:02Z",
+      "query": "Kestrel Systems Pvt Ltd official website",
+      "engine": "google",
+      "search_id": "serp_6700c4f0b1",
+      "retrieval_status": "LIVE",
+      "source_tier": "OFFICIAL_EMPLOYER",
+      "relation": "SUPPORTS"
+    }
+  ],
+  "overall_outcome": "NO_STRONG_RISK_SIGNALS",
+  "authenticity_status": "UNCONFIRMED",
+  "coverage": {
+    "checked_claims": 4,
+    "total_claims": 4,
+    "unresolved_claims": 0,
+    "failed_checks": 0
+  },
+  "recommended_actions": [
+    "No strong risk signals were found, but only Kestrel Systems can confirm this offer.",
+    "Accept the offer through the careers portal you reach yourself, not through a link in an email."
+  ],
+  "confirmation_route": {
+    "channel": "careers_portal",
+    "destination": "https://careers.kestrelsystems.example/",
+    "evidence_id": "e2",
+    "draft_message": null
+  },
+  "tool_trace": [
+    {
+      "step": "resolve_employer_domain",
+      "tool": "serpapi.google",
+      "query": "Kestrel Systems Pvt Ltd official website",
+      "reason": "Resolve the employer's official domain before checking any contact details.",
+      "status": "COMPLETED",
+      "started_at": "2026-10-04T06:30:00Z",
+      "duration_ms": 1580,
+      "evidence_ids": [
+        "e1",
+        "e4"
+      ]
+    },
+    {
+      "step": "check_application_url",
+      "tool": "serpapi.google",
+      "query": "site:kestrelsystems.example careers",
+      "reason": "The letter links to a portal; confirm it sits on the resolved domain.",
+      "status": "COMPLETED",
+      "started_at": "2026-10-04T06:30:02Z",
+      "duration_ms": 40,
+      "evidence_ids": [
+        "e2"
+      ]
+    },
+    {
+      "step": "role_listing_search",
+      "tool": "serpapi.google_jobs",
+      "query": "Associate Consultant Kestrel Systems Bengaluru",
+      "reason": "Look for a public vacancy matching the claimed role.",
+      "status": "COMPLETED",
+      "started_at": "2026-10-04T06:30:04Z",
+      "duration_ms": 1930,
+      "evidence_ids": [
+        "e3"
+      ]
+    }
+  ],
+  "errors": []
+}

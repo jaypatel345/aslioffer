@@ -11,6 +11,19 @@ from .analysis import (
     VerdictReason,
     VerdictResult,
 )
+from . import contract
+from .contract import (
+    CONTRACT_VERSION,
+    CaseInput,
+    Claim,
+    EvidenceRecord,
+    AssessedClaim,
+    Coverage,
+    InvestigationResult,
+    RunEvent,
+    RunSnapshot,
+    ErrorResponse,
+)
 
 __all__ = [
     "OfferCreate",
@@ -26,4 +39,16 @@ __all__ = [
     "VerificationReport",
     "VerdictReason",
     "VerdictResult",
+    # API contract v1 (see docs/api-contract.md)
+    "contract",
+    "CONTRACT_VERSION",
+    "CaseInput",
+    "Claim",
+    "EvidenceRecord",
+    "AssessedClaim",
+    "Coverage",
+    "InvestigationResult",
+    "RunEvent",
+    "RunSnapshot",
+    "ErrorResponse",
 ]

@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { Upload, FileText, Sparkles, AlertCircle, Check, HelpCircle } from 'lucide-react';
 
 interface FileUploadProps {
-  onAnalyze: (payload: { title: string; content: string; file?: File; demoId?: number }) => void;
+  onAnalyze: (payload: { title: string; content: string; file?: File; sample?: boolean }) => void;
   isLoading: boolean;
 }
 
@@ -12,6 +12,8 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onAnalyze, isLoading }) 
   const [content, setContent] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [dragOver, setDragOver] = useState(false);
+  // True only while the text is an unmodified built-in preset; sent as sample=true.
+  const [isSample, setIsSample] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const sampleScamText = `Offer Letter - Tata Consultancy Services
@@ -89,6 +91,7 @@ HR Manager`;
     setTitle('TCS Associate Software Engineer Offer Letter');
     setContent(sampleScamText);
     setSelectedFile(null);
+    setIsSample(true);
     setActiveTab('text');
   };
 
@@ -96,6 +99,7 @@ HR Manager`;
     setTitle('Infosys Systems Engineer Specialist Offer');
     setContent(sampleLegitText);
     setSelectedFile(null);
+    setIsSample(true);
     setActiveTab('text');
   };
 
@@ -103,6 +107,7 @@ HR Manager`;
     setTitle('Coorix Internship Selection Process Round 1');
     setContent(sampleUnverifiableText);
     setSelectedFile(null);
+    setIsSample(true);
     setActiveTab('text');
   };
 
@@ -138,6 +143,7 @@ HR Manager`;
       onAnalyze({
         title: title || 'Pasted Job Offer Message',
         content,
+        sample: isSample,
       });
     }
   };
@@ -233,7 +239,10 @@ HR Manager`;
             <textarea
               rows={14}
               value={content}
-              onChange={(e) => setContent(e.target.value)}
+              onChange={(e) => {
+                setContent(e.target.value);
+                setIsSample(false);
+              }}
               placeholder="Paste the full email, WhatsApp message, Telegram chat, or offer letter text here..."
               className="w-full px-4 py-4 rounded-xl bg-slate-50 border border-slate-200 text-sm text-slate-900 placeholder-slate-500 focus:outline-none focus:border-emerald-500 font-mono leading-relaxed transition-colors resize-y min-h-[16rem]"
               required

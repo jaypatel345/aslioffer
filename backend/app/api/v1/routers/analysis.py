@@ -3,13 +3,14 @@ from sqlmodel import Session
 from app.db.session import get_session
 from app.db.models.offer import Offer
 from app.schemas.analysis import AnalysisRequest, VerificationReport
+from app.schemas.contract import ErrorResponse
 from app.api.v1.routers.offers import get_offer_report
 from app.core.logging import logger
 
 router = APIRouter(tags=["Analysis"])
 
 
-@router.post("/analysis/run", response_model=VerificationReport)
+@router.post("/analysis/run", response_model=VerificationReport, responses={404: {"model": ErrorResponse}})
 async def run_analysis(
     request: AnalysisRequest,
     session: Session = Depends(get_session),
@@ -17,6 +18,7 @@ async def run_analysis(
     """
     Triggers multi-agent forensic analysis on an uploaded offer.
     Coordinates Company, Recruiter, Salary, and Scam agents to generate an evidence-backed report.
+    Returns 404 for an unknown offer_id; no investigation runs.
     """
     logger.info("Triggering forensic analysis pipeline for offer_id=%d", request.offer_id)
     return await get_offer_report(id=request.offer_id, session=session)
