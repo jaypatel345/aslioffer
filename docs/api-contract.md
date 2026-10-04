@@ -138,25 +138,45 @@ Shriraj catches tool-level failures and records them in `errors`. Jay's run serv
 
 All routes are served at the root and also under `/api/v1`.
 
-### Live now (after J2)
+### Case access (J6)
+
+`POST /offers/upload` returns `access_token` once (only its SHA-256 hash is stored). Every case-scoped route below needs it in the `X-Case-Token` header. A missing or wrong token gets the **same 404** as an unknown ID, so neither the existence of a case nor another person's case is revealed. The frontend keeps tokens in the uploading browser's `localStorage`.
+
+### Routes (after J3)
 
 | Method & path | Success | Errors | Notes |
 |---|---|---|---|
 | `GET /health` | 200 | | |
-| `POST /offers/upload` (multipart: `title`, `source_type`, `raw_content` or `file`) | 201 `OfferUploadResponse` | 400 no content · 422 unreadable file | |
-| `GET /offers/{id}` | 200 `OfferRead` | **404** unknown ID | Never invents a case |
-| `GET /offers/{id}/report` | 200 `VerificationReport` (legacy shape) | **404** unknown ID | Still computes on read until J3 |
-| `POST /analysis/run` (`{offer_id, force_refresh}`) | 200 `VerificationReport` | **404** unknown ID | |
+| `POST /offers/upload` (multipart: `title`, `source_type`, `raw_content` or `file`, `sample`) | 201 `OfferUploadResponse` (`offer_id`, `access_token`, `expires_at`, …) | 400 no content · 413 too large · 415 file type · 422 unreadable file | Files: PDF, PNG, JPG, WEBP up to `MAX_UPLOAD_BYTES` (5 MB). Text up to `MAX_TEXT_CHARS` (20,000). No search runs. |
+| `GET /offers/{id}` | 200 `OfferRead` | 404 | |
+| `GET /offers/{id}/claims` | 200 `ClaimPreview` (`case_id`, `text`, `claims: Claim[]`) | 404 | Local and deterministic: the claim builder runs on the redacted text, with no search or hosted-model call. `text` is the redacted text that offsets refer to. |
+| `POST /analysis/run` (`RunRequest`: `offer_id`, `force_refresh`, `confirmed_claims`) | **202** `RunSnapshot` (new run queued) · **200** `RunSnapshot` (existing run reused) | 404 · 422 invalid confirmation | See run rules below. |
+| `GET /analysis/runs/{run_id}` | 200 `RunSnapshot` | 404 | Poll this every 1–2 s while `QUEUED`/`RUNNING`. Events are the ones the investigator emitted. |
+| `GET /offers/{id}/report` | 200 latest `RunSnapshot` with a report (`COMPLETED` or `PARTIAL`) | 404 · **409** case exists but has no report | Reads only. Never starts extraction or search. |
+| `GET /offers/{id}/runs` | 200 `RunSnapshot[]`, newest version first | 404 | Version history, including `FAILED` runs. |
+| `DELETE /offers/{id}` | 204 | 404 | Deletes the offer text, all runs and reports. |
 
-The legacy `VerificationReport` shape remains for compatibility until the J3 migration. Its `risk_score` is an uncalibrated heuristic and must not be shown as a percentage.
+The legacy compute-on-read `VerificationReport` routes were removed in J3, together with the UI that showed `risk_score` and agent confidence percentages.
 
-### Planned for J3 (v1 objects)
+### Run rules
 
-| Method & path | Returns | Rules |
-|---|---|---|
-| `POST /analysis/run` | `RunSnapshot` (`QUEUED` or the existing active or compatible run) | `force_refresh=false` reuses a completed compatible report or an active run. `true` creates a new version and keeps the previous one. A lock prevents duplicate searches. |
-| `GET /analysis/runs/{run_id}` | `RunSnapshot` | Status backed by real events. Polling is enough for the MVP. |
-| `GET /offers/{id}/report` | latest finished `RunSnapshot` | Reads only, never starts searches. **409** if the case exists but has no report; **404** if the case is unknown. |
+- **Inputs.** The run service builds `CaseInput` from the stored text after redaction (`app/services/privacy/redaction.py`: Aadhaar, PAN, labelled passport/account numbers, card numbers, OTPs and passwords are replaced). Employer, recruiter contacts, role and links stay, because they are what is being checked. `demo_mode` is always false for user cases.
+- **Confirmations.** `confirmed_claims` come from the review screen and use the stable claim IDs from `/claims`. They are validated with the investigator's claim builder before a run is created; an invalid one is a 422 and no run starts.
+- **Reuse.** An active (`QUEUED`/`RUNNING`) run for the case is always returned, with or without `force_refresh`, so repeated requests never multiply searches. Without `force_refresh`, a finished run with a report and the **same inputs** (text + confirmations) is returned. Otherwise a new run is created.
+- **Versions.** Each new run gets `version = latest + 1` and `previous_run_id = latest.run_id`. Earlier versions are kept and listed by `/runs`.
+- **Status.** `COMPLETED` when the result has no `errors`, `PARTIAL` when it has tool errors (the report is still shown, with failures visible). `FAILED` only when the investigator raises, exceeds `RUN_TIMEOUT_SECONDS` (90 s) or returns a mismatched `run_id`. A failed run has no report and nothing is filled in for it.
+- **Restarts.** Runs execute in-process as background tasks. On startup, any run left `QUEUED`/`RUNNING` is marked `FAILED` with `RUN_INTERRUPTED` (retryable). Completed reports are in the database and survive restarts. Deduplication is per process, so run the API with one worker.
+
+### Retention and privacy (J6)
+
+- Cases are deleted `CASE_RETENTION_DAYS` (default 7) after upload, at startup and hourly. Users can delete a case at any time (`DELETE /offers/{id}`, "Delete case" in the report).
+- The `aslioffer` logger scrubs emails, phone numbers, 12-digit ID numbers and `key=`/`token=` values from every record. Log lines name case IDs and counts, not offer content.
+- Report export (frontend) removes emails, phone numbers and UPI IDs unless the user opts in (for a cybercrime complaint). The employer-published confirmation destination is kept.
+- The confirmation draft is only ever copied or opened in the user's own mail app. Nothing is sent by AsliOffer. Its destination comes only from `confirmation_route`, which must cite evidence retrieved in the run.
+
+### Schema migration
+
+New table `investigation_runs` is created automatically. The new nullable column `offers.access_token_hash` is added at startup by `init_db()` if missing (`_ADDED_COLUMNS` in `app/db/session.py`). Offers uploaded before this change have no token and can no longer be opened; they are purged by retention.
 
 ## Samples and demo mode
 
@@ -167,3 +187,4 @@ Built-in samples are explicit. The upload page presets submit the sample text as
 | Version | Date | Change |
 |---|---|---|
 | 1.0.0 | 4 Oct 2026 | Initial contract (J1). Awaiting Shriraj's semantics review. |
+| 1.0.0 (HTTP only) | 4 Oct 2026 | J3/J6: run, report, claims, runs and delete routes; `X-Case-Token`; `RunRequest`, `ClaimPreview` and `OfferUploadResponse.access_token` in `app/schemas/runs.py` / `offer.py`. The investigator objects (`CaseInput` … `RunSnapshot`) are unchanged, so `CONTRACT_VERSION` stays 1.0.0. Legacy `VerificationReport` routes removed. |

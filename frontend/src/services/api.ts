@@ -1,4 +1,11 @@
-import { Offer, OfferUploadResponse, VerificationReport } from '../types';
+import {
+  ClaimPreview,
+  ConfirmedClaim,
+  Offer,
+  OfferUploadResponse,
+  RunSnapshot,
+} from '../types';
+import { caseAccess } from './caseAccess';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
@@ -20,6 +27,11 @@ export class ApiError extends Error {
 
   get isNotFound() {
     return this.status === 404;
+  }
+
+  /** The case exists but has no finished report yet. */
+  get isNoReport() {
+    return this.status === 409;
   }
 }
 
@@ -43,7 +55,20 @@ async function request<T>(path: string, init?: RequestInit, fallbackMessage = 'R
     throw new ApiError(res.status, detail);
   }
 
+  if (res.status === 204) return undefined as T;
   return (await res.json()) as T;
+}
+
+/** Headers for a case-scoped call. A case with no stored token reads as not found. */
+function caseHeaders(offerId: number, extra: Record<string, string> = {}): Record<string, string> {
+  const token = caseAccess.get(offerId);
+  if (!token) {
+    throw new ApiError(
+      404,
+      `Offer ${offerId} is not available in this browser. Cases can only be opened on the device that uploaded them, for 7 days.`,
+    );
+  }
+  return { 'X-Case-Token': token, ...extra };
 }
 
 export const api = {
@@ -58,9 +83,12 @@ export const api = {
   /**
    * Upload an offer. Pass `sample=true` only for the built-in preset texts; the
    * backend then titles the case "Sample: …" so it is never mistaken for a real offer.
+   * The returned access token is stored for this browser.
    */
   async uploadOffer(formData: FormData): Promise<OfferUploadResponse> {
-    return request('/offers/upload', { method: 'POST', body: formData }, 'Upload failed');
+    const res = await request<OfferUploadResponse>('/offers/upload', { method: 'POST', body: formData }, 'Upload failed');
+    caseAccess.set(res.offer_id, res.access_token, res.expires_at);
+    return res;
   },
 
   async uploadOfferText(title: string, raw_content: string, sample = false): Promise<OfferUploadResponse> {
@@ -73,22 +101,41 @@ export const api = {
   },
 
   async getOffer(id: number): Promise<Offer> {
-    return request(`/offers/${id}`, undefined, 'Could not load the offer');
+    return request(`/offers/${id}`, { headers: caseHeaders(id) }, 'Could not load the offer');
   },
 
-  async getOfferReport(id: number): Promise<VerificationReport> {
-    return request(`/offers/${id}/report`, undefined, 'Could not load the report');
+  async getClaims(id: number): Promise<ClaimPreview> {
+    return request(`/offers/${id}/claims`, { headers: caseHeaders(id) }, 'Could not read the offer claims');
   },
 
-  async runAnalysis(offer_id: number): Promise<VerificationReport> {
+  /** Latest finished report. Throws ApiError with isNoReport when none exists yet. */
+  async getReport(id: number): Promise<RunSnapshot> {
+    return request(`/offers/${id}/report`, { headers: caseHeaders(id) }, 'Could not load the report');
+  },
+
+  /** Every run for the case, newest version first. */
+  async getRuns(id: number): Promise<RunSnapshot[]> {
+    return request(`/offers/${id}/runs`, { headers: caseHeaders(id) }, 'Could not load the investigation runs');
+  },
+
+  async startRun(offerId: number, confirmedClaims: ConfirmedClaim[] = [], forceRefresh = false): Promise<RunSnapshot> {
     return request(
       '/analysis/run',
       {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ offer_id }),
+        headers: caseHeaders(offerId, { 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ offer_id: offerId, force_refresh: forceRefresh, confirmed_claims: confirmedClaims }),
       },
-      'Investigation failed',
+      'Could not start the investigation',
     );
+  },
+
+  async getRun(offerId: number, runId: string): Promise<RunSnapshot> {
+    return request(`/analysis/runs/${encodeURIComponent(runId)}`, { headers: caseHeaders(offerId) }, 'Could not load the run');
+  },
+
+  async deleteOffer(id: number): Promise<void> {
+    await request(`/offers/${id}`, { method: 'DELETE', headers: caseHeaders(id) }, 'Could not delete the case');
+    caseAccess.forget(id);
   },
 };
