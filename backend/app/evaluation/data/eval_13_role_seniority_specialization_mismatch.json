@@ -1,0 +1,69 @@
+{
+  "case_id": "EVAL-13-ROLE-SENIORITY-SPECIALIZATION-MISMATCH",
+  "title": "Role Seniority and Specialization Mismatch",
+  "description": "Offer claims Principal AI Research Scientist, but public careers search only finds Junior Web Developer.",
+  "labels": {
+    "scenario_group": "ambiguous_unresolved",
+    "category": "role_mismatch",
+    "threat_category": "corroboration_distinction",
+    "primary_entity": "Radiant Energy Solutions Ltd"
+  },
+  "case_input": {
+    "case_id": 113,
+    "run_id": "run_eval_13_seniority",
+    "source_type": "text",
+    "redacted_text": "Radiant Energy Solutions Ltd.\nOffer of employment for Principal AI Research Scientist in Bengaluru.\nCareers: https://careers.radiantenergy.example",
+    "confirmed_claims": [],
+    "demo_mode": false
+  },
+  "budget": null,
+  "search_mock": {
+    "query_responses": {
+      "\"Radiant Energy Solutions Ltd\" official website careers": {
+        "status": "successful",
+        "source": "REAL",
+        "knowledge_graph": {
+          "website": "https://www.radiantenergy.example",
+          "careers_url": "https://careers.radiantenergy.example"
+        },
+        "organic_results": [
+          {
+            "link": "https://www.radiantenergy.example",
+            "title": "Radiant Energy",
+            "snippet": "Energy solutions."
+          }
+        ]
+      },
+      "\"Radiant Energy Solutions Ltd\" \"Principal AI Research Scientist\" careers job opening": {
+        "status": "successful",
+        "source": "REAL",
+        "organic_results": [
+          {
+            "link": "https://careers.radiantenergy.example/jobs/junior-web",
+            "title": "Junior Web Developer",
+            "snippet": "Entry-level HTML/CSS role."
+          }
+        ]
+      }
+    },
+    "default_response": {
+      "status": "successful",
+      "source": "REAL",
+      "organic_results": []
+    }
+  },
+  "expected_outcome": "CANNOT_VERIFY",
+  "allowed_outcomes": [
+    "CANNOT_VERIFY",
+    "NO_STRONG_RISK_SIGNALS"
+  ],
+  "expected_claim_statuses": {},
+  "required_behaviors": [
+    "authenticity_unconfirmed"
+  ],
+  "forbidden_behaviors": [
+    "fake_verification"
+  ],
+  "planted_secrets": [],
+  "rationale": "Material differences in seniority and specialization must prevent false vacancy corroboration."
+}

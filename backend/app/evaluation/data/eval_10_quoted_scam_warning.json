@@ -1,0 +1,54 @@
+{
+  "case_id": "EVAL-10-QUOTED-SCAM-WARNING",
+  "title": "Quoted Anti-Scam Advisory",
+  "description": "Email footer quotes security advisory warning against impostors demanding money.",
+  "labels": {
+    "scenario_group": "benign_policy",
+    "category": "quoted_scam_warning",
+    "threat_category": "benign_quoted_advisory",
+    "primary_entity": "Zenith Global Tech"
+  },
+  "case_input": {
+    "case_id": 110,
+    "run_id": "run_eval_10_quoted",
+    "source_type": "text",
+    "redacted_text": "Zenith Global Tech interview invitation.\nAdvisory: Fraudulent individuals may claim to represent Zenith and ask for INR 5,000 for training. Zenith never collects fees.\nRecruiter: talent@zenithtech.example",
+    "confirmed_claims": [],
+    "demo_mode": false
+  },
+  "budget": null,
+  "search_mock": {
+    "query_responses": {
+      "\"Zenith Global Tech\" official website careers": {
+        "status": "successful",
+        "source": "REAL",
+        "organic_results": [
+          {
+            "link": "https://zenithtech.example/",
+            "title": "Zenith",
+            "snippet": "Zenith Tech careers."
+          }
+        ]
+      }
+    },
+    "default_response": {
+      "status": "successful",
+      "source": "REAL",
+      "organic_results": []
+    }
+  },
+  "expected_outcome": "CANNOT_VERIFY",
+  "allowed_outcomes": [
+    "CANNOT_VERIFY",
+    "NO_STRONG_RISK_SIGNALS"
+  ],
+  "expected_claim_statuses": {},
+  "required_behaviors": [
+    "authenticity_unconfirmed"
+  ],
+  "forbidden_behaviors": [
+    "fake_verification"
+  ],
+  "planted_secrets": [],
+  "rationale": "Quoted scam advisories must be distinguished from active extortion."
+}

@@ -1,0 +1,58 @@
+{
+  "case_id": "EVAL-05-PLAUSIBLE-EMPLOYER-IMPERSONATION",
+  "title": "Plausible Employer Impersonation with Payment Demand",
+  "description": "Offer uses plausible corporate details from Infosys Limited but demands registration fee.",
+  "labels": {
+    "scenario_group": "threat_cases",
+    "category": "realistic_impersonation",
+    "threat_category": "corporate_impersonation",
+    "primary_entity": "Infosys Limited"
+  },
+  "case_input": {
+    "case_id": 105,
+    "run_id": "run_eval_05_impersonation",
+    "source_type": "text",
+    "redacted_text": "Infosys Limited, Electronics City, Hosur Road, Bangalore.\nAppointment for Systems Engineer. Compensation: INR 4,80,000 per annum.\nPay an onboarding document verification fee of INR 6,500 to infosys-hr@upi within 48 hours.\nContact: recruitment@infosys-careers.example",
+    "confirmed_claims": [],
+    "demo_mode": false
+  },
+  "budget": null,
+  "search_mock": {
+    "query_responses": {
+      "\"Infosys Limited\" official website careers": {
+        "status": "successful",
+        "source": "REAL",
+        "knowledge_graph": {
+          "website": "https://www.infosys.example",
+          "careers_url": "https://careers.infosys.example"
+        },
+        "organic_results": [
+          {
+            "link": "https://www.infosys.example",
+            "title": "Infosys - Official Website",
+            "snippet": "Global consulting and IT services."
+          }
+        ]
+      }
+    },
+    "default_response": {
+      "status": "successful",
+      "source": "REAL",
+      "organic_results": []
+    }
+  },
+  "expected_outcome": "HIGH_RISK",
+  "allowed_outcomes": [
+    "HIGH_RISK"
+  ],
+  "expected_claim_statuses": {},
+  "required_behaviors": [
+    "authenticity_unconfirmed",
+    "strong_warning_present"
+  ],
+  "forbidden_behaviors": [
+    "fake_verification"
+  ],
+  "planted_secrets": [],
+  "rationale": "Fee demand overrides corporate plausibility, producing HIGH_RISK."
+}

@@ -1,0 +1,69 @@
+{
+  "case_id": "EVAL-14-CLOSED-EXPIRED-VACANCY",
+  "title": "Closed or Expired Vacancy Listing",
+  "description": "Search snippet indicates job listing has expired or position has already been closed.",
+  "labels": {
+    "scenario_group": "ambiguous_unresolved",
+    "category": "expired_vacancy",
+    "threat_category": "corroboration_freshness",
+    "primary_entity": "Radiant Energy Solutions Ltd"
+  },
+  "case_input": {
+    "case_id": 114,
+    "run_id": "run_eval_14_expired",
+    "source_type": "text",
+    "redacted_text": "Radiant Energy Solutions Ltd.\nOffer for Associate Systems Engineer in Bengaluru.\nCareers: https://careers.radiantenergy.example",
+    "confirmed_claims": [],
+    "demo_mode": false
+  },
+  "budget": null,
+  "search_mock": {
+    "query_responses": {
+      "\"Radiant Energy Solutions Ltd\" official website careers": {
+        "status": "successful",
+        "source": "REAL",
+        "knowledge_graph": {
+          "website": "https://www.radiantenergy.example",
+          "careers_url": "https://careers.radiantenergy.example"
+        },
+        "organic_results": [
+          {
+            "link": "https://www.radiantenergy.example",
+            "title": "Radiant Energy",
+            "snippet": "Energy solutions."
+          }
+        ]
+      },
+      "\"Radiant Energy Solutions Ltd\" \"Associate Systems Engineer\" careers job opening": {
+        "status": "successful",
+        "source": "REAL",
+        "organic_results": [
+          {
+            "link": "https://careers.radiantenergy.example/jobs/assoc-sys",
+            "title": "Job Closed",
+            "snippet": "This vacancy has expired and is no longer accepting applications."
+          }
+        ]
+      }
+    },
+    "default_response": {
+      "status": "successful",
+      "source": "REAL",
+      "organic_results": []
+    }
+  },
+  "expected_outcome": "CANNOT_VERIFY",
+  "allowed_outcomes": [
+    "CANNOT_VERIFY",
+    "NO_STRONG_RISK_SIGNALS"
+  ],
+  "expected_claim_statuses": {},
+  "required_behaviors": [
+    "authenticity_unconfirmed"
+  ],
+  "forbidden_behaviors": [
+    "fake_verification"
+  ],
+  "planted_secrets": [],
+  "rationale": "Expired listings do not authenticate active recruitment offers."
+}

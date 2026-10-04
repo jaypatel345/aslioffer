@@ -1,0 +1,170 @@
+{
+  "contract_version": "1.0.0",
+  "run_id": "demo_run_05_outage",
+  "demo_mode": false,
+  "claims": [
+    {
+      "claim_id": "c1",
+      "kind": "employer",
+      "value": "Vertex Dynamics Ltd",
+      "source_quote": "Vertex Dynamics Ltd",
+      "start_offset": 0,
+      "end_offset": 19,
+      "page": null,
+      "extraction_status": "EXTRACTED"
+    },
+    {
+      "claim_id": "c2",
+      "kind": "sender_email",
+      "value": "hr@vertexdynamics.example",
+      "source_quote": "hr@vertexdynamics.example",
+      "start_offset": 71,
+      "end_offset": 96,
+      "page": null,
+      "extraction_status": "EXTRACTED"
+    },
+    {
+      "claim_id": "c10",
+      "kind": "payment_request",
+      "value": null,
+      "source_quote": null,
+      "start_offset": null,
+      "end_offset": null,
+      "page": null,
+      "extraction_status": "MISSING"
+    }
+  ],
+  "assessed_claims": [
+    {
+      "claim_id": "c1",
+      "status": "UNRESOLVED",
+      "explanation": "The relevant external check was unavailable; no completed corroboration was obtained.",
+      "evidence_ids": [
+        "e1"
+      ],
+      "reason_codes": [
+        "SEARCH_UNAVAILABLE"
+      ]
+    },
+    {
+      "claim_id": "c2",
+      "status": "UNRESOLVED",
+      "explanation": "The relevant external check was unavailable; no completed corroboration was obtained.",
+      "evidence_ids": [],
+      "reason_codes": [
+        "SEARCH_UNAVAILABLE"
+      ]
+    },
+    {
+      "claim_id": "c10",
+      "status": "NOT_CHECKED",
+      "explanation": "Required claim value is absent; no check was executed for it.",
+      "evidence_ids": [],
+      "reason_codes": [
+        "MISSING_INPUT"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "evidence_id": "e1",
+      "claim_id": "c1",
+      "source_kind": "SEARCH_SNIPPET",
+      "source_url": null,
+      "title": "Retrieval unavailable",
+      "quote_or_snippet": "No completed search result was obtained.",
+      "retrieved_at": "2026-10-04T10:17:35.243464Z",
+      "query": "\"Vertex Dynamics Ltd\" official website careers",
+      "engine": "google",
+      "search_id": null,
+      "retrieval_status": "FAILED",
+      "source_tier": "UNKNOWN",
+      "relation": "CONTEXT"
+    }
+  ],
+  "overall_outcome": "CANNOT_VERIFY",
+  "authenticity_status": "UNCONFIRMED",
+  "coverage": {
+    "checked_claims": 0,
+    "total_claims": 3,
+    "unresolved_claims": 3,
+    "failed_checks": 4
+  },
+  "recommended_actions": [
+    "Re-run this investigation once the search provider is available.",
+    "Investigation checks (Employer Identity & Web Presence Check, Recruiter Domain Alignment & Employer Affiliation Check) were unavailable; no completed result was obtained; re-run verification or check official records independently.",
+    "Independently look up the employer using official public business registries (such as MCA India at mca.gov.in) or verified business directories.",
+    "Do not rely on website links, phone numbers, or addresses provided solely within the submitted document.",
+    "Contact the employer through independently established published contact details to confirm that this specific offer was issued to you.",
+    "Review standard employment terms, scope of work, and contract conditions carefully before signing.",
+    "Never share sensitive banking passwords, OTPs, or pay any onboarding charges.",
+    "Do not pay any fee or share bank OTPs.",
+    "No independently sourced offer-confirmation channel was identified; contact the employer via official published directory or registry contacts.",
+    "Investigation search budget or deadline limits were reached before all checks completed; independently confirm remaining details."
+  ],
+  "confirmation_route": null,
+  "tool_trace": [
+    {
+      "step": "resolve_employer_domain",
+      "tool": "serpapi.google",
+      "query": "\"Vertex Dynamics Ltd\" official website careers",
+      "reason": "Resolve the employer's official domain before checking contact details",
+      "status": "FAILED",
+      "started_at": "2026-10-04T10:17:35.243464Z",
+      "duration_ms": 0,
+      "evidence_ids": [
+        "e1"
+      ]
+    },
+    {
+      "step": "check_recruiter_contact",
+      "tool": "serpapi.google",
+      "query": "\"hr@vertexdynamics.example\" scam fraud complaint",
+      "reason": "Verify recruiter email alignment with resolved domain",
+      "status": "FAILED",
+      "started_at": "2026-10-04T10:17:35.245538Z",
+      "duration_ms": 0,
+      "evidence_ids": []
+    },
+    {
+      "step": "check_recruiter_contact",
+      "tool": "serpapi.google",
+      "query": "\"hr@vertexdynamics.example\" \"Vertex Dynamics Ltd\"",
+      "reason": "Verify recruiter email alignment with resolved domain",
+      "status": "FAILED",
+      "started_at": "2026-10-04T10:17:35.245792Z",
+      "duration_ms": 0,
+      "evidence_ids": []
+    },
+    {
+      "step": "check_scam_signals",
+      "tool": "serpapi.google",
+      "query": "\"Vertex Dynamics Ltd\" job scam fraud complaint telegram",
+      "reason": "Check for upfront fees, credential demands, and adverse reports",
+      "status": "FAILED",
+      "started_at": "2026-10-04T10:17:35.246930Z",
+      "duration_ms": 0,
+      "evidence_ids": []
+    }
+  ],
+  "errors": [
+    {
+      "code": "SEARCH_PROVIDER_OUTAGE",
+      "message": "Search provider request timed out or was unavailable",
+      "step": "resolve_employer_domain",
+      "retryable": true
+    },
+    {
+      "code": "SEARCH_CHECK_UNAVAILABLE",
+      "message": "An external retrieval was unavailable",
+      "step": "check_recruiter_contact",
+      "retryable": true
+    },
+    {
+      "code": "SEARCH_CHECK_UNAVAILABLE",
+      "message": "An external retrieval was unavailable",
+      "step": "check_scam_signals",
+      "retryable": true
+    }
+  ]
+}

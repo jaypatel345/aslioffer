@@ -1,0 +1,161 @@
+{
+  "contract_version": "1.0.0",
+  "run_id": "demo_run_01_scam",
+  "demo_mode": false,
+  "claims": [
+    {
+      "claim_id": "c1",
+      "kind": "employer",
+      "value": "Nimbus Infotech Ltd",
+      "source_quote": "Nimbus Infotech Ltd",
+      "start_offset": 0,
+      "end_offset": 19,
+      "page": null,
+      "extraction_status": "EXTRACTED"
+    },
+    {
+      "claim_id": "c2",
+      "kind": "sender_email",
+      "value": "priya.nimbus@gmail.com",
+      "source_quote": "priya.nimbus@gmail.com",
+      "start_offset": 209,
+      "end_offset": 231,
+      "page": null,
+      "extraction_status": "EXTRACTED"
+    },
+    {
+      "claim_id": "c10",
+      "kind": "payment_request",
+      "value": "Deposit a refundable laptop security fee of INR 15,000 via UPI to nimbus.onboarding@okaxis within 24 hours.",
+      "source_quote": "Deposit a refundable laptop security fee of INR 15,000 via UPI to nimbus.onboarding@okaxis within 24 hours.",
+      "start_offset": 92,
+      "end_offset": 199,
+      "page": null,
+      "extraction_status": "EXTRACTED"
+    }
+  ],
+  "assessed_claims": [
+    {
+      "claim_id": "c1",
+      "status": "UNRESOLVED",
+      "explanation": "The completed check did not establish attributable corroboration. Empty results do not prove fraud or legitimacy.",
+      "evidence_ids": [],
+      "reason_codes": [
+        "SPARSE_FOOTPRINT",
+        "OFFICIAL_DOMAIN_UNRESOLVED"
+      ]
+    },
+    {
+      "claim_id": "c2",
+      "status": "UNRESOLVED",
+      "explanation": "The completed check did not establish attributable corroboration. Empty results do not prove fraud or legitimacy.",
+      "evidence_ids": [],
+      "reason_codes": [
+        "NO_PUBLIC_LISTING_FOUND"
+      ]
+    },
+    {
+      "claim_id": "c10",
+      "status": "SUPPORTED",
+      "explanation": "The submitted document contains this demand. This supports the presence of the demand, not the legitimacy of the offer.",
+      "evidence_ids": [
+        "e1"
+      ],
+      "reason_codes": [
+        "DOCUMENT_DEMAND_OBSERVED",
+        "UPFRONT_PAYMENT_DEMAND"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "evidence_id": "e1",
+      "claim_id": "c10",
+      "source_kind": "DOCUMENT",
+      "source_url": null,
+      "title": "Demand in submitted document",
+      "quote_or_snippet": "Deposit a refundable laptop security fee of INR 15,000 via UPI to nimbus.onboarding@okaxis within 24 hours.",
+      "retrieved_at": "2026-10-04T10:17:35.161618Z",
+      "query": null,
+      "engine": null,
+      "search_id": null,
+      "retrieval_status": "LIVE",
+      "source_tier": "OFFER_DOCUMENT",
+      "relation": "SUPPORTS"
+    }
+  ],
+  "overall_outcome": "HIGH_RISK",
+  "authenticity_status": "UNCONFIRMED",
+  "coverage": {
+    "checked_claims": 3,
+    "total_claims": 3,
+    "unresolved_claims": 2,
+    "failed_checks": 0
+  },
+  "recommended_actions": [
+    "DO NOT pay any registration fee, security deposit, laptop charge, or document processing fee under any circumstance.",
+    "Confirm the payment demand independently with the employer using published contact details, not the contact supplied with the demand.",
+    "If you suspect employment fraud or have experienced financial loss or credential theft, report the incident to the National Cyber Crime Reporting Portal at https://cybercrime.gov.in or call helpline 1930.",
+    "The recruiter contacted you from a personal or non-matching email domain. Request written communication from the employer's official corporate email domain.",
+    "Independently confirm the recruiter's hiring authority by calling the employer's official corporate switchboard or published HR directory.",
+    "Independently look up the employer using official public business registries (such as MCA India at mca.gov.in) or verified business directories.",
+    "Do not rely on website links, phone numbers, or addresses provided solely within the submitted document.",
+    "Resolve the outstanding Recruiter Domain Alignment & Employer Affiliation Check independently before relying on that result.",
+    "Contact the employer through independently established published contact details to confirm that this specific offer was issued to you.",
+    "No independently sourced offer-confirmation channel was identified; contact the employer via official published directory or registry contacts."
+  ],
+  "confirmation_route": null,
+  "tool_trace": [
+    {
+      "step": "resolve_employer_domain",
+      "tool": "serpapi.google",
+      "query": "\"Nimbus Infotech Ltd\" official website careers",
+      "reason": "Resolve the employer's official domain before checking contact details",
+      "status": "COMPLETED",
+      "started_at": "2026-10-04T10:17:35.091883Z",
+      "duration_ms": 0,
+      "evidence_ids": []
+    },
+    {
+      "step": "check_recruiter_contact",
+      "tool": "serpapi.google",
+      "query": "\"priya.nimbus@gmail.com\" scam fraud complaint",
+      "reason": "Verify recruiter email alignment with resolved domain",
+      "status": "COMPLETED",
+      "started_at": "2026-10-04T10:17:35.151421Z",
+      "duration_ms": 0,
+      "evidence_ids": []
+    },
+    {
+      "step": "check_recruiter_contact",
+      "tool": "serpapi.google",
+      "query": "\"priya.nimbus@gmail.com\" \"Nimbus Infotech Ltd\"",
+      "reason": "Verify recruiter email alignment with resolved domain",
+      "status": "COMPLETED",
+      "started_at": "2026-10-04T10:17:35.152015Z",
+      "duration_ms": 0,
+      "evidence_ids": []
+    },
+    {
+      "step": "check_scam_signals",
+      "tool": "serpapi.google",
+      "query": "\"Nimbus Infotech Ltd\" job scam fraud complaint telegram",
+      "reason": "Check for upfront fees, credential demands, and adverse reports",
+      "status": "COMPLETED",
+      "started_at": "2026-10-04T10:17:35.154074Z",
+      "duration_ms": 0,
+      "evidence_ids": []
+    },
+    {
+      "step": "check_scam_signals",
+      "tool": "serpapi.google",
+      "query": "\"Nimbus Infotech Ltd\" \"UPI\" recruitment scam",
+      "reason": "Check for upfront fees, credential demands, and adverse reports",
+      "status": "COMPLETED",
+      "started_at": "2026-10-04T10:17:35.154249Z",
+      "duration_ms": 0,
+      "evidence_ids": []
+    }
+  ],
+  "errors": []
+}

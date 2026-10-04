@@ -1,0 +1,42 @@
+[
+  {
+    "demo_id": "DEMO-01",
+    "filename": "demo_01_grounded_scam_warning.json",
+    "title": "Grounded Advance Fee Scam Warning",
+    "expected_outcome": "HIGH_RISK",
+    "actual_outcome": "HIGH_RISK",
+    "highlight": "ScamAgent flags active UPI payment request; official fraud alert cites employer policy forbidding deposits."
+  },
+  {
+    "demo_id": "DEMO-02",
+    "filename": "demo_02_plausible_impersonation.json",
+    "title": "Plausible Employer Impersonation with Fee Demand",
+    "expected_outcome": "HIGH_RISK",
+    "actual_outcome": "HIGH_RISK",
+    "highlight": "Advance fee demand strictly overrides corporate name recognition and realistic salary figures."
+  },
+  {
+    "demo_id": "DEMO-03",
+    "filename": "demo_03_legit_confirmation_guidance.json",
+    "title": "Legitimate Recruitment with Sourced Confirmation Guidance",
+    "expected_outcome": "NO_STRONG_RISK_SIGNALS",
+    "actual_outcome": "NO_STRONG_RISK_SIGNALS",
+    "highlight": "ConfirmationRoute provides independently published HR verification channel with draft message; authenticity_status stays UNCONFIRMED."
+  },
+  {
+    "demo_id": "DEMO-04",
+    "filename": "demo_04_sparse_footprint_unverified.json",
+    "title": "Sparse Footprint Startup (Honest Uncertainty)",
+    "expected_outcome": "CANNOT_VERIFY",
+    "actual_outcome": "CANNOT_VERIFY",
+    "highlight": "Coverage summary clearly marks corporate identity as unresolved; recommended actions guide safe verification without accusing the employer."
+  },
+  {
+    "demo_id": "DEMO-05",
+    "filename": "demo_05_provider_outage_failsafe.json",
+    "title": "Provider Outage Resilience (Graceful Degradation)",
+    "expected_outcome": "CANNOT_VERIFY",
+    "actual_outcome": "CANNOT_VERIFY",
+    "highlight": "RunError recorded with code SEARCH_CHECK_UNAVAILABLE and retryable=True; local pattern scan results preserved."
+  }
+]

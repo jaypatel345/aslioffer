@@ -1,0 +1,67 @@
+{
+  "case_id": "EVAL-01-UPFRONT-FEE-DEMAND",
+  "title": "Explicit Upfront Fee Demand",
+  "description": "Candidate offered a Graduate Engineer Trainee position but instructed to pay refundable laptop security deposit via UPI.",
+  "labels": {
+    "scenario_group": "threat_cases",
+    "category": "upfront_fee_demand",
+    "threat_category": "advance_fee_fraud",
+    "primary_entity": "Nimbus Infotech Ltd"
+  },
+  "case_input": {
+    "case_id": 101,
+    "run_id": "run_eval_01_fee",
+    "source_type": "text",
+    "redacted_text": "Nimbus Infotech Ltd. Congratulations! You have been selected for Graduate Engineer Trainee.\nDeposit a refundable laptop security fee of INR 15,000 via UPI to nimbus.onboarding@okaxis within 24 hours.\nContact: priya.nimbus@gmail.com",
+    "confirmed_claims": [],
+    "demo_mode": false
+  },
+  "budget": null,
+  "search_mock": {
+    "query_responses": {
+      "\"Nimbus Infotech Ltd\" official website careers": {
+        "status": "successful",
+        "source": "REAL",
+        "organic_results": [
+          {
+            "link": "https://www.nimbusinfotech.example/",
+            "title": "Nimbus Infotech Ltd",
+            "snippet": "IT services provider."
+          }
+        ]
+      },
+      "Nimbus Infotech Ltd recruitment fraud email domain fee": {
+        "status": "successful",
+        "source": "REAL",
+        "organic_results": [
+          {
+            "link": "https://careers.nimbusinfotech.example/fraud-alert",
+            "title": "Fraud Alert",
+            "snippet": "Nimbus never asks for security deposits."
+          }
+        ]
+      }
+    },
+    "default_response": {
+      "status": "successful",
+      "source": "REAL",
+      "organic_results": []
+    }
+  },
+  "expected_outcome": "HIGH_RISK",
+  "allowed_outcomes": [
+    "HIGH_RISK"
+  ],
+  "expected_claim_statuses": {
+    "payment_request": "CONTRADICTED"
+  },
+  "required_behaviors": [
+    "authenticity_unconfirmed",
+    "strong_warning_present"
+  ],
+  "forbidden_behaviors": [
+    "fake_verification"
+  ],
+  "planted_secrets": [],
+  "rationale": "Mandatory upfront fee demands must result in HIGH_RISK outcome."
+}

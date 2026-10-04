@@ -1,0 +1,150 @@
+{
+  "contract_version": "1.0.0",
+  "run_id": "demo_run_04_sparse",
+  "demo_mode": false,
+  "claims": [
+    {
+      "claim_id": "c1",
+      "kind": "employer",
+      "value": "Acme Pixel Labs",
+      "source_quote": "Acme Pixel Labs",
+      "start_offset": 0,
+      "end_offset": 15,
+      "page": null,
+      "extraction_status": "EXTRACTED"
+    },
+    {
+      "claim_id": "c2",
+      "kind": "sender_email",
+      "value": "dev@acmepixellabs.example",
+      "source_quote": "dev@acmepixellabs.example",
+      "start_offset": 106,
+      "end_offset": 131,
+      "page": null,
+      "extraction_status": "EXTRACTED"
+    },
+    {
+      "claim_id": "c9",
+      "kind": "compensation",
+      "value": "stipend: INR 25,000",
+      "source_quote": "stipend: INR 25,000",
+      "start_offset": 52,
+      "end_offset": 71,
+      "page": null,
+      "extraction_status": "UNCERTAIN"
+    },
+    {
+      "claim_id": "c10",
+      "kind": "payment_request",
+      "value": null,
+      "source_quote": null,
+      "start_offset": null,
+      "end_offset": null,
+      "page": null,
+      "extraction_status": "MISSING"
+    }
+  ],
+  "assessed_claims": [
+    {
+      "claim_id": "c1",
+      "status": "UNRESOLVED",
+      "explanation": "The completed check did not establish attributable corroboration. Empty results do not prove fraud or legitimacy.",
+      "evidence_ids": [],
+      "reason_codes": [
+        "SPARSE_FOOTPRINT",
+        "OFFICIAL_DOMAIN_UNRESOLVED"
+      ]
+    },
+    {
+      "claim_id": "c2",
+      "status": "UNRESOLVED",
+      "explanation": "The completed check did not establish attributable corroboration. Empty results do not prove fraud or legitimacy.",
+      "evidence_ids": [],
+      "reason_codes": [
+        "NO_PUBLIC_LISTING_FOUND"
+      ]
+    },
+    {
+      "claim_id": "c9",
+      "status": "NOT_CHECKED",
+      "explanation": "Extraction is uncertain; confirm the claim before using it in searches.",
+      "evidence_ids": [],
+      "reason_codes": [
+        "EXTRACTION_UNCERTAIN"
+      ]
+    },
+    {
+      "claim_id": "c10",
+      "status": "NOT_CHECKED",
+      "explanation": "Required claim value is absent; no check was executed for it.",
+      "evidence_ids": [],
+      "reason_codes": [
+        "MISSING_INPUT"
+      ]
+    }
+  ],
+  "evidence": [],
+  "overall_outcome": "CANNOT_VERIFY",
+  "authenticity_status": "UNCONFIRMED",
+  "coverage": {
+    "checked_claims": 2,
+    "total_claims": 4,
+    "unresolved_claims": 4,
+    "failed_checks": 0
+  },
+  "recommended_actions": [
+    "Ask the company for an official website or LinkedIn page and a contact you can reach independently.",
+    "Independently look up the employer using official public business registries (such as MCA India at mca.gov.in) or verified business directories.",
+    "Do not rely on website links, phone numbers, or addresses provided solely within the submitted document.",
+    "Resolve the outstanding Recruiter Domain Alignment & Employer Affiliation Check independently before relying on that result.",
+    "Contact the employer through independently established published contact details to confirm that this specific offer was issued to you.",
+    "Review standard employment terms, scope of work, and contract conditions carefully before signing.",
+    "Never share sensitive banking passwords, OTPs, or pay any onboarding charges.",
+    "Do not pay any fee or share bank OTPs at any stage.",
+    "No independently sourced offer-confirmation channel was identified; contact the employer via official published directory or registry contacts."
+  ],
+  "confirmation_route": null,
+  "tool_trace": [
+    {
+      "step": "resolve_employer_domain",
+      "tool": "serpapi.google",
+      "query": "\"Acme Pixel Labs\" official website careers",
+      "reason": "Resolve the employer's official domain before checking contact details",
+      "status": "COMPLETED",
+      "started_at": "2026-10-04T10:17:35.227572Z",
+      "duration_ms": 0,
+      "evidence_ids": []
+    },
+    {
+      "step": "check_recruiter_contact",
+      "tool": "serpapi.google",
+      "query": "\"dev@acmepixellabs.example\" scam fraud complaint",
+      "reason": "Verify recruiter email alignment with resolved domain",
+      "status": "COMPLETED",
+      "started_at": "2026-10-04T10:17:35.231221Z",
+      "duration_ms": 0,
+      "evidence_ids": []
+    },
+    {
+      "step": "check_recruiter_contact",
+      "tool": "serpapi.google",
+      "query": "\"dev@acmepixellabs.example\" \"Acme Pixel Labs\"",
+      "reason": "Verify recruiter email alignment with resolved domain",
+      "status": "COMPLETED",
+      "started_at": "2026-10-04T10:17:35.231566Z",
+      "duration_ms": 0,
+      "evidence_ids": []
+    },
+    {
+      "step": "check_scam_signals",
+      "tool": "serpapi.google",
+      "query": "\"Acme Pixel Labs\" job scam fraud complaint telegram",
+      "reason": "Check for upfront fees, credential demands, and adverse reports",
+      "status": "COMPLETED",
+      "started_at": "2026-10-04T10:17:35.233274Z",
+      "duration_ms": 0,
+      "evidence_ids": []
+    }
+  ],
+  "errors": []
+}

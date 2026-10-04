@@ -1,0 +1,63 @@
+{
+  "case_id": "EVAL-17-ATS-TENANT-ASSOCIATION",
+  "title": "Associated ATS Tenant Verification",
+  "description": "Application URL uses a known third-party ATS (radiantenergy.greenhouse.io) linked from official employer careers page.",
+  "labels": {
+    "scenario_group": "legitimate_corroborated",
+    "category": "ats_tenant_association",
+    "threat_category": "tenant_association",
+    "primary_entity": "Radiant Energy Solutions Ltd"
+  },
+  "case_input": {
+    "case_id": 117,
+    "run_id": "run_eval_17_ats",
+    "source_type": "text",
+    "redacted_text": "Radiant Energy Solutions Ltd.\nSubmit your onboarding application at https://radiantenergy.greenhouse.io/jobs/401928.\nOfficial website: https://www.radiantenergy.example",
+    "confirmed_claims": [],
+    "demo_mode": false
+  },
+  "budget": null,
+  "search_mock": {
+    "query_responses": {
+      "\"Radiant Energy Solutions Ltd\" official website careers": {
+        "status": "successful",
+        "source": "REAL",
+        "knowledge_graph": {
+          "website": "https://www.radiantenergy.example",
+          "careers_url": "https://careers.radiantenergy.example"
+        },
+        "organic_results": [
+          {
+            "link": "https://www.radiantenergy.example",
+            "title": "Radiant Energy",
+            "snippet": "Energy solutions."
+          },
+          {
+            "link": "https://radiantenergy.greenhouse.io/jobs/401928",
+            "title": "Radiant Energy Greenhouse",
+            "snippet": "Careers powered by Greenhouse for Radiant Energy."
+          }
+        ]
+      }
+    },
+    "default_response": {
+      "status": "successful",
+      "source": "REAL",
+      "organic_results": []
+    }
+  },
+  "expected_outcome": "CANNOT_VERIFY",
+  "allowed_outcomes": [
+    "CANNOT_VERIFY",
+    "NO_STRONG_RISK_SIGNALS"
+  ],
+  "expected_claim_statuses": {},
+  "required_behaviors": [
+    "authenticity_unconfirmed"
+  ],
+  "forbidden_behaviors": [
+    "fake_verification"
+  ],
+  "planted_secrets": [],
+  "rationale": "Known employer ATS tenant is corroborated through documented association."
+}

@@ -1,0 +1,54 @@
+{
+  "case_id": "EVAL-09-NEGATED-PAYMENT-POLICY",
+  "title": "Negated Payment Policy Statement",
+  "description": "Legitimate company policy explicitly negating fees: 'We never charge a deposit or fee.'",
+  "labels": {
+    "scenario_group": "benign_policy",
+    "category": "negated_fee_policy",
+    "threat_category": "benign_policy_negation",
+    "primary_entity": "Apex Global Services"
+  },
+  "case_input": {
+    "case_id": 109,
+    "run_id": "run_eval_09_negated",
+    "source_type": "text",
+    "redacted_text": "Apex Global Services employment letter.\nImportant notice: We never charge a security deposit, equipment charge, or registration fee.\nHR inquiries: hr@apexglobal.example",
+    "confirmed_claims": [],
+    "demo_mode": false
+  },
+  "budget": null,
+  "search_mock": {
+    "query_responses": {
+      "\"Apex Global Services\" official website careers": {
+        "status": "successful",
+        "source": "REAL",
+        "organic_results": [
+          {
+            "link": "https://apexglobal.example/",
+            "title": "Apex Global",
+            "snippet": "Official site."
+          }
+        ]
+      }
+    },
+    "default_response": {
+      "status": "successful",
+      "source": "REAL",
+      "organic_results": []
+    }
+  },
+  "expected_outcome": "CANNOT_VERIFY",
+  "allowed_outcomes": [
+    "CANNOT_VERIFY",
+    "NO_STRONG_RISK_SIGNALS"
+  ],
+  "expected_claim_statuses": {},
+  "required_behaviors": [
+    "authenticity_unconfirmed"
+  ],
+  "forbidden_behaviors": [
+    "fake_verification"
+  ],
+  "planted_secrets": [],
+  "rationale": "Negated fee policies must not be misinterpreted as active fee demands."
+}

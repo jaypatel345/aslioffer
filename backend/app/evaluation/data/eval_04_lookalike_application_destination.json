@@ -1,0 +1,63 @@
+{
+  "case_id": "EVAL-04-LOOKALIKE-APPLICATION-DESTINATION",
+  "title": "Lookalike Application Portal Destination",
+  "description": "Offer letter mimics a major IT employer but directs candidate to upload documents at lookalike domain tcs-careers-portal.example.",
+  "labels": {
+    "scenario_group": "ambiguous_unresolved",
+    "category": "lookalike_domain",
+    "threat_category": "domain_impersonation",
+    "primary_entity": "Tata Consultancy Services Ltd"
+  },
+  "case_input": {
+    "case_id": 104,
+    "run_id": "run_eval_04_lookalike",
+    "source_type": "text",
+    "redacted_text": "Tata Consultancy Services Ltd. Offer Reference: TCS/2026/0912.\nRole: Systems Analyst. Package: INR 6,50,000 per annum.\nSubmit all onboarding documents exclusively through our official recruitment portal at https://tcs-careers-portal.example/apply.\nRecruiter: r.verma@tcs-careers-portal.example",
+    "confirmed_claims": [
+      {
+        "claim_id": "c1",
+        "kind": "employer",
+        "value": "Tata Consultancy Services Ltd",
+        "extraction_status": "USER_CONFIRMED"
+      }
+    ],
+    "demo_mode": false
+  },
+  "budget": null,
+  "search_mock": {
+    "query_responses": {
+      "\"Tata Consultancy Services Ltd\" official website careers": {
+        "status": "successful",
+        "source": "REAL",
+        "organic_results": [
+          {
+            "link": "https://tcs-careers-portal.example/apply",
+            "title": "TCS Portal",
+            "snippet": "Careers portal."
+          }
+        ]
+      }
+    },
+    "default_response": {
+      "status": "successful",
+      "source": "REAL",
+      "organic_results": []
+    }
+  },
+  "expected_outcome": "CANNOT_VERIFY",
+  "allowed_outcomes": [
+    "CANNOT_VERIFY",
+    "NEEDS_REVIEW"
+  ],
+  "expected_claim_statuses": {
+    "application_url": "CONTRADICTED"
+  },
+  "required_behaviors": [
+    "authenticity_unconfirmed"
+  ],
+  "forbidden_behaviors": [
+    "fake_verification"
+  ],
+  "planted_secrets": [],
+  "rationale": "Lookalike domain must be rejected and application destination marked CONTRADICTED."
+}

@@ -1,0 +1,46 @@
+{
+  "case_id": "EVAL-23-INVESTIGATION-DEADLINE-TIMEOUT",
+  "title": "Investigation Monotonic Deadline Timeout",
+  "description": "Investigation configured with expired/tight deadline; provider calls abort cleanly.",
+  "labels": {
+    "scenario_group": "system_and_limits",
+    "category": "deadline_timeout",
+    "threat_category": "deadline_exceeded",
+    "primary_entity": "Radiant Energy Solutions Ltd"
+  },
+  "case_input": {
+    "case_id": 123,
+    "run_id": "run_eval_23_deadline",
+    "source_type": "text",
+    "redacted_text": "Radiant Energy Solutions Ltd.\nOffer of Employment. Contact: hr@radiantenergy.example",
+    "confirmed_claims": [],
+    "demo_mode": false
+  },
+  "budget": {
+    "max_search_calls": 8,
+    "max_followup_calls": 3,
+    "max_concurrent_calls": 3,
+    "deadline_seconds": 0.001
+  },
+  "search_mock": {
+    "query_responses": {},
+    "default_response": {
+      "status": "successful",
+      "source": "REAL",
+      "organic_results": []
+    }
+  },
+  "expected_outcome": "CANNOT_VERIFY",
+  "allowed_outcomes": [
+    "CANNOT_VERIFY"
+  ],
+  "expected_claim_statuses": {},
+  "required_behaviors": [
+    "authenticity_unconfirmed"
+  ],
+  "forbidden_behaviors": [
+    "fake_verification"
+  ],
+  "planted_secrets": [],
+  "rationale": "Investigation deadline expiry records INVESTIGATION_DEADLINE_EXCEEDED error without unhandled exception."
+}

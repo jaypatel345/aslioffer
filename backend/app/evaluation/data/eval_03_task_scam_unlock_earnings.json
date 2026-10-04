@@ -1,0 +1,41 @@
+{
+  "case_id": "EVAL-03-TASK-SCAM-UNLOCK-EARNINGS",
+  "title": "Payment to Unlock Job / Task Scam Extortion",
+  "description": "Candidate invited to complete tasks and told to deposit money to unlock accumulated salary.",
+  "labels": {
+    "scenario_group": "threat_cases",
+    "category": "payment_to_unlock_earnings",
+    "threat_category": "task_scam_extortion",
+    "primary_entity": "Global Media Task Hub"
+  },
+  "case_input": {
+    "case_id": 103,
+    "run_id": "run_eval_03_task",
+    "source_type": "text",
+    "redacted_text": "Global Media Task Hub. You completed 30 rating tasks and earned INR 8,500.\nTo withdraw your salary balance, pay INR 2,500 security deposit to upgrade to VIP level.\nUPI payment to taskmgr@okicici.",
+    "confirmed_claims": [],
+    "demo_mode": false
+  },
+  "budget": null,
+  "search_mock": {
+    "query_responses": {},
+    "default_response": {
+      "status": "successful",
+      "source": "REAL",
+      "organic_results": []
+    }
+  },
+  "expected_outcome": "HIGH_RISK",
+  "allowed_outcomes": [
+    "HIGH_RISK"
+  ],
+  "expected_claim_statuses": {},
+  "required_behaviors": [
+    "authenticity_unconfirmed"
+  ],
+  "forbidden_behaviors": [
+    "fake_verification"
+  ],
+  "planted_secrets": [],
+  "rationale": "Demands to pay money to unlock salary represent advance fee extortion."
+}

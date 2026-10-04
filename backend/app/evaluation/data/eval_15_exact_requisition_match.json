@@ -1,0 +1,69 @@
+{
+  "case_id": "EVAL-15-EXACT-REQUISITION-MATCH",
+  "title": "Exact Requisition Match",
+  "description": "Offer letter contains unique requisition ID REQ-2026-9942 matching official employer careers posting.",
+  "labels": {
+    "scenario_group": "legitimate_corroborated",
+    "category": "requisition_match",
+    "threat_category": "exact_corroboration",
+    "primary_entity": "Radiant Energy Solutions Ltd"
+  },
+  "case_input": {
+    "case_id": 115,
+    "run_id": "run_eval_15_req",
+    "source_type": "text",
+    "redacted_text": "Radiant Energy Solutions Ltd.\nJob Offer: Software Engineer. Requisition ID: REQ-2026-9942.\nApply at https://careers.radiantenergy.example",
+    "confirmed_claims": [],
+    "demo_mode": false
+  },
+  "budget": null,
+  "search_mock": {
+    "query_responses": {
+      "\"Radiant Energy Solutions Ltd\" official website careers": {
+        "status": "successful",
+        "source": "REAL",
+        "knowledge_graph": {
+          "website": "https://www.radiantenergy.example",
+          "careers_url": "https://careers.radiantenergy.example"
+        },
+        "organic_results": [
+          {
+            "link": "https://www.radiantenergy.example",
+            "title": "Radiant Energy",
+            "snippet": "Energy solutions."
+          }
+        ]
+      },
+      "\"Radiant Energy Solutions Ltd\" \"REQ-2026-9942\"": {
+        "status": "successful",
+        "source": "REAL",
+        "organic_results": [
+          {
+            "link": "https://careers.radiantenergy.example/jobs/9942",
+            "title": "REQ-2026-9942 Software Engineer",
+            "snippet": "Requisition REQ-2026-9942 for Software Engineer at Radiant Energy."
+          }
+        ]
+      }
+    },
+    "default_response": {
+      "status": "successful",
+      "source": "REAL",
+      "organic_results": []
+    }
+  },
+  "expected_outcome": "CANNOT_VERIFY",
+  "allowed_outcomes": [
+    "CANNOT_VERIFY",
+    "NO_STRONG_RISK_SIGNALS"
+  ],
+  "expected_claim_statuses": {},
+  "required_behaviors": [
+    "authenticity_unconfirmed"
+  ],
+  "forbidden_behaviors": [
+    "fake_verification"
+  ],
+  "planted_secrets": [],
+  "rationale": "Exact requisition match corroborates requisition claim while keeping authenticity UNCONFIRMED."
+}

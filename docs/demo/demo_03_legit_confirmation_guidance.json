@@ -1,0 +1,211 @@
+{
+  "contract_version": "1.0.0",
+  "run_id": "demo_run_03_legit",
+  "demo_mode": false,
+  "claims": [
+    {
+      "claim_id": "c1",
+      "kind": "employer",
+      "value": "Kestrel Systems Pvt Ltd",
+      "source_quote": "Kestrel Systems Pvt Ltd",
+      "start_offset": 25,
+      "end_offset": 48,
+      "page": null,
+      "extraction_status": "EXTRACTED"
+    },
+    {
+      "claim_id": "c2",
+      "kind": "sender_email",
+      "value": "ananya.rao@kestrelsystems.example",
+      "source_quote": "ananya.rao@kestrelsystems.example",
+      "start_offset": 248,
+      "end_offset": 281,
+      "page": null,
+      "extraction_status": "EXTRACTED"
+    },
+    {
+      "claim_id": "c10",
+      "kind": "payment_request",
+      "value": null,
+      "source_quote": null,
+      "start_offset": null,
+      "end_offset": null,
+      "page": null,
+      "extraction_status": "MISSING"
+    }
+  ],
+  "assessed_claims": [
+    {
+      "claim_id": "c1",
+      "status": "SUPPORTED",
+      "explanation": "Independent results support the employer public footprint; they do not authenticate this offer.",
+      "evidence_ids": [
+        "e1",
+        "e2",
+        "e3",
+        "e4"
+      ],
+      "reason_codes": [
+        "OFFICIAL_DOMAIN_RESOLVED"
+      ]
+    },
+    {
+      "claim_id": "c2",
+      "status": "SUPPORTED",
+      "explanation": "Employer-published evidence supports the claimed recruiter affiliation; it does not prove mailbox control, hiring authority, or offer issuance.",
+      "evidence_ids": [
+        "e5"
+      ],
+      "reason_codes": [
+        "PUBLIC_LISTING_MATCH"
+      ]
+    },
+    {
+      "claim_id": "c10",
+      "status": "NOT_CHECKED",
+      "explanation": "Required claim value is absent; no check was executed for it.",
+      "evidence_ids": [],
+      "reason_codes": [
+        "MISSING_INPUT"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "evidence_id": "e1",
+      "claim_id": "c1",
+      "source_kind": "SEARCH_SNIPPET",
+      "source_url": "https://www.kestrelsystems.example/",
+      "title": "Kestrel Systems \u2014 Official Website",
+      "quote_or_snippet": "Kestrel Systems Pvt Ltd is a technology consulting firm.",
+      "retrieved_at": "2026-10-04T10:17:35.198492Z",
+      "query": "\"Kestrel Systems Pvt Ltd\" official website careers",
+      "engine": "google",
+      "search_id": null,
+      "retrieval_status": "LIVE",
+      "source_tier": "OFFICIAL_EMPLOYER",
+      "relation": "SUPPORTS"
+    },
+    {
+      "evidence_id": "e2",
+      "claim_id": "c1",
+      "source_kind": "SEARCH_SNIPPET",
+      "source_url": "https://www.kestrelsystems.example",
+      "title": "Kestrel Systems Pvt Ltd",
+      "quote_or_snippet": "{\"title\": \"Kestrel Systems Pvt Ltd\", \"website\": \"https://www.kestrelsystems.example\", \"careers_url\": \"https://careers.kestrelsystems.example\"}",
+      "retrieved_at": "2026-10-04T10:17:35.198492Z",
+      "query": "\"Kestrel Systems Pvt Ltd\" official website careers",
+      "engine": "google",
+      "search_id": null,
+      "retrieval_status": "LIVE",
+      "source_tier": "OFFICIAL_EMPLOYER",
+      "relation": "SUPPORTS"
+    },
+    {
+      "evidence_id": "e3",
+      "claim_id": "c1",
+      "source_kind": "SEARCH_SNIPPET",
+      "source_url": "https://careers.kestrelsystems.example/",
+      "title": "Kestrel Systems Careers Portal",
+      "quote_or_snippet": "Careers and job offers at Kestrel Systems.",
+      "retrieved_at": "2026-10-04T10:17:35.198492Z",
+      "query": "\"Kestrel Systems Pvt Ltd\" official website careers",
+      "engine": "google",
+      "search_id": null,
+      "retrieval_status": "LIVE",
+      "source_tier": "OFFICIAL_EMPLOYER",
+      "relation": "SUPPORTS"
+    },
+    {
+      "evidence_id": "e4",
+      "claim_id": "c1",
+      "source_kind": "SEARCH_SNIPPET",
+      "source_url": "https://careers.kestrelsystems.example",
+      "title": "Kestrel Systems Pvt Ltd",
+      "quote_or_snippet": "{\"title\": \"Kestrel Systems Pvt Ltd\", \"website\": \"https://www.kestrelsystems.example\", \"careers_url\": \"https://careers.kestrelsystems.example\"}",
+      "retrieved_at": "2026-10-04T10:17:35.198492Z",
+      "query": "\"Kestrel Systems Pvt Ltd\" official website careers",
+      "engine": "google",
+      "search_id": null,
+      "retrieval_status": "LIVE",
+      "source_tier": "OFFICIAL_EMPLOYER",
+      "relation": "SUPPORTS"
+    },
+    {
+      "evidence_id": "e5",
+      "claim_id": "c2",
+      "source_kind": "SEARCH_SNIPPET",
+      "source_url": "https://careers.kestrelsystems.example/team",
+      "title": "Recruitment Team",
+      "quote_or_snippet": "Contact our talent acquisition recruiter Ananya Rao at ananya.rao@kestrelsystems.example for verification.",
+      "retrieved_at": "2026-10-04T10:17:35.198492Z",
+      "query": "\"Kestrel Systems Pvt Ltd\" official website careers",
+      "engine": "google",
+      "search_id": null,
+      "retrieval_status": "LIVE",
+      "source_tier": "OFFICIAL_EMPLOYER",
+      "relation": "SUPPORTS"
+    }
+  ],
+  "overall_outcome": "NO_STRONG_RISK_SIGNALS",
+  "authenticity_status": "UNCONFIRMED",
+  "coverage": {
+    "checked_claims": 2,
+    "total_claims": 3,
+    "unresolved_claims": 1,
+    "failed_checks": 0
+  },
+  "recommended_actions": [
+    "No strong risk signals were found, but only Kestrel Systems Pvt Ltd can confirm this offer.",
+    "Contact the employer through independently established published contact details to confirm that this specific offer was issued to you.",
+    "Review standard employment terms, scope of work, and contract conditions carefully before signing.",
+    "Never share sensitive banking passwords, OTPs, or pay any onboarding charges.",
+    "Confirm offer issuance independently before accepting; do not rely solely on an emailed link.",
+    "Use the independently sourced published careers portal (https://careers.kestrelsystems.example) to confirm whether this offer was formally issued."
+  ],
+  "confirmation_route": {
+    "channel": "careers_portal",
+    "destination": "https://careers.kestrelsystems.example",
+    "evidence_id": "e4",
+    "draft_message": "Navigate to Kestrel Systems Pvt Ltd's official portal and locate their published human resources or recruitment contact. Inquire neutrally: 'I have received an employment offer for [Position / Role Title] (Reference: [Candidate/Offer Reference]); could you please verify whether this offer was officially issued?' State your name ([Your Name]) but do not disclose banking details, account passwords, or OTPs."
+  },
+  "tool_trace": [
+    {
+      "step": "resolve_employer_domain",
+      "tool": "serpapi.google",
+      "query": "\"Kestrel Systems Pvt Ltd\" official website careers",
+      "reason": "Resolve the employer's official domain before checking contact details",
+      "status": "COMPLETED",
+      "started_at": "2026-10-04T10:17:35.198492Z",
+      "duration_ms": 0,
+      "evidence_ids": [
+        "e1",
+        "e2",
+        "e3",
+        "e4",
+        "e5"
+      ]
+    },
+    {
+      "step": "check_recruiter_contact",
+      "tool": "serpapi.google",
+      "query": "\"ananya.rao@kestrelsystems.example\" scam fraud complaint",
+      "reason": "Verify recruiter email alignment with resolved domain",
+      "status": "COMPLETED",
+      "started_at": "2026-10-04T10:17:35.203189Z",
+      "duration_ms": 0,
+      "evidence_ids": []
+    },
+    {
+      "step": "check_scam_signals",
+      "tool": "serpapi.google",
+      "query": "\"Kestrel Systems Pvt Ltd\" job scam fraud complaint telegram",
+      "reason": "Check for upfront fees, credential demands, and adverse reports",
+      "status": "COMPLETED",
+      "started_at": "2026-10-04T10:17:35.207366Z",
+      "duration_ms": 0,
+      "evidence_ids": []
+    }
+  ],
+  "errors": []
+}

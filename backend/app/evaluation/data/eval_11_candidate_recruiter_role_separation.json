@@ -1,0 +1,58 @@
+{
+  "case_id": "EVAL-11-CANDIDATE-RECRUITER-ROLE-SEPARATION",
+  "title": "Candidate / Recruiter Contact Role Separation",
+  "description": "Message contains candidate personal email and recruiter corporate email; personal email must not be checked as recruiter.",
+  "labels": {
+    "scenario_group": "legitimate_corroborated",
+    "category": "contact_role_separation",
+    "threat_category": "extraction_ambiguity",
+    "primary_entity": "Kestrel Systems Pvt Ltd"
+  },
+  "case_input": {
+    "case_id": 111,
+    "run_id": "run_eval_11_separation",
+    "source_type": "text",
+    "redacted_text": "Sent to candidate suresh.kumar99@gmail.com by recruiter ananya.rao@kestrelsystems.example.\nEmployer: Kestrel Systems Pvt Ltd. Role: Associate Consultant.\nPortal: https://careers.kestrelsystems.example.",
+    "confirmed_claims": [],
+    "demo_mode": false
+  },
+  "budget": null,
+  "search_mock": {
+    "query_responses": {
+      "\"Kestrel Systems Pvt Ltd\" official website careers": {
+        "status": "successful",
+        "source": "REAL",
+        "knowledge_graph": {
+          "website": "https://www.kestrelsystems.example",
+          "careers_url": "https://careers.kestrelsystems.example"
+        },
+        "organic_results": [
+          {
+            "link": "https://www.kestrelsystems.example/",
+            "title": "Kestrel Systems",
+            "snippet": "IT consulting."
+          }
+        ]
+      }
+    },
+    "default_response": {
+      "status": "successful",
+      "source": "REAL",
+      "organic_results": []
+    }
+  },
+  "expected_outcome": "CANNOT_VERIFY",
+  "allowed_outcomes": [
+    "CANNOT_VERIFY",
+    "NO_STRONG_RISK_SIGNALS"
+  ],
+  "expected_claim_statuses": {},
+  "required_behaviors": [
+    "authenticity_unconfirmed"
+  ],
+  "forbidden_behaviors": [
+    "fake_verification"
+  ],
+  "planted_secrets": [],
+  "rationale": "Candidate personal email must not be evaluated as a recruiter webmail risk."
+}

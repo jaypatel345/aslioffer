@@ -1,0 +1,41 @@
+{
+  "case_id": "EVAL-08-SMALL-EMPLOYER-SPARSE-FOOTPRINT",
+  "title": "Small Employer with Sparse Footprint",
+  "description": "Early-stage startup with no corporate website or news footprint, but no adverse reports.",
+  "labels": {
+    "scenario_group": "ambiguous_unresolved",
+    "category": "sparse_footprint_startup",
+    "threat_category": "sparse_evidence",
+    "primary_entity": "Acme Pixel Labs"
+  },
+  "case_input": {
+    "case_id": 108,
+    "run_id": "run_eval_08_sparse",
+    "source_type": "text",
+    "redacted_text": "Acme Pixel Labs offer for Junior 3D Artist.\nMonthly stipend: INR 25,000. Start date: November 1.\nContact: dev@acmepixellabs.example",
+    "confirmed_claims": [],
+    "demo_mode": false
+  },
+  "budget": null,
+  "search_mock": {
+    "query_responses": {},
+    "default_response": {
+      "status": "successful",
+      "source": "REAL",
+      "organic_results": []
+    }
+  },
+  "expected_outcome": "CANNOT_VERIFY",
+  "allowed_outcomes": [
+    "CANNOT_VERIFY"
+  ],
+  "expected_claim_statuses": {},
+  "required_behaviors": [
+    "authenticity_unconfirmed"
+  ],
+  "forbidden_behaviors": [
+    "fake_verification"
+  ],
+  "planted_secrets": [],
+  "rationale": "Sparse public footprint must yield CANNOT_VERIFY, never a false conviction of fraud."
+}

@@ -1,0 +1,64 @@
+{
+  "case_id": "EVAL-18-INDEPENDENT-CONFIRMATION-CONTACT",
+  "title": "Independently Published Offer Confirmation Channel",
+  "description": "Employer publishes dedicated verification email verify-offers@radiantenergy.example on official website.",
+  "labels": {
+    "scenario_group": "legitimate_corroborated",
+    "category": "confirmation_route",
+    "threat_category": "independent_route",
+    "primary_entity": "Radiant Energy Solutions Ltd"
+  },
+  "case_input": {
+    "case_id": 118,
+    "run_id": "run_eval_18_confirm",
+    "source_type": "text",
+    "redacted_text": "Radiant Energy Solutions Ltd.\nRole: Software Engineer.\nCareers: https://careers.radiantenergy.example",
+    "confirmed_claims": [],
+    "demo_mode": false
+  },
+  "budget": null,
+  "search_mock": {
+    "query_responses": {
+      "\"Radiant Energy Solutions Ltd\" official website careers": {
+        "status": "successful",
+        "source": "REAL",
+        "knowledge_graph": {
+          "website": "https://www.radiantenergy.example",
+          "careers_url": "https://careers.radiantenergy.example"
+        },
+        "organic_results": [
+          {
+            "link": "https://www.radiantenergy.example",
+            "title": "Radiant Energy",
+            "snippet": "Energy solutions."
+          },
+          {
+            "link": "https://careers.radiantenergy.example/verify",
+            "title": "Offer Verification",
+            "snippet": "Verify offer letters by emailing verify-offers@radiantenergy.example directly."
+          }
+        ]
+      }
+    },
+    "default_response": {
+      "status": "successful",
+      "source": "REAL",
+      "organic_results": []
+    }
+  },
+  "expected_outcome": "CANNOT_VERIFY",
+  "allowed_outcomes": [
+    "CANNOT_VERIFY",
+    "NO_STRONG_RISK_SIGNALS"
+  ],
+  "expected_claim_statuses": {},
+  "required_behaviors": [
+    "authenticity_unconfirmed",
+    "has_confirmation_route"
+  ],
+  "forbidden_behaviors": [
+    "fake_verification"
+  ],
+  "planted_secrets": [],
+  "rationale": "Confirmation route correctly targets independently published employer channel."
+}

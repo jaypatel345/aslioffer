@@ -1,0 +1,217 @@
+{
+  "contract_version": "1.0.0",
+  "run_id": "demo_run_02_impersonation",
+  "demo_mode": false,
+  "claims": [
+    {
+      "claim_id": "c1",
+      "kind": "employer",
+      "value": "Infosys Limited",
+      "source_quote": "Infosys Limited",
+      "start_offset": 0,
+      "end_offset": 15,
+      "page": null,
+      "extraction_status": "EXTRACTED"
+    },
+    {
+      "claim_id": "c2",
+      "kind": "sender_email",
+      "value": "recruitment@infosys-careers.example",
+      "source_quote": "recruitment@infosys-careers.example",
+      "start_offset": 231,
+      "end_offset": 266,
+      "page": null,
+      "extraction_status": "EXTRACTED"
+    },
+    {
+      "claim_id": "c6",
+      "kind": "role",
+      "value": "Systems Engineer",
+      "source_quote": "Systems Engineer",
+      "start_offset": 74,
+      "end_offset": 90,
+      "page": null,
+      "extraction_status": "EXTRACTED"
+    },
+    {
+      "claim_id": "c9",
+      "kind": "compensation",
+      "value": "INR 4,80,000 per annum",
+      "source_quote": "INR 4,80,000 per annum",
+      "start_offset": 106,
+      "end_offset": 128,
+      "page": null,
+      "extraction_status": "EXTRACTED"
+    },
+    {
+      "claim_id": "c10",
+      "kind": "payment_request",
+      "value": "Pay an onboarding document verification fee of INR 6,500 to infosys-hr@upi within 48 hours.",
+      "source_quote": "Pay an onboarding document verification fee of INR 6,500 to infosys-hr@upi within 48 hours.",
+      "start_offset": 130,
+      "end_offset": 221,
+      "page": null,
+      "extraction_status": "EXTRACTED"
+    }
+  ],
+  "assessed_claims": [
+    {
+      "claim_id": "c1",
+      "status": "UNRESOLVED",
+      "explanation": "The completed check did not establish attributable corroboration. Empty results do not prove fraud or legitimacy.",
+      "evidence_ids": [],
+      "reason_codes": [
+        "SPARSE_FOOTPRINT",
+        "OFFICIAL_DOMAIN_UNRESOLVED"
+      ]
+    },
+    {
+      "claim_id": "c2",
+      "status": "UNRESOLVED",
+      "explanation": "The completed check did not establish attributable corroboration. Empty results do not prove fraud or legitimacy.",
+      "evidence_ids": [],
+      "reason_codes": [
+        "NO_PUBLIC_LISTING_FOUND"
+      ]
+    },
+    {
+      "claim_id": "c6",
+      "status": "NOT_CHECKED",
+      "explanation": "No attributable matching vacancy was corroborated. Missing, unlisted or closed postings do not prove fraud.",
+      "evidence_ids": [],
+      "reason_codes": [
+        "CHECK_NOT_EXECUTED"
+      ]
+    },
+    {
+      "claim_id": "c9",
+      "status": "UNRESOLVED",
+      "explanation": "Retrieved context does not establish comparable pay data for this role and compensation period.",
+      "evidence_ids": [],
+      "reason_codes": [
+        "NO_SALARY_BENCHMARK"
+      ]
+    },
+    {
+      "claim_id": "c10",
+      "status": "SUPPORTED",
+      "explanation": "The submitted document contains this demand. This supports the presence of the demand, not the legitimacy of the offer.",
+      "evidence_ids": [
+        "e1"
+      ],
+      "reason_codes": [
+        "DOCUMENT_DEMAND_OBSERVED",
+        "UPFRONT_PAYMENT_DEMAND"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "evidence_id": "e1",
+      "claim_id": "c10",
+      "source_kind": "DOCUMENT",
+      "source_url": null,
+      "title": "Demand in submitted document",
+      "quote_or_snippet": "Pay an onboarding document verification fee of INR 6,500 to infosys-hr@upi within 48 hours.",
+      "retrieved_at": "2026-10-04T10:17:35.185423Z",
+      "query": null,
+      "engine": null,
+      "search_id": null,
+      "retrieval_status": "LIVE",
+      "source_tier": "OFFER_DOCUMENT",
+      "relation": "SUPPORTS"
+    }
+  ],
+  "overall_outcome": "HIGH_RISK",
+  "authenticity_status": "UNCONFIRMED",
+  "coverage": {
+    "checked_claims": 4,
+    "total_claims": 5,
+    "unresolved_claims": 4,
+    "failed_checks": 0
+  },
+  "recommended_actions": [
+    "DO NOT pay any registration fee, security deposit, laptop charge, or document processing fee under any circumstance.",
+    "Confirm the payment demand independently with the employer using published contact details, not the contact supplied with the demand.",
+    "If you suspect employment fraud or have experienced financial loss or credential theft, report the incident to the National Cyber Crime Reporting Portal at https://cybercrime.gov.in or call helpline 1930.",
+    "Independently look up the employer using official public business registries (such as MCA India at mca.gov.in) or verified business directories.",
+    "Do not rely on website links, phone numbers, or addresses provided solely within the submitted document.",
+    "Resolve the outstanding Recruiter Domain Alignment & Employer Affiliation Check independently before relying on that result.",
+    "Contact the employer through independently established published contact details to confirm that this specific offer was issued to you.",
+    "No independently sourced offer-confirmation channel was identified; contact the employer via official published directory or registry contacts."
+  ],
+  "confirmation_route": null,
+  "tool_trace": [
+    {
+      "step": "resolve_employer_domain",
+      "tool": "serpapi.google",
+      "query": "\"Infosys Limited\" official website careers",
+      "reason": "Resolve the employer's official domain before checking contact details",
+      "status": "COMPLETED",
+      "started_at": "2026-10-04T10:17:35.175520Z",
+      "duration_ms": 0,
+      "evidence_ids": []
+    },
+    {
+      "step": "check_recruiter_contact",
+      "tool": "serpapi.google",
+      "query": "\"recruitment@infosys-careers.example\" scam fraud complaint",
+      "reason": "Verify recruiter email alignment with resolved domain",
+      "status": "COMPLETED",
+      "started_at": "2026-10-04T10:17:35.177804Z",
+      "duration_ms": 0,
+      "evidence_ids": []
+    },
+    {
+      "step": "check_recruiter_contact",
+      "tool": "serpapi.google",
+      "query": "\"recruitment@infosys-careers.example\" \"Infosys Limited\"",
+      "reason": "Verify recruiter email alignment with resolved domain",
+      "status": "COMPLETED",
+      "started_at": "2026-10-04T10:17:35.178105Z",
+      "duration_ms": 0,
+      "evidence_ids": []
+    },
+    {
+      "step": "check_scam_signals",
+      "tool": "serpapi.google",
+      "query": "\"Infosys Limited\" job scam fraud complaint telegram",
+      "reason": "Check for upfront fees, credential demands, and adverse reports",
+      "status": "COMPLETED",
+      "started_at": "2026-10-04T10:17:35.180995Z",
+      "duration_ms": 0,
+      "evidence_ids": []
+    },
+    {
+      "step": "check_scam_signals",
+      "tool": "serpapi.google",
+      "query": "\"Infosys Limited\" \"UPI\" recruitment scam",
+      "reason": "Check for upfront fees, credential demands, and adverse reports",
+      "status": "COMPLETED",
+      "started_at": "2026-10-04T10:17:35.181415Z",
+      "duration_ms": 0,
+      "evidence_ids": []
+    },
+    {
+      "step": "check_compensation_benchmark",
+      "tool": "serpapi.google",
+      "query": "\"Systems Engineer\" salary \"Infosys Limited\" AmbitionBox Glassdoor",
+      "reason": "Look for market salary baselines",
+      "status": "COMPLETED",
+      "started_at": "2026-10-04T10:17:35.182211Z",
+      "duration_ms": 0,
+      "evidence_ids": []
+    },
+    {
+      "step": "adaptive_employer_context",
+      "tool": "serpapi.google",
+      "query": "\"Infosys Limited\" \"Systems Engineer\" official careers",
+      "reason": "Employer identity remains unresolved; checking 'Infosys Limited' with grounded context 'Systems Engineer'.",
+      "status": "COMPLETED",
+      "started_at": "2026-10-04T10:17:35.182686Z",
+      "duration_ms": 0,
+      "evidence_ids": []
+    }
+  ],
+  "errors": []
+}
