@@ -1,42 +1,47 @@
 [
   {
     "demo_id": "DEMO-01",
+    "mode": "offline_synthetic_replay",
     "filename": "demo_01_grounded_scam_warning.json",
-    "title": "Grounded Advance Fee Scam Warning",
+    "title": "Explicit Upfront Fee Demand",
     "expected_outcome": "HIGH_RISK",
     "actual_outcome": "HIGH_RISK",
-    "highlight": "ScamAgent flags active UPI payment request; official fraud alert cites employer policy forbidding deposits."
+    "highlight": "Inspect assessed claims and their cited evidence; authenticity remains UNCONFIRMED."
   },
   {
     "demo_id": "DEMO-02",
+    "mode": "offline_synthetic_replay",
     "filename": "demo_02_plausible_impersonation.json",
-    "title": "Plausible Employer Impersonation with Fee Demand",
+    "title": "Plausible Employer Impersonation with Payment Demand",
     "expected_outcome": "HIGH_RISK",
     "actual_outcome": "HIGH_RISK",
-    "highlight": "Advance fee demand strictly overrides corporate name recognition and realistic salary figures."
+    "highlight": "Inspect assessed claims and their cited evidence; authenticity remains UNCONFIRMED."
   },
   {
     "demo_id": "DEMO-03",
+    "mode": "offline_synthetic_replay",
     "filename": "demo_03_legit_confirmation_guidance.json",
-    "title": "Legitimate Recruitment with Sourced Confirmation Guidance",
+    "title": "Legitimate Recruitment with Corroborated Records",
     "expected_outcome": "NO_STRONG_RISK_SIGNALS",
     "actual_outcome": "NO_STRONG_RISK_SIGNALS",
-    "highlight": "ConfirmationRoute provides independently published HR verification channel with draft message; authenticity_status stays UNCONFIRMED."
+    "highlight": "Inspect assessed claims and their cited evidence; authenticity remains UNCONFIRMED."
   },
   {
     "demo_id": "DEMO-04",
+    "mode": "offline_synthetic_replay",
     "filename": "demo_04_sparse_footprint_unverified.json",
-    "title": "Sparse Footprint Startup (Honest Uncertainty)",
+    "title": "Small Employer with Sparse Footprint",
     "expected_outcome": "CANNOT_VERIFY",
     "actual_outcome": "CANNOT_VERIFY",
-    "highlight": "Coverage summary clearly marks corporate identity as unresolved; recommended actions guide safe verification without accusing the employer."
+    "highlight": "Inspect assessed claims and their cited evidence; authenticity remains UNCONFIRMED."
   },
   {
     "demo_id": "DEMO-05",
+    "mode": "offline_synthetic_replay",
     "filename": "demo_05_provider_outage_failsafe.json",
-    "title": "Provider Outage Resilience (Graceful Degradation)",
+    "title": "Provider Failure / Rate Limit Resilience",
     "expected_outcome": "CANNOT_VERIFY",
     "actual_outcome": "CANNOT_VERIFY",
-    "highlight": "RunError recorded with code SEARCH_CHECK_UNAVAILABLE and retryable=True; local pattern scan results preserved."
+    "highlight": "Inspect assessed claims and their cited evidence; authenticity remains UNCONFIRMED."
   }
 ]

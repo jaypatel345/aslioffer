@@ -37,5 +37,6 @@
     "fake_verification"
   ],
   "planted_secrets": [],
-  "rationale": "Sparse public footprint must yield CANNOT_VERIFY, never a false conviction of fraud."
+  "rationale": "Sparse public footprint must yield CANNOT_VERIFY, never a false conviction of fraud.",
+  "expectations": {}
 }

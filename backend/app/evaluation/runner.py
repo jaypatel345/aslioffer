@@ -12,6 +12,7 @@ Provides a unified command-line entry point to execute the evaluation corpus:
 """
 
 import argparse
+import hashlib
 import asyncio
 from copy import deepcopy
 from datetime import datetime, timezone
@@ -37,13 +38,16 @@ from app.schemas.contract import (
     OverallOutcome,
 )
 from app.services.investigation.pipeline import investigate_case
+from app.services.agents.recruiter_agent import RecruiterAgent
 from app.evaluation.corpus import EvaluationCase, load_evaluation_corpus
 from app.evaluation.invariants import run_all_invariants, InvariantResult
 from app.evaluation.metrics import compute_evaluation_metrics, EvaluationMetricsReport
 from app.evaluation.demo_cases import generate_demo_outputs
 from app.evaluation.live import run_live_evaluation
+from app.evaluation.checks import check_case_behaviors, check_case_expectations, redact_diagnostic
+from unittest.mock import patch
 
-DEFAULT_OUTPUT_DIR = Path(__file__).resolve().parent / "output"
+DEFAULT_OUTPUT_DIR = _REPO_ROOT / "evaluation_artifacts"
 
 
 class EvaluationMockSearchClient:
@@ -53,24 +57,34 @@ class EvaluationMockSearchClient:
         self.query_responses = query_responses or {}
         self.default_response = default_response or {"status": "successful", "source": "REAL", "organic_results": []}
         self.recorded_queries: List[str] = []
+        self.retrieved_observations = []
+        self.delay_seconds = 0.0
 
     async def search(self, query: str, engine: str = "google", num: int = 5, **kwargs) -> Dict[str, Any]:
         self.recorded_queries.append(query)
+        if self.delay_seconds:
+            await asyncio.sleep(self.delay_seconds)
         if query in self.query_responses:
-            return self._replay(self.query_responses[query])
+            return self._replay(self.query_responses[query], query, engine)
 
         query_clean = query.strip()
         for q_key, resp in self.query_responses.items():
             if q_key.strip() == query_clean:
-                return self._replay(resp)
+                return self._replay(resp, query, engine)
 
-        return self._replay(self.default_response)
+        return self._replay(self.default_response, query, engine)
 
-    @staticmethod
-    def _replay(response):
+    def _replay(self, response, query, engine):
         res = deepcopy(response)
-        if isinstance(res, dict) and res.get("status") == "successful" and res.get("source") == "DEMO":
-            res["source"] = "REAL"
+        if isinstance(res, dict) and res.get("status") == "successful" and res.get("source") not in ("DEMO", "MOCK", "FAILED"):
+            for item in res.get("organic_results", []):
+                if item.get("link"):
+                    self.retrieved_observations.append(dict(item, query=query, engine=engine))
+            kg = res.get("knowledge_graph") or {}
+            for field in ("website", "careers_url"):
+                if kg.get(field):
+                    self.retrieved_observations.append(dict(link=kg[field], title=kg.get("title", ""),
+                        snippet=json.dumps(kg, ensure_ascii=False), query=query, engine=engine))
         return res
 
 
@@ -91,18 +105,54 @@ def get_git_commit_sha() -> str:
     return "unknown_or_dirty"
 
 
+def working_tree_dirty():
+    try:
+        return bool(subprocess.run(['git', 'status', '--porcelain'], cwd=_REPO_ROOT,
+            capture_output=True, text=True, timeout=5, check=True).stdout.strip())
+    except Exception:
+        return None
+
+
+def evaluation_code_hash():
+    digest = hashlib.sha256()
+    for path in sorted(Path(__file__).parent.glob('*.py')):
+        digest.update(path.name.encode())
+        digest.update(path.read_bytes())
+    return digest.hexdigest()
+
+
+def case_passes(result):
+    return (not result.get("exception_occurred") and result.get("outcome_matched", False)
+            and result.get("invariants_passed", False)
+            and result.get("claim_matches", 0) == result.get("claim_total", 0)
+            and not result.get("behavior_failures") and not result.get("expectation_failures"))
+
+
 async def evaluate_single_case(case: EvaluationCase) -> Dict[str, Any]:
     """Runs one evaluation case through the real investigate_case pipeline and checks invariants."""
     mock_client = EvaluationMockSearchClient(
         query_responses=case.search_mock.get("query_responses", {}),
         default_response=case.search_mock.get("default_response"),
     )
-    case_in = case.case_input.to_case_input()
-    budget = case.budget.to_investigation_budget() if case.budget else None
+    mock_client.delay_seconds = case.search_mock.get("delay_seconds", 0.0)
+
+    agent_dimensions = {}
+    original_recruiter = RecruiterAgent.investigate
+    async def record_recruiter(agent, *args, **kwargs):
+        finding = await original_recruiter(agent, *args, **kwargs)
+        for name, dimension in (finding.details.get('assessment_dimensions') or {}).items():
+            if isinstance(dimension, dict) and dimension.get('status'):
+                agent_dimensions[name] = dimension['status']
+        return finding
 
     t0 = time.perf_counter()
     try:
-        result = await investigate_case(case_in, search_client=mock_client, budget=budget)
+        case_in = case.case_input.to_case_input()
+        budget = case.budget.to_investigation_budget() if case.budget else None
+        with patch("socket.socket.connect", side_effect=RuntimeError("Offline evaluation forbids network access")), \
+             patch("socket.getaddrinfo", side_effect=RuntimeError("Offline evaluation forbids DNS access")), \
+             patch.object(RecruiterAgent, "investigate", record_recruiter):
+            result = await investigate_case(case_in, search_client=mock_client, budget=budget)
         elapsed_ms = (time.perf_counter() - t0) * 1000.0
         assert isinstance(result, InvestigationResult)
 
@@ -146,9 +196,14 @@ async def evaluate_single_case(case: EvaluationCase) -> Dict[str, Any]:
             case_labels=case.labels,
             planted_secrets=case.planted_secrets,
             demo_mode=case.case_input.demo_mode,
+            retrieved_observations=mock_client.retrieved_observations,
         )
         inv_passed = all(i.passed for i in invariants)
-        failed_inv_msgs = [f"{i.invariant_name}: {'; '.join(i.violations)}" for i in invariants if not i.passed]
+        failed_inv_msgs = [redact_diagnostic(f"{i.invariant_name}: {'; '.join(i.violations)}", case.planted_secrets) for i in invariants if not i.passed]
+
+        behavior_failures = [redact_diagnostic(f, case.planted_secrets) for f in check_case_behaviors(case, result)]
+        expectation_failures = [redact_diagnostic(f, case.planted_secrets) for f in check_case_expectations(case, result, agent_dimensions)]
+        case_passed = outcome_matched and inv_passed and claim_matches == claim_total and not behavior_failures and not expectation_failures
 
         # 4. Coverage and provider calls
         total_claims = len(result.claims)
@@ -162,6 +217,10 @@ async def evaluate_single_case(case: EvaluationCase) -> Dict[str, Any]:
             "scenario_group": case.labels.get("scenario_group", "default"),
             "category": case.labels.get("category", "default"),
             "exception_occurred": False,
+            "case_passed": case_passed,
+            "agent_dimensions": agent_dimensions,
+            "behavior_failures": behavior_failures,
+            "expectation_failures": expectation_failures,
             "outcome_matched": outcome_matched,
             "actual_outcome": result.overall_outcome.value,
             "expected_outcome": case.expected_outcome,
@@ -191,8 +250,11 @@ async def evaluate_single_case(case: EvaluationCase) -> Dict[str, Any]:
             "scenario_group": case.labels.get("scenario_group", "default"),
             "category": case.labels.get("category", "default"),
             "exception_occurred": True,
+            "case_passed": False,
+            "behavior_failures": [],
+            "expectation_failures": [],
             "exception_type": type(exc).__name__,
-            "error_message": str(exc),
+            "error_message": redact_diagnostic(str(exc), case.planted_secrets),
             "outcome_matched": False,
             "actual_outcome": "EXCEPTION",
             "expected_outcome": case.expected_outcome,
@@ -200,7 +262,7 @@ async def evaluate_single_case(case: EvaluationCase) -> Dict[str, Any]:
             "claim_matches": 0,
             "claim_total": len(case.expected_claim_statuses),
             "invariants_passed": False,
-            "failed_invariants": [f"Exception occurred: {type(exc).__name__}: {str(exc)}"],
+            "failed_invariants": [f"Exception occurred: {type(exc).__name__}: {redact_diagnostic(str(exc), case.planted_secrets)}"],
             "coverage_ratio": 0.0,
             "failed_checks_count": 0,
             "provider_calls_count": 0,
@@ -221,12 +283,7 @@ def format_markdown_summary(
     md.append(f"")
 
     # Executive Summary Box
-    all_passed = (
-        report.false_positive_rate.value == 0.0
-        and report.false_negative_rate.value == 0.0
-        and report.invariant_pass_rate.value == 1.0
-        and report.exceptional_failures == 0
-    )
+    all_passed = bool(case_results) and all(case_passes(r) for r in case_results)
     status_emoji = "PASS" if all_passed else "FAIL"
     md.append(f"## Status: {status_emoji}")
     md.append(f"")
@@ -250,7 +307,7 @@ def format_markdown_summary(
     md.append(f"| **Claim Status Agreement** | `matching_claims / expected_claims` ({report.claim_status_agreement.numerator}/{report.claim_status_agreement.denominator}) | `{report.claim_status_agreement.formatted}` | Fine-grained extraction & corroboration alignment |")
     md.append(f"| **Invariant Pass Rate** | `cases_with_all_invariants / total_cases` ({report.invariant_pass_rate.numerator}/{report.invariant_pass_rate.denominator}) | `{report.invariant_pass_rate.formatted}` | **100.0%** (strictly zero invariant violations) |")
     md.append(f"| **Coverage Completeness** | Mean `checked_claims / total_claims` | `{report.avg_coverage_ratio * 100:.1f}%` (min: `{report.min_coverage_ratio*100:.0f}%`, max: `{report.max_coverage_ratio*100:.0f}%`) | Completeness measurement |")
-    md.append(f"| **Tool Provider Calls** | Actual external queries from tool trace | Mean: `{report.avg_provider_calls_per_case:.1f}` | Median: `{report.median_provider_calls_per_case:.0f}` | p95: `{report.p95_provider_calls_per_case:.0f}` |")
+    md.append(f"| **Tool Provider Calls** | Actual external queries from tool trace | Mean: `{report.avg_provider_calls_per_case:.1f}`, median: `{report.median_provider_calls_per_case:.0f}`, p95: `{report.p95_provider_calls_per_case:.0f}` | Each recorded provider invocation; cached lookups excluded |")
     md.append(f"")
 
     # Scenario Group Breakdown
@@ -268,14 +325,14 @@ def format_markdown_summary(
     md.append(f"| Case ID | Group | Expected | Actual | Invariants | Calls | Coverage | Result |")
     md.append(f"|---|---|---|---|---|---|---|---|")
     for r in case_results:
-        passed = r["outcome_matched"] and r["invariants_passed"]
+        passed = case_passes(r)
         sym = "PASS" if passed else "FAIL"
         calls = r.get("provider_calls_count", 0)
         cov = f"{r.get('coverage_ratio', 0.0)*100:.0f}%"
         md.append(f"| `{r['case_id']}` | `{r['scenario_group']}` | `{r['expected_outcome']}` | `{r['actual_outcome']}` | {'YES' if r['invariants_passed'] else 'NO'} | {calls} | {cov} | **{sym}** |")
 
     # Failures / Actionable diagnostics
-    failed_cases = [r for r in case_results if not (r["outcome_matched"] and r["invariants_passed"])]
+    failed_cases = [r for r in case_results if not (case_passes(r))]
     if failed_cases:
         md.append(f"")
         md.append(f"## Failed Case Explanations & Root Causes")
@@ -286,6 +343,11 @@ def format_markdown_summary(
                 md.append(f"- **Exception:** `{f.get('exception_type')}`: {f.get('error_message')}")
             if not f.get("outcome_matched"):
                 md.append(f"- **Outcome Mismatch:** Expected `{f['expected_outcome']}` (allowed: `{f['allowed_outcomes']}`), but got `{f['actual_outcome']}`")
+            for detail in f.get("claim_details", []):
+                if not detail["matched"]:
+                    md.append(f"- **Claim mismatch:** {detail['kind']}: expected {detail['expected']}, got {detail['actual']}")
+            for detail in f.get("behavior_failures", []) + f.get("expectation_failures", []):
+                md.append(f"- **Requirement failed:** {detail}")
             if not f.get("invariants_passed"):
                 md.append(f"- **Invariant Violations:**")
                 for v in f.get("failed_invariants", []):
@@ -320,17 +382,27 @@ async def run_evaluation(
 
     if generate_demos:
         print("Generating hackathon demo outputs...")
-        demo_results = await generate_demo_outputs()
+        try:
+            demo_results = await generate_demo_outputs(target_dirs=[out_dir / "demos"])
+        except Exception as exc:
+            message = f"Demo generation failed: {type(exc).__name__}"
+            return 1, {"status": "FAIL", "error": message}, message
         print(f"Generated {len(demo_results)} demo cases.")
 
     if live_mode:
         print("Running live evaluation...")
         live_report = await run_live_evaluation(output_dir=out_dir)
         print(f"Live evaluation completed with status: {live_report.get('status')}")
-        return 0, live_report, "Live evaluation completed."
+        code = 0 if live_report.get("status") == "COMPLETED" and all(r.get("status") == "COMPLETED" and r.get("invariants_passed") and r.get("outcome_matched") for r in live_report.get("results", [])) and live_report.get("results") else 1
+        return code, live_report, "Live evaluation completed."
 
     # Offline evaluation
-    corpus = load_evaluation_corpus(corpus_dir)
+    try:
+        corpus = load_evaluation_corpus(corpus_dir)
+    except ValueError as exc:
+        message = f"Corpus validation failed: {exc}"
+        print(message)
+        return 1, {"status": "FAIL", "error": message}, message
     if case_filter:
         corpus = [c for c in corpus if case_filter.lower() in c.case_id.lower()]
         if not corpus:
@@ -344,7 +416,7 @@ async def run_evaluation(
         print(f"  [{idx:02d}/{len(corpus):02d}] Evaluating {case.case_id}...", end="", flush=True)
         res = await evaluate_single_case(case)
         case_results.append(res)
-        status_str = "OK" if (res["outcome_matched"] and res["invariants_passed"]) else "FAIL"
+        status_str = "OK" if (case_passes(res)) else "FAIL"
         print(f" -> {res['actual_outcome']} ({status_str})")
 
     # Compute metrics
@@ -354,7 +426,10 @@ async def run_evaluation(
     metadata = {
         "commit_sha": get_git_commit_sha(),
         "mode": "offline_deterministic",
-        "corpus_version": "1.0.0",
+        "corpus_version": "1.1.0",
+        "corpus_sha256": hashlib.sha256(json.dumps([c.model_dump(mode="json") for c in corpus], sort_keys=True).encode()).hexdigest(),
+        "evaluation_code_sha256": evaluation_code_hash(),
+        "working_tree_dirty": working_tree_dirty(),
         "total_cases": len(corpus),
         "executed_at": datetime.now(timezone.utc).isoformat(),
         "python_version": sys.version.split()[0],
@@ -428,6 +503,11 @@ async def run_evaluation(
     # Evaluate Acceptance Checks
     acceptance_passed = True
     failure_reasons = []
+
+    failed_required_cases = [r["case_id"] for r in case_results if not case_passes(r)]
+    if failed_required_cases:
+        acceptance_passed = False
+        failure_reasons.append("Required case checks failed: " + ", ".join(failed_required_cases))
 
     if report.exceptional_failures > 0:
         acceptance_passed = False

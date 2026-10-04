@@ -37,5 +37,11 @@
     "fake_verification"
   ],
   "planted_secrets": [],
-  "rationale": "Provider failures must record retryable errors and conclude CANNOT_VERIFY without crashing."
+  "rationale": "Provider failures must record retryable errors and conclude CANNOT_VERIFY without crashing.",
+  "expectations": {
+    "required_error_codes": [
+      "SEARCH_CHECK_UNAVAILABLE"
+    ],
+    "max_checked_claims": 0
+  }
 }

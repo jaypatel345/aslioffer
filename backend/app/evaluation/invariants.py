@@ -18,6 +18,9 @@ Validates the completed pipeline InvestigationResult against contract v1 invaria
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Set
 import re
+from urllib.parse import urlparse
+from app.services.risk.assessment_engine import canonicalize_url
+from app.services.agents.scam_classifier import sanitize_and_redact_secrets
 
 from app.schemas.contract import (
     AuthenticityStatus,
@@ -29,6 +32,7 @@ from app.schemas.contract import (
     OverallOutcome,
     RetrievalStatus,
     SourceKind,
+    EventStatus,
 )
 
 
@@ -131,7 +135,7 @@ def check_demo_evidence_isolation(result: InvestigationResult, demo_mode: bool =
     )
 
 
-def check_search_evidence_provenance(result: InvestigationResult) -> InvariantResult:
+def check_search_evidence_provenance(result: InvestigationResult, retrieved_observations=None) -> InvariantResult:
     """Verifies that search evidence retains query, engine, retrieval timestamp, and original observed content."""
     violations = []
     for ev in result.evidence:
@@ -144,6 +148,14 @@ def check_search_evidence_provenance(result: InvestigationResult) -> InvariantRe
                 violations.append(f"Search evidence {ev.evidence_id} missing retrieved_at timestamp")
             if not ev.quote_or_snippet or not ev.quote_or_snippet.strip():
                 violations.append(f"Search evidence {ev.evidence_id} missing quote_or_snippet content")
+            if retrieved_observations is not None and ev.retrieval_status != RetrievalStatus.FAILED:
+                matching = any(canonicalize_url(o.get('link')) == canonicalize_url(ev.source_url)
+                    and o.get('query') == ev.query and o.get('engine') == ev.engine
+                    and sanitize_and_redact_secrets(o.get('snippet', '')) == ev.quote_or_snippet
+                    and sanitize_and_redact_secrets(o.get('title', '')) == ev.title
+                    for o in retrieved_observations)
+                if not matching:
+                    violations.append(f"Search evidence {ev.evidence_id} does not match an actual retrieved observation")
 
     return InvariantResult(
         invariant_name="search_evidence_provenance",
@@ -164,16 +176,24 @@ def check_confirmation_route_provenance(result: InvestigationResult) -> Invarian
             violations.append(f"Confirmation route cites non-existent evidence {route.evidence_id}")
         else:
             dest_lower = route.destination.lower().strip()
-            # The destination or its host/domain should appear in the snippet, URL or title
-            found = (
-                dest_lower in ev.quote_or_snippet.lower()
-                or (ev.source_url and dest_lower in ev.source_url.lower())
-                or dest_lower in ev.title.lower()
-            )
-            # If destination is an email or domain, also check domain part
-            if not found and "@" in dest_lower:
-                domain_part = dest_lower.split("@")[-1]
-                found = domain_part in ev.quote_or_snippet.lower() or (ev.source_url and domain_part in ev.source_url.lower())
+            snippet = ev.quote_or_snippet.lower()
+            if route.channel == 'official_email':
+                found = bool(re.search(r'(?<![\w.%+-])' + re.escape(dest_lower) + r'(?![\w.-])', snippet))
+            elif route.channel == 'official_phone':
+                digits = re.sub(r'\D', '', dest_lower)
+                compact = re.sub(r'(?<=\d)[\s()-]+(?=\d)', '', snippet)
+                found = len(digits) >= 10 and bool(re.search(r'(?<!\d)\+?' + re.escape(digits) + r'(?!\d)', compact))
+            elif route.channel == 'careers_portal':
+                found = bool(ev.source_url and canonicalize_url(route.destination) == canonicalize_url(ev.source_url)) or dest_lower in snippet
+            else:
+                found = False
+            if ev.retrieval_status == RetrievalStatus.FAILED or (ev.retrieval_status == RetrievalStatus.DEMO and not result.demo_mode):
+                found = False
+            if route.channel in ('official_email', 'official_phone'):
+                if ev.source_tier.value != 'OFFICIAL_EMPLOYER' or not re.search(r'verif|recruit|careers|hiring|switchboard|office phone', snippet):
+                    found = False
+                if re.search(r'\b(?:never|do not|avoid|unauthorized|fake|fraudulent)\b', snippet):
+                    found = False
             if not found:
                 violations.append(f"Confirmation route destination '{route.destination}' not found in cited evidence {route.evidence_id}")
 
@@ -245,24 +265,32 @@ def check_privacy_and_secret_leakage(
         # Check tool queries and reasons
         for call in result.tool_trace:
             if call.query and secret_clean in call.query:
-                violations.append(f"Planted secret '{secret_clean}' leaked in tool query: {call.query}")
+                violations.append("Planted secret leaked in tool query")
             if call.reason and secret_clean in call.reason:
-                violations.append(f"Planted secret '{secret_clean}' leaked in tool reason: {call.reason}")
+                violations.append("Planted secret leaked in tool reason")
 
         # Check confirmation draft
         if result.confirmation_route and result.confirmation_route.draft_message:
             if secret_clean in result.confirmation_route.draft_message:
-                violations.append(f"Planted secret '{secret_clean}' leaked in confirmation draft message")
+                violations.append("Planted secret leaked in confirmation draft message")
 
         # Check recommended actions
         for action in result.recommended_actions:
             if secret_clean in action:
-                violations.append(f"Planted secret '{secret_clean}' leaked in recommended action: {action}")
+                violations.append("Planted secret leaked in recommended action")
 
+        for ev in result.evidence:
+            if secret_clean in ' '.join([ev.title, ev.quote_or_snippet, ev.source_url or '', ev.query or '']):
+                violations.append(f"Planted secret leaked in public evidence {ev.evidence_id}")
+        for error in result.errors:
+            if secret_clean in error.message:
+                violations.append("Planted secret leaked in public error")
+        if result.confirmation_route and secret_clean in result.confirmation_route.destination:
+            violations.append("Planted secret leaked in confirmation destination")
         # Check assessed claim explanations
         for claim in result.assessed_claims:
             if secret_clean in claim.explanation:
-                violations.append(f"Planted secret '{secret_clean}' leaked in claim {claim.claim_id} explanation")
+                violations.append(f"Planted secret leaked in claim {claim.claim_id} explanation")
 
     return InvariantResult(
         invariant_name="privacy_and_secret_leakage",
@@ -283,6 +311,36 @@ def check_coverage_bounds(result: InvestigationResult) -> InvariantResult:
     if cov.unresolved_claims > cov.total_claims:
         violations.append(f"coverage.unresolved_claims ({cov.unresolved_claims}) > total_claims ({cov.total_claims})")
 
+    # Independent execution ceiling: no completed relevant tool call or
+    # attributable local/retrieved observation means the claim cannot be counted.
+    completed = [c for c in result.tool_trace if c.status == EventStatus.COMPLETED]
+    steps = {c.step for c in completed}
+    assessed = {a.claim_id: a for a in result.assessed_claims}
+    eligible = 0
+    job_steps = {'adaptive_job_role_corroboration', 'adaptive_job_reference_corroboration', 'corroborate_job_role', 'corroborate_job_reference'}
+    kinds_steps = {
+        ClaimKind.EMPLOYER: {'resolve_employer_domain', 'adaptive_employer_context'},
+        ClaimKind.SENDER_EMAIL: {'check_recruiter_contact'},
+        ClaimKind.CONTACT_PHONE: {'check_recruiter_contact'},
+        ClaimKind.COMPENSATION: {'check_compensation_benchmark'},
+        ClaimKind.ROLE: job_steps, ClaimKind.LOCATION: job_steps,
+        ClaimKind.JOB_REFERENCE: job_steps, ClaimKind.APPLICATION_URL: job_steps,
+    }
+    for claim in result.claims:
+        a = assessed.get(claim.claim_id)
+        if not claim.value or not a or a.status == ClaimStatus.NOT_CHECKED:
+            continue
+        evs = [e for e in result.evidence if e.claim_id == claim.claim_id and e.retrieval_status != RetrievalStatus.FAILED]
+        attributable = any(e.relation in (EvidenceRelation.SUPPORTS, EvidenceRelation.CONTRADICTS) for e in evs)
+        relevant_call = bool(steps & kinds_steps.get(claim.kind, set()))
+        if claim.kind == ClaimKind.RECRUITER_NAME:
+            relevant_call = any(claim.value.lower() in (c.query or '').lower() for c in completed)
+        if claim.kind == ClaimKind.LOCATION:
+            attributable = attributable or any(c.kind == ClaimKind.ROLE and assessed.get(c.claim_id) and assessed[c.claim_id].status == ClaimStatus.SUPPORTED for c in result.claims)
+        if attributable or relevant_call:
+            eligible += 1
+    if cov.checked_claims > eligible:
+        violations.append(f"coverage.checked_claims ({cov.checked_claims}) exceeds independently evidenced execution ({eligible})")
     return InvariantResult(
         invariant_name="coverage_bounds",
         passed=len(violations) == 0,
@@ -296,6 +354,7 @@ def run_all_invariants(
     case_labels: Optional[Dict[str, Any]] = None,
     planted_secrets: Optional[List[str]] = None,
     demo_mode: bool = False,
+    retrieved_observations=None,
 ) -> List[InvariantResult]:
     """Runs all safety, evidence, privacy, and coverage invariants on an InvestigationResult."""
     labels = case_labels or {}
@@ -305,7 +364,7 @@ def run_all_invariants(
         check_status_attribution(result),
         check_failed_retrieval_neutrality(result),
         check_demo_evidence_isolation(result, demo_mode=demo_mode),
-        check_search_evidence_provenance(result),
+        check_search_evidence_provenance(result, retrieved_observations),
         check_confirmation_route_provenance(result),
         check_authenticity_status_unconfirmed(result),
         check_threat_precedence(result, labels),

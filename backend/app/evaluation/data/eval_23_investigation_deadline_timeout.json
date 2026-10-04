@@ -20,7 +20,7 @@
     "max_search_calls": 8,
     "max_followup_calls": 3,
     "max_concurrent_calls": 3,
-    "deadline_seconds": 0.001
+    "deadline_seconds": 0.02
   },
   "search_mock": {
     "query_responses": {},
@@ -28,7 +28,8 @@
       "status": "successful",
       "source": "REAL",
       "organic_results": []
-    }
+    },
+    "delay_seconds": 0.1
   },
   "expected_outcome": "CANNOT_VERIFY",
   "allowed_outcomes": [
@@ -42,5 +43,11 @@
     "fake_verification"
   ],
   "planted_secrets": [],
-  "rationale": "Investigation deadline expiry records INVESTIGATION_DEADLINE_EXCEEDED error without unhandled exception."
+  "rationale": "Investigation deadline expiry records INVESTIGATION_DEADLINE_EXCEEDED error without unhandled exception.",
+  "expectations": {
+    "max_checked_claims": 0,
+    "required_error_codes": [
+      "INVESTIGATION_DEADLINE_EXCEEDED"
+    ]
+  }
 }

@@ -24,12 +24,13 @@
         "source": "REAL",
         "knowledge_graph": {
           "website": "https://www.infosys.example",
-          "careers_url": "https://careers.infosys.example"
+          "careers_url": "https://careers.infosys.example",
+          "title": "Infosys Limited"
         },
         "organic_results": [
           {
             "link": "https://www.infosys.example",
-            "title": "Infosys - Official Website",
+            "title": "Infosys Limited \u2014 Official Website",
             "snippet": "Global consulting and IT services."
           }
         ]
@@ -45,7 +46,9 @@
   "allowed_outcomes": [
     "HIGH_RISK"
   ],
-  "expected_claim_statuses": {},
+  "expected_claim_statuses": {
+    "payment_request": "SUPPORTED"
+  },
   "required_behaviors": [
     "authenticity_unconfirmed",
     "strong_warning_present"
@@ -54,5 +57,6 @@
     "fake_verification"
   ],
   "planted_secrets": [],
-  "rationale": "Fee demand overrides corporate plausibility, producing HIGH_RISK."
+  "rationale": "Fee demand overrides corporate plausibility, producing HIGH_RISK.",
+  "expectations": {}
 }

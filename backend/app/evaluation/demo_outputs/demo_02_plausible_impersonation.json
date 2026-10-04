@@ -1,6 +1,6 @@
 {
   "contract_version": "1.0.0",
-  "run_id": "demo_run_02_impersonation",
+  "run_id": "run_eval_05_impersonation",
   "demo_mode": false,
   "claims": [
     {
@@ -57,12 +57,15 @@
   "assessed_claims": [
     {
       "claim_id": "c1",
-      "status": "UNRESOLVED",
-      "explanation": "The completed check did not establish attributable corroboration. Empty results do not prove fraud or legitimacy.",
-      "evidence_ids": [],
+      "status": "SUPPORTED",
+      "explanation": "Independent results support the employer public footprint; they do not authenticate this offer.",
+      "evidence_ids": [
+        "e1",
+        "e2",
+        "e3"
+      ],
       "reason_codes": [
-        "SPARSE_FOOTPRINT",
-        "OFFICIAL_DOMAIN_UNRESOLVED"
+        "OFFICIAL_DOMAIN_RESOLVED"
       ]
     },
     {
@@ -97,7 +100,7 @@
       "status": "SUPPORTED",
       "explanation": "The submitted document contains this demand. This supports the presence of the demand, not the legitimacy of the offer.",
       "evidence_ids": [
-        "e1"
+        "e4"
       ],
       "reason_codes": [
         "DOCUMENT_DEMAND_OBSERVED",
@@ -108,12 +111,57 @@
   "evidence": [
     {
       "evidence_id": "e1",
+      "claim_id": "c1",
+      "source_kind": "SEARCH_SNIPPET",
+      "source_url": "https://www.infosys.example",
+      "title": "Infosys Limited \u2014 Official Website",
+      "quote_or_snippet": "Global consulting and IT services.",
+      "retrieved_at": "2026-10-04T10:50:00.571364Z",
+      "query": "\"Infosys Limited\" official website careers",
+      "engine": "google",
+      "search_id": null,
+      "retrieval_status": "LIVE",
+      "source_tier": "OFFICIAL_EMPLOYER",
+      "relation": "SUPPORTS"
+    },
+    {
+      "evidence_id": "e2",
+      "claim_id": "c1",
+      "source_kind": "SEARCH_SNIPPET",
+      "source_url": "https://www.infosys.example",
+      "title": "Infosys Limited",
+      "quote_or_snippet": "{\"website\": \"https://www.infosys.example\", \"careers_url\": \"https://careers.infosys.example\", \"title\": \"Infosys Limited\"}",
+      "retrieved_at": "2026-10-04T10:50:00.571364Z",
+      "query": "\"Infosys Limited\" official website careers",
+      "engine": "google",
+      "search_id": null,
+      "retrieval_status": "LIVE",
+      "source_tier": "OFFICIAL_EMPLOYER",
+      "relation": "SUPPORTS"
+    },
+    {
+      "evidence_id": "e3",
+      "claim_id": "c1",
+      "source_kind": "SEARCH_SNIPPET",
+      "source_url": "https://careers.infosys.example",
+      "title": "Infosys Limited",
+      "quote_or_snippet": "{\"website\": \"https://www.infosys.example\", \"careers_url\": \"https://careers.infosys.example\", \"title\": \"Infosys Limited\"}",
+      "retrieved_at": "2026-10-04T10:50:00.571364Z",
+      "query": "\"Infosys Limited\" official website careers",
+      "engine": "google",
+      "search_id": null,
+      "retrieval_status": "LIVE",
+      "source_tier": "OFFICIAL_EMPLOYER",
+      "relation": "SUPPORTS"
+    },
+    {
+      "evidence_id": "e4",
       "claim_id": "c10",
       "source_kind": "DOCUMENT",
       "source_url": null,
       "title": "Demand in submitted document",
       "quote_or_snippet": "Pay an onboarding document verification fee of INR 6,500 to infosys-hr@upi within 48 hours.",
-      "retrieved_at": "2026-10-04T10:17:35.185423Z",
+      "retrieved_at": "2026-10-04T10:50:00.579401Z",
       "query": null,
       "engine": null,
       "search_id": null,
@@ -127,20 +175,26 @@
   "coverage": {
     "checked_claims": 4,
     "total_claims": 5,
-    "unresolved_claims": 4,
+    "unresolved_claims": 3,
     "failed_checks": 0
   },
   "recommended_actions": [
     "DO NOT pay any registration fee, security deposit, laptop charge, or document processing fee under any circumstance.",
     "Confirm the payment demand independently with the employer using published contact details, not the contact supplied with the demand.",
     "If you suspect employment fraud or have experienced financial loss or credential theft, report the incident to the National Cyber Crime Reporting Portal at https://cybercrime.gov.in or call helpline 1930.",
-    "Independently look up the employer using official public business registries (such as MCA India at mca.gov.in) or verified business directories.",
-    "Do not rely on website links, phone numbers, or addresses provided solely within the submitted document.",
+    "The recruiter contacted you from a personal or non-matching email domain. Request written communication from the employer's official corporate email domain.",
+    "Independently confirm the recruiter's hiring authority by calling the employer's official corporate switchboard or published HR directory.",
     "Resolve the outstanding Recruiter Domain Alignment & Employer Affiliation Check independently before relying on that result.",
     "Contact the employer through independently established published contact details to confirm that this specific offer was issued to you.",
-    "No independently sourced offer-confirmation channel was identified; contact the employer via official published directory or registry contacts."
+    "Use the independently sourced published careers portal (https://careers.infosys.example) to confirm whether this offer was formally issued.",
+    "Investigation search budget or deadline limits were reached before all checks completed; independently confirm remaining details."
   ],
-  "confirmation_route": null,
+  "confirmation_route": {
+    "channel": "careers_portal",
+    "destination": "https://careers.infosys.example",
+    "evidence_id": "e3",
+    "draft_message": "Navigate to Infosys Limited's official portal and locate their published human resources or recruitment contact. Inquire neutrally: 'I have received an employment offer for Systems Engineer (Reference: [Candidate/Offer Reference]); could you please verify whether this offer was officially issued?' State your name ([Your Name]) but do not disclose banking details, account passwords, or OTPs."
+  },
   "tool_trace": [
     {
       "step": "resolve_employer_domain",
@@ -148,7 +202,21 @@
       "query": "\"Infosys Limited\" official website careers",
       "reason": "Resolve the employer's official domain before checking contact details",
       "status": "COMPLETED",
-      "started_at": "2026-10-04T10:17:35.175520Z",
+      "started_at": "2026-10-04T10:50:00.571364Z",
+      "duration_ms": 0,
+      "evidence_ids": [
+        "e1",
+        "e2",
+        "e3"
+      ]
+    },
+    {
+      "step": "check_recruiter_contact",
+      "tool": "serpapi.google",
+      "query": "\"infosys-careers.example\" staffing recruitment agency",
+      "reason": "Verify recruiter email alignment with resolved domain",
+      "status": "COMPLETED",
+      "started_at": "2026-10-04T10:50:00.572884Z",
       "duration_ms": 0,
       "evidence_ids": []
     },
@@ -158,7 +226,7 @@
       "query": "\"recruitment@infosys-careers.example\" scam fraud complaint",
       "reason": "Verify recruiter email alignment with resolved domain",
       "status": "COMPLETED",
-      "started_at": "2026-10-04T10:17:35.177804Z",
+      "started_at": "2026-10-04T10:50:00.573017Z",
       "duration_ms": 0,
       "evidence_ids": []
     },
@@ -168,7 +236,7 @@
       "query": "\"recruitment@infosys-careers.example\" \"Infosys Limited\"",
       "reason": "Verify recruiter email alignment with resolved domain",
       "status": "COMPLETED",
-      "started_at": "2026-10-04T10:17:35.178105Z",
+      "started_at": "2026-10-04T10:50:00.573455Z",
       "duration_ms": 0,
       "evidence_ids": []
     },
@@ -178,7 +246,7 @@
       "query": "\"Infosys Limited\" job scam fraud complaint telegram",
       "reason": "Check for upfront fees, credential demands, and adverse reports",
       "status": "COMPLETED",
-      "started_at": "2026-10-04T10:17:35.180995Z",
+      "started_at": "2026-10-04T10:50:00.574533Z",
       "duration_ms": 0,
       "evidence_ids": []
     },
@@ -188,7 +256,7 @@
       "query": "\"Infosys Limited\" \"UPI\" recruitment scam",
       "reason": "Check for upfront fees, credential demands, and adverse reports",
       "status": "COMPLETED",
-      "started_at": "2026-10-04T10:17:35.181415Z",
+      "started_at": "2026-10-04T10:50:00.574749Z",
       "duration_ms": 0,
       "evidence_ids": []
     },
@@ -198,20 +266,27 @@
       "query": "\"Systems Engineer\" salary \"Infosys Limited\" AmbitionBox Glassdoor",
       "reason": "Look for market salary baselines",
       "status": "COMPLETED",
-      "started_at": "2026-10-04T10:17:35.182211Z",
+      "started_at": "2026-10-04T10:50:00.575024Z",
       "duration_ms": 0,
       "evidence_ids": []
     },
     {
-      "step": "adaptive_employer_context",
+      "step": "adaptive_agency_authorization",
       "tool": "serpapi.google",
-      "query": "\"Infosys Limited\" \"Systems Engineer\" official careers",
-      "reason": "Employer identity remains unresolved; checking 'Infosys Limited' with grounded context 'Systems Engineer'.",
+      "query": "\"Infosys Limited\" \"infosys-careers.example\" recruitment partner authorized",
+      "reason": "Sender domain differs from the employer; checking supported agency representation for 'infosys-careers.example'.",
       "status": "COMPLETED",
-      "started_at": "2026-10-04T10:17:35.182686Z",
+      "started_at": "2026-10-04T10:50:00.575301Z",
       "duration_ms": 0,
       "evidence_ids": []
     }
   ],
-  "errors": []
+  "errors": [
+    {
+      "code": "INVESTIGATION_BUDGET_EXCEEDED",
+      "message": "Investigation search budget reached; remaining checks left unverified",
+      "step": "search_budget_gate",
+      "retryable": false
+    }
+  ]
 }

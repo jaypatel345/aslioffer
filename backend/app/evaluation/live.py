@@ -28,6 +28,7 @@ from app.services.investigation.budget import InvestigationBudget
 from app.services.investigation.pipeline import investigate_case
 from app.services.search.serpapi_client import SerpApiClient
 from app.evaluation.invariants import run_all_invariants
+from app.evaluation.checks import redact_diagnostic
 
 LIVE_OUTPUT_DIR = Path(__file__).resolve().parent / "output"
 
@@ -138,6 +139,8 @@ async def run_live_evaluation(
                 "overall_outcome": res.overall_outcome.value,
                 "authenticity_status": res.authenticity_status.value,
                 "invariants_passed": inv_passed,
+                "outcome_matched": res.overall_outcome.value in item["allowed_outcomes"],
+                "failed_invariants": [i.invariant_name for i in inv_results if not i.passed],
                 "provider_calls": len(res.tool_trace),
                 "errors_count": len(res.errors),
                 "result": res_dict,
@@ -147,12 +150,12 @@ async def run_live_evaluation(
                 "case_id": cid,
                 "title": item["title"],
                 "status": "FAILED",
-                "error": str(e),
+                "error": redact_diagnostic(str(e).replace(key, "[REDACTED_API_KEY]")),
             })
 
     report = {
         "mode": "live",
-        "status": "COMPLETED",
+        "status": "COMPLETED" if results and all(r.get("status") == "COMPLETED" and r.get("invariants_passed") and r.get("outcome_matched") for r in results) else "FAILED",
         "disclaimer": "Live evaluation reflects dynamic third-party search engine state. Results and latency vary across runs.",
         "executed_at": datetime.now(timezone.utc).isoformat(),
         "total_cases": len(live_cases),

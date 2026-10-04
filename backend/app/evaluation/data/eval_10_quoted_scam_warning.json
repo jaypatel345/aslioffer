@@ -50,5 +50,6 @@
     "fake_verification"
   ],
   "planted_secrets": [],
-  "rationale": "Quoted scam advisories must be distinguished from active extortion."
+  "rationale": "Quoted scam advisories must be distinguished from active extortion.",
+  "expectations": {}
 }

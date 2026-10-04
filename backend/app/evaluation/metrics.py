@@ -273,7 +273,7 @@ def compute_evaluation_metrics(case_results: List[Dict[str, Any]]) -> Evaluation
     for g_name in group_names:
         g_cases = [r for r in case_results if r.get("scenario_group") == g_name]
         g_total = len(g_cases)
-        g_passed = sum(1 for r in g_cases if r.get("outcome_matched") and r.get("invariants_passed"))
+        g_passed = sum(1 for r in g_cases if not r.get("exception_occurred") and r.get("outcome_matched") and r.get("invariants_passed") and r.get("claim_matches", 0) == r.get("claim_total", 0) and not r.get("behavior_failures") and not r.get("expectation_failures"))
         g_agreement = safe_div(sum(1 for r in g_cases if r.get("outcome_matched")), g_total)
         g_inv = safe_div(sum(1 for r in g_cases if r.get("invariants_passed")), g_total)
         g_calls = sum(r.get("provider_calls_count", 0) for r in g_cases) / g_total if g_total > 0 else 0.0

@@ -6,14 +6,34 @@
     "scenario_group": "legitimate_corroborated",
     "category": "agency_recruitment",
     "threat_category": "third_party_recruitment",
-    "primary_entity": "Apex Staffing Solutions"
+    "primary_entity": "Radiant Energy Solutions Ltd",
+    "input_mode": "reviewed_claims"
   },
   "case_input": {
     "case_id": 107,
     "run_id": "run_eval_07_agency",
     "source_type": "text",
     "redacted_text": "Apex Staffing Solutions on behalf of Radiant Energy Solutions Ltd.\nWe are processing your application for Software Engineer.\nAgency contact: contact@apexstaffing.example. Client portal: https://careers.radiantenergy.example.",
-    "confirmed_claims": [],
+    "confirmed_claims": [
+      {
+        "claim_id": "c1",
+        "kind": "employer",
+        "value": "Radiant Energy Solutions Ltd",
+        "extraction_status": "USER_EDITED"
+      },
+      {
+        "claim_id": "c2",
+        "kind": "sender_email",
+        "value": "contact@apexstaffing.example",
+        "extraction_status": "USER_EDITED"
+      },
+      {
+        "claim_id": "c6",
+        "kind": "role",
+        "value": "Software Engineer",
+        "extraction_status": "USER_EDITED"
+      }
+    ],
     "demo_mode": false
   },
   "budget": null,
@@ -24,13 +44,19 @@
         "source": "REAL",
         "knowledge_graph": {
           "website": "https://www.radiantenergy.example",
-          "careers_url": "https://careers.radiantenergy.example"
+          "careers_url": "https://careers.radiantenergy.example",
+          "title": "Radiant Energy Solutions Ltd"
         },
         "organic_results": [
           {
             "link": "https://www.radiantenergy.example",
-            "title": "Radiant Energy",
+            "title": "Radiant Energy Solutions Ltd \u2014 Official Website",
             "snippet": "Energy solutions provider."
+          },
+          {
+            "link": "https://www.radiantenergy.example/partners",
+            "title": "Authorized recruitment partners",
+            "snippet": "Apex Staffing Solutions is our authorized staffing recruitment partner for Software Engineer hiring. Contact agency domain apexstaffing.example."
           }
         ]
       },
@@ -42,6 +68,21 @@
             "link": "https://www.apexstaffing.example",
             "title": "Apex Staffing",
             "snippet": "Licensed recruitment partner for Radiant Energy Solutions Ltd."
+          }
+        ]
+      },
+      "\"apexstaffing.example\" staffing recruitment agency": {
+        "status": "successful",
+        "source": "REAL",
+        "knowledge_graph": {
+          "title": "Apex Staffing Solutions",
+          "website": "https://www.apexstaffing.example"
+        },
+        "organic_results": [
+          {
+            "link": "https://www.apexstaffing.example",
+            "title": "Apex Staffing Solutions",
+            "snippet": "Official staffing recruitment agency."
           }
         ]
       }
@@ -58,7 +99,10 @@
     "NEEDS_REVIEW",
     "NO_STRONG_RISK_SIGNALS"
   ],
-  "expected_claim_statuses": {},
+  "expected_claim_statuses": {
+    "employer": "SUPPORTED",
+    "sender_email": "UNRESOLVED"
+  },
   "required_behaviors": [
     "authenticity_unconfirmed"
   ],
@@ -66,5 +110,18 @@
     "fake_verification"
   ],
   "planted_secrets": [],
-  "rationale": "Agency representation requires verification without premature fraud conviction."
+  "rationale": "Agency representation requires verification without premature fraud conviction.",
+  "expectations": {
+    "min_provider_calls": 3,
+    "required_query_terms": [
+      "apexstaffing.example"
+    ],
+    "required_evidence_terms": [
+      "Apex Staffing Solutions"
+    ],
+    "agent_dimensions": {
+      "agency_identity": "SUPPORTED",
+      "agency_authorization": "SUPPORTED"
+    }
+  }
 }

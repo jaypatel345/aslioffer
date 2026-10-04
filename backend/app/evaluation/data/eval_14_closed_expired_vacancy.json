@@ -6,14 +6,28 @@
     "scenario_group": "ambiguous_unresolved",
     "category": "expired_vacancy",
     "threat_category": "corroboration_freshness",
-    "primary_entity": "Radiant Energy Solutions Ltd"
+    "primary_entity": "Radiant Energy Solutions Ltd",
+    "input_mode": "reviewed_claims"
   },
   "case_input": {
     "case_id": 114,
     "run_id": "run_eval_14_expired",
     "source_type": "text",
     "redacted_text": "Radiant Energy Solutions Ltd.\nOffer for Associate Systems Engineer in Bengaluru.\nCareers: https://careers.radiantenergy.example",
-    "confirmed_claims": [],
+    "confirmed_claims": [
+      {
+        "claim_id": "c1",
+        "kind": "employer",
+        "value": "Radiant Energy Solutions Ltd",
+        "extraction_status": "USER_EDITED"
+      },
+      {
+        "claim_id": "c6",
+        "kind": "role",
+        "value": "Associate Systems Engineer",
+        "extraction_status": "USER_EDITED"
+      }
+    ],
     "demo_mode": false
   },
   "budget": null,
@@ -24,17 +38,29 @@
         "source": "REAL",
         "knowledge_graph": {
           "website": "https://www.radiantenergy.example",
-          "careers_url": "https://careers.radiantenergy.example"
+          "careers_url": "https://careers.radiantenergy.example",
+          "title": "Radiant Energy Solutions Ltd"
         },
         "organic_results": [
           {
             "link": "https://www.radiantenergy.example",
-            "title": "Radiant Energy",
+            "title": "Radiant Energy Solutions Ltd \u2014 Official Website",
             "snippet": "Energy solutions."
           }
         ]
       },
       "\"Radiant Energy Solutions Ltd\" \"Associate Systems Engineer\" careers job opening": {
+        "status": "successful",
+        "source": "REAL",
+        "organic_results": [
+          {
+            "link": "https://careers.radiantenergy.example/jobs/assoc-sys",
+            "title": "Job Closed",
+            "snippet": "This vacancy has expired and is no longer accepting applications."
+          }
+        ]
+      },
+      "site:careers.radiantenergy.example \"Associate Systems Engineer\"": {
         "status": "successful",
         "source": "REAL",
         "organic_results": [
@@ -57,7 +83,9 @@
     "CANNOT_VERIFY",
     "NO_STRONG_RISK_SIGNALS"
   ],
-  "expected_claim_statuses": {},
+  "expected_claim_statuses": {
+    "role": "UNRESOLVED"
+  },
   "required_behaviors": [
     "authenticity_unconfirmed"
   ],
@@ -65,5 +93,10 @@
     "fake_verification"
   ],
   "planted_secrets": [],
-  "rationale": "Expired listings do not authenticate active recruitment offers."
+  "rationale": "Expired listings do not authenticate active recruitment offers.",
+  "expectations": {
+    "required_steps": [
+      "adaptive_job_role_corroboration"
+    ]
+  }
 }

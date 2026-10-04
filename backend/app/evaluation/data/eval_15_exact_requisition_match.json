@@ -6,14 +6,28 @@
     "scenario_group": "legitimate_corroborated",
     "category": "requisition_match",
     "threat_category": "exact_corroboration",
-    "primary_entity": "Radiant Energy Solutions Ltd"
+    "primary_entity": "Radiant Energy Solutions Ltd",
+    "input_mode": "reviewed_claims"
   },
   "case_input": {
     "case_id": 115,
     "run_id": "run_eval_15_req",
     "source_type": "text",
-    "redacted_text": "Radiant Energy Solutions Ltd.\nJob Offer: Software Engineer. Requisition ID: REQ-2026-9942.\nApply at https://careers.radiantenergy.example",
-    "confirmed_claims": [],
+    "redacted_text": "Radiant Energy Solutions Ltd.\nJob Offer: Software Engineer. Requisition ID: REQ-9942.\nApply at https://careers.radiantenergy.example",
+    "confirmed_claims": [
+      {
+        "claim_id": "c1",
+        "kind": "employer",
+        "value": "Radiant Energy Solutions Ltd",
+        "extraction_status": "USER_EDITED"
+      },
+      {
+        "claim_id": "c8",
+        "kind": "job_reference",
+        "value": "REQ-9942",
+        "extraction_status": "USER_EDITED"
+      }
+    ],
     "demo_mode": false
   },
   "budget": null,
@@ -24,13 +38,19 @@
         "source": "REAL",
         "knowledge_graph": {
           "website": "https://www.radiantenergy.example",
-          "careers_url": "https://careers.radiantenergy.example"
+          "careers_url": "https://careers.radiantenergy.example",
+          "title": "Radiant Energy Solutions Ltd"
         },
         "organic_results": [
           {
             "link": "https://www.radiantenergy.example",
-            "title": "Radiant Energy",
+            "title": "Radiant Energy Solutions Ltd \u2014 Official Website",
             "snippet": "Energy solutions."
+          },
+          {
+            "title": "Software Engineer (REQ-9942)",
+            "snippet": "Job requisition REQ-9942: Software Engineer opening.",
+            "link": "https://careers.radiantenergy.example/jobs/engineer"
           }
         ]
       },
@@ -57,7 +77,9 @@
     "CANNOT_VERIFY",
     "NO_STRONG_RISK_SIGNALS"
   ],
-  "expected_claim_statuses": {},
+  "expected_claim_statuses": {
+    "job_reference": "SUPPORTED"
+  },
   "required_behaviors": [
     "authenticity_unconfirmed"
   ],
@@ -65,5 +87,6 @@
     "fake_verification"
   ],
   "planted_secrets": [],
-  "rationale": "Exact requisition match corroborates requisition claim while keeping authenticity UNCONFIRMED."
+  "rationale": "Exact requisition match corroborates requisition claim while keeping authenticity UNCONFIRMED.",
+  "expectations": {}
 }

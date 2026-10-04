@@ -50,5 +50,6 @@
     "fake_verification"
   ],
   "planted_secrets": [],
-  "rationale": "Negated fee policies must not be misinterpreted as active fee demands."
+  "rationale": "Negated fee policies must not be misinterpreted as active fee demands.",
+  "expectations": {}
 }

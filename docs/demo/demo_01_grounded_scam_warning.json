@@ -1,6 +1,6 @@
 {
   "contract_version": "1.0.0",
-  "run_id": "demo_run_01_scam",
+  "run_id": "run_eval_01_fee",
   "demo_mode": false,
   "claims": [
     {
@@ -75,7 +75,7 @@
       "source_url": null,
       "title": "Demand in submitted document",
       "quote_or_snippet": "Deposit a refundable laptop security fee of INR 15,000 via UPI to nimbus.onboarding@okaxis within 24 hours.",
-      "retrieved_at": "2026-10-04T10:17:35.161618Z",
+      "retrieved_at": "2026-10-04T10:50:00.561953Z",
       "query": null,
       "engine": null,
       "search_id": null,
@@ -112,7 +112,7 @@
       "query": "\"Nimbus Infotech Ltd\" official website careers",
       "reason": "Resolve the employer's official domain before checking contact details",
       "status": "COMPLETED",
-      "started_at": "2026-10-04T10:17:35.091883Z",
+      "started_at": "2026-10-04T10:50:00.503806Z",
       "duration_ms": 0,
       "evidence_ids": []
     },
@@ -122,7 +122,7 @@
       "query": "\"priya.nimbus@gmail.com\" scam fraud complaint",
       "reason": "Verify recruiter email alignment with resolved domain",
       "status": "COMPLETED",
-      "started_at": "2026-10-04T10:17:35.151421Z",
+      "started_at": "2026-10-04T10:50:00.558908Z",
       "duration_ms": 0,
       "evidence_ids": []
     },
@@ -132,7 +132,7 @@
       "query": "\"priya.nimbus@gmail.com\" \"Nimbus Infotech Ltd\"",
       "reason": "Verify recruiter email alignment with resolved domain",
       "status": "COMPLETED",
-      "started_at": "2026-10-04T10:17:35.152015Z",
+      "started_at": "2026-10-04T10:50:00.559063Z",
       "duration_ms": 0,
       "evidence_ids": []
     },
@@ -142,7 +142,7 @@
       "query": "\"Nimbus Infotech Ltd\" job scam fraud complaint telegram",
       "reason": "Check for upfront fees, credential demands, and adverse reports",
       "status": "COMPLETED",
-      "started_at": "2026-10-04T10:17:35.154074Z",
+      "started_at": "2026-10-04T10:50:00.560525Z",
       "duration_ms": 0,
       "evidence_ids": []
     },
@@ -152,7 +152,7 @@
       "query": "\"Nimbus Infotech Ltd\" \"UPI\" recruitment scam",
       "reason": "Check for upfront fees, credential demands, and adverse reports",
       "status": "COMPLETED",
-      "started_at": "2026-10-04T10:17:35.154249Z",
+      "started_at": "2026-10-04T10:50:00.560671Z",
       "duration_ms": 0,
       "evidence_ids": []
     }

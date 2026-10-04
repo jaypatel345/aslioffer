@@ -1,6 +1,6 @@
 {
   "contract_version": "1.0.0",
-  "run_id": "demo_run_04_sparse",
+  "run_id": "run_eval_08_sparse",
   "demo_mode": false,
   "claims": [
     {
@@ -111,7 +111,7 @@
       "query": "\"Acme Pixel Labs\" official website careers",
       "reason": "Resolve the employer's official domain before checking contact details",
       "status": "COMPLETED",
-      "started_at": "2026-10-04T10:17:35.227572Z",
+      "started_at": "2026-10-04T10:50:00.599152Z",
       "duration_ms": 0,
       "evidence_ids": []
     },
@@ -121,7 +121,7 @@
       "query": "\"dev@acmepixellabs.example\" scam fraud complaint",
       "reason": "Verify recruiter email alignment with resolved domain",
       "status": "COMPLETED",
-      "started_at": "2026-10-04T10:17:35.231221Z",
+      "started_at": "2026-10-04T10:50:00.600293Z",
       "duration_ms": 0,
       "evidence_ids": []
     },
@@ -131,7 +131,7 @@
       "query": "\"dev@acmepixellabs.example\" \"Acme Pixel Labs\"",
       "reason": "Verify recruiter email alignment with resolved domain",
       "status": "COMPLETED",
-      "started_at": "2026-10-04T10:17:35.231566Z",
+      "started_at": "2026-10-04T10:50:00.600860Z",
       "duration_ms": 0,
       "evidence_ids": []
     },
@@ -141,7 +141,7 @@
       "query": "\"Acme Pixel Labs\" job scam fraud complaint telegram",
       "reason": "Check for upfront fees, credential demands, and adverse reports",
       "status": "COMPLETED",
-      "started_at": "2026-10-04T10:17:35.233274Z",
+      "started_at": "2026-10-04T10:50:00.601866Z",
       "duration_ms": 0,
       "evidence_ids": []
     }

@@ -259,14 +259,10 @@ def test_referential_integrity_invariant():
     fake_claim = AssessedClaim(claim_id="c1", status=ClaimStatus.UNRESOLVED, explanation="test", evidence_ids=["non_existent_ev"])
     res_dict = json.loads(res.model_dump_json())
     res_dict["assessed_claims"] = [fake_claim.model_dump()]
-    # Since pydantic validator catches this on construction, test with raw dict or reconstructed model
-    try:
-        bad_res = InvestigationResult.model_validate(res_dict)
-        r = check_referential_integrity(bad_res)
-        assert not r.passed
-    except Exception:
-        # Schema already enforces referential integrity on parse
-        pass
+    bad_res = res.model_copy(update={"assessed_claims": [fake_claim]})
+    r = check_referential_integrity(bad_res)
+    assert not r.passed
+    assert any("non-existent" in violation for violation in r.violations)
 
 
 def test_status_attribution_invariant():

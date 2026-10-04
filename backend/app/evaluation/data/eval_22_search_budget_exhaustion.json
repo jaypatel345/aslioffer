@@ -55,5 +55,12 @@
     "fake_verification"
   ],
   "planted_secrets": [],
-  "rationale": "Budget exhaustion triggers INVESTIGATION_BUDGET_EXCEEDED error and completes cleanly."
+  "rationale": "Budget exhaustion triggers INVESTIGATION_BUDGET_EXCEEDED error and completes cleanly.",
+  "expectations": {
+    "max_provider_calls": 1,
+    "max_checked_claims": 1,
+    "required_error_codes": [
+      "INVESTIGATION_BUDGET_EXCEEDED"
+    ]
+  }
 }

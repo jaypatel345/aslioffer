@@ -50,248 +50,36 @@ class DemoCaseDefinition(BaseModel):
     default_response: Dict[str, Any]
 
 
-class MockDemoSearchClient:
-    """Deterministic search client for demo execution."""
-
-    def __init__(self, query_responses: Dict[str, Any], default_response: Optional[Dict[str, Any]] = None):
-        self.query_responses = query_responses or {}
-        self.default_response = default_response or {"status": "successful", "source": "REAL", "organic_results": []}
-
-    async def search(self, query: str, engine: str = "google", num: int = 5, **kwargs) -> Dict[str, Any]:
-        if query in self.query_responses:
-            return deepcopy(self.query_responses[query])
-        for q, resp in self.query_responses.items():
-            if q.strip() == query.strip():
-                return deepcopy(resp)
-        return deepcopy(self.default_response)
-
-
 def get_demo_case_definitions() -> List[DemoCaseDefinition]:
-    """Returns the 5 canonical hackathon demonstration cases."""
-    return [
-        # Demo 1: Grounded Scam Warning
-        DemoCaseDefinition(
-            demo_id="DEMO-01",
-            filename="demo_01_grounded_scam_warning.json",
-            title="Grounded Advance Fee Scam Warning",
-            scenario_summary="Candidate offered Graduate Engineer Trainee but told to pay INR 15,000 refundable laptop deposit via UPI.",
-            input_text=(
-                "Nimbus Infotech Ltd. Congratulations! You have been selected for Graduate Engineer Trainee.\n"
-                "Deposit a refundable laptop security fee of INR 15,000 via UPI to nimbus.onboarding@okaxis within 24 hours.\n"
-                "Contact: priya.nimbus@gmail.com"
-            ),
-            search_setup_description="Real company website found; search for fraud notices retrieves employer advisory stating Nimbus never charges security deposits.",
-            expected_outcome="HIGH_RISK",
-            highlight_evidence="ScamAgent flags active UPI payment request; official fraud alert cites employer policy forbidding deposits.",
-            what_it_establishes="Direct advance-fee extortion pattern corroborated by conflicting official employer hiring policy.",
-            what_it_does_not_establish="Does not imply the real Nimbus Infotech Ltd is fraudulent; establishes that this specific letter is a scam.",
-            reproduction_steps=[
-                "Run `python -m backend.app.evaluation.runner --demo 1`",
-                "Inspect overall_outcome=HIGH_RISK and payment_request claim CONTRADICTED.",
-            ],
-            case_input=CaseInput(
-                case_id=301,
-                run_id="demo_run_01_scam",
-                source_type=SourceType.TEXT,
-                redacted_text=(
-                    "Nimbus Infotech Ltd. Congratulations! You have been selected for Graduate Engineer Trainee.\n"
-                    "Deposit a refundable laptop security fee of INR 15,000 via UPI to nimbus.onboarding@okaxis within 24 hours.\n"
-                    "Contact: priya.nimbus@gmail.com"
-                ),
-                demo_mode=False,
-            ),
-            search_responses={
-                '"Nimbus Infotech Ltd" official website careers': {
-                    "status": "successful", "source": "REAL",
-                    "organic_results": [{"link": "https://www.nimbusinfotech.example/", "title": "Nimbus Infotech Ltd", "snippet": "IT services provider."}],
-                },
-                "Nimbus Infotech Ltd recruitment fraud email domain fee": {
-                    "status": "successful", "source": "REAL",
-                    "organic_results": [{"link": "https://careers.nimbusinfotech.example/fraud-alert", "title": "Fraud Alert", "snippet": "Nimbus never asks candidates for money or security deposits."}],
-                }
-            },
-            default_response={"status": "successful", "source": "REAL", "organic_results": []},
-        ),
-
-        # Demo 2: Plausible Impersonation
-        DemoCaseDefinition(
-            demo_id="DEMO-02",
-            filename="demo_02_plausible_impersonation.json",
-            title="Plausible Employer Impersonation with Fee Demand",
-            scenario_summary="Offer copies real corporate branding and address of Infosys Limited, but recruiter uses personal email and demands INR 6,500 document fee.",
-            input_text=(
-                "Infosys Limited, Electronics City, Hosur Road, Bangalore.\n"
-                "Appointment for Systems Engineer. Compensation: INR 4,80,000 per annum.\n"
-                "Pay an onboarding document verification fee of INR 6,500 to infosys-hr@upi within 48 hours.\n"
-                "Contact: recruitment@infosys-careers.example"
-            ),
-            search_setup_description="Company website and careers portal resolved, but recruiter email domain is unverified lookalike and document contains upfront fee demand.",
-            expected_outcome="HIGH_RISK",
-            highlight_evidence="Advance fee demand strictly overrides corporate name recognition and realistic salary figures.",
-            what_it_establishes="Impersonators often copy authentic addresses and salary ranges; fee demand reveals the scam.",
-            what_it_does_not_establish="Does not authenticate the communication even though corporate address and company exist.",
-            reproduction_steps=[
-                "Run `python -m backend.app.evaluation.runner --demo 2`",
-                "Verify that high-profile corporate branding does NOT dilute the HIGH_RISK outcome.",
-            ],
-            case_input=CaseInput(
-                case_id=302,
-                run_id="demo_run_02_impersonation",
-                source_type=SourceType.TEXT,
-                redacted_text=(
-                    "Infosys Limited, Electronics City, Hosur Road, Bangalore.\n"
-                    "Appointment for Systems Engineer. Compensation: INR 4,80,000 per annum.\n"
-                    "Pay an onboarding document verification fee of INR 6,500 to infosys-hr@upi within 48 hours.\n"
-                    "Contact: recruitment@infosys-careers.example"
-                ),
-                demo_mode=False,
-            ),
-            search_responses={
-                '"Infosys Limited" official website careers': {
-                    "status": "successful", "source": "REAL",
-                    "knowledge_graph": {"website": "https://www.infosys.example", "careers_url": "https://careers.infosys.example"},
-                    "organic_results": [{"link": "https://www.infosys.example", "title": "Infosys - Official Website", "snippet": "Global consulting and IT services."}],
-                }
-            },
-            default_response={"status": "successful", "source": "REAL", "organic_results": []},
-        ),
-
-        # Demo 3: Legitimate Recruitment with Confirmation Guidance
-        DemoCaseDefinition(
-            demo_id="DEMO-03",
-            filename="demo_03_legit_confirmation_guidance.json",
-            title="Legitimate Recruitment with Sourced Confirmation Guidance",
-            scenario_summary="Offer from Kestrel Systems Pvt Ltd with verified recruiter email, active vacancy, and independently sourced confirmation route.",
-            input_text=(
-                "Offer of Employment from Kestrel Systems Pvt Ltd.\n"
-                "We are pleased to offer you the position of Associate Consultant.\n"
-                "Please review the offer details at https://careers.kestrelsystems.example/offers.\n"
-                "Regards, Ananya Rao, Talent Acquisition. Contact: ananya.rao@kestrelsystems.example"
-            ),
-            search_setup_description="Official domain resolved, recruiter verified on team page, careers portal resolved, clean fraud history.",
-            expected_outcome="NO_STRONG_RISK_SIGNALS",
-            highlight_evidence="ConfirmationRoute provides independently published HR verification channel with draft message; authenticity_status stays UNCONFIRMED.",
-            what_it_establishes="Public records corroborate employer identity and recruiter affiliation with no risk signals.",
-            what_it_does_not_establish="Cannot authenticate that this specific offer letter was issued without the candidate contacting the employer directly.",
-            reproduction_steps=[
-                "Run `python -m backend.app.evaluation.runner --demo 3`",
-                "Verify confirmation_route is populated and authenticity_status is UNCONFIRMED.",
-            ],
-            case_input=CaseInput(
-                case_id=303,
-                run_id="demo_run_03_legit",
-                source_type=SourceType.TEXT,
-                redacted_text=(
-                    "Offer of Employment from Kestrel Systems Pvt Ltd.\n"
-                    "We are pleased to offer you the position of Associate Consultant.\n"
-                    "Please review the offer details at https://careers.kestrelsystems.example/offers.\n"
-                    "Regards, Ananya Rao, Talent Acquisition. Contact: ananya.rao@kestrelsystems.example"
-                ),
-                demo_mode=False,
-            ),
-            search_responses={
-                '"Kestrel Systems Pvt Ltd" official website careers': {
-                    "status": "successful", "source": "REAL",
-                    "knowledge_graph": {
-                        "title": "Kestrel Systems Pvt Ltd",
-                        "website": "https://www.kestrelsystems.example",
-                        "careers_url": "https://careers.kestrelsystems.example",
-                    },
-                    "organic_results": [
-                        {"link": "https://www.kestrelsystems.example/", "title": "Kestrel Systems — Official Website", "snippet": "Kestrel Systems Pvt Ltd is a technology consulting firm."},
-                        {"link": "https://careers.kestrelsystems.example/", "title": "Kestrel Systems Careers Portal", "snippet": "Careers and job offers at Kestrel Systems."},
-                        {"link": "https://careers.kestrelsystems.example/team", "title": "Recruitment Team", "snippet": "Contact our talent acquisition recruiter Ananya Rao at ananya.rao@kestrelsystems.example for verification."},
-                    ],
-                },
-                '"ananya.rao@kestrelsystems.example" scam fraud complaint': {
-                    "status": "successful", "source": "REAL", "organic_results": []
-                },
-                '"ananya.rao@kestrelsystems.example" "Kestrel Systems Pvt Ltd"': {
-                    "status": "successful", "source": "REAL",
-                    "organic_results": [{"link": "https://careers.kestrelsystems.example/team", "title": "Ananya Rao", "snippet": "Ananya Rao is Senior Recruiter at Kestrel Systems Pvt Ltd."}]
-                },
-                '"Kestrel Systems Pvt Ltd" "Associate Consultant" careers job opening': {
-                    "status": "successful", "source": "REAL",
-                    "organic_results": [{"link": "https://careers.kestrelsystems.example/jobs/assoc-consultant", "title": "Associate Consultant", "snippet": "Associate Consultant opening at Kestrel Systems Pvt Ltd."}]
-                },
-                "Kestrel Systems Pvt Ltd recruitment fraud email domain fee": {
-                    "status": "successful", "source": "REAL",
-                    "organic_results": [{"link": "https://careers.kestrelsystems.example/policy", "title": "Policy", "snippet": "Kestrel Systems never charges fees."}]
-                }
-            },
-            default_response={"status": "successful", "source": "REAL", "organic_results": []},
-        ),
-
-        # Demo 4: Sparse Footprint Startup
-        DemoCaseDefinition(
-            demo_id="DEMO-04",
-            filename="demo_04_sparse_footprint_unverified.json",
-            title="Sparse Footprint Startup (Honest Uncertainty)",
-            scenario_summary="Early-stage startup with no public website or search hits, but zero fraud complaints.",
-            input_text=(
-                "Acme Pixel Labs offer for Junior 3D Artist.\n"
-                "Monthly stipend: INR 25,000. Start date: November 1.\n"
-                "Contact: dev@acmepixellabs.example"
-            ),
-            search_setup_description="Search executes successfully but returns zero corporate records or reviews.",
-            expected_outcome="CANNOT_VERIFY",
-            highlight_evidence="Coverage summary clearly marks corporate identity as unresolved; recommended actions guide safe verification without accusing the employer.",
-            what_it_establishes="Public evidence is insufficient to verify or refute this offer.",
-            what_it_does_not_establish="Does NOT classify the offer as fraud or scam; honest uncertainty is preserved.",
-            reproduction_steps=[
-                "Run `python -m backend.app.evaluation.runner --demo 4`",
-                "Verify outcome=CANNOT_VERIFY and absence of false fraud accusations.",
-            ],
-            case_input=CaseInput(
-                case_id=304,
-                run_id="demo_run_04_sparse",
-                source_type=SourceType.TEXT,
-                redacted_text=(
-                    "Acme Pixel Labs offer for Junior 3D Artist.\n"
-                    "Monthly stipend: INR 25,000. Start date: November 1.\n"
-                    "Contact: dev@acmepixellabs.example"
-                ),
-                demo_mode=False,
-            ),
-            search_responses={},
-            default_response={"status": "successful", "source": "REAL", "organic_results": []},
-        ),
-
-        # Demo 5: Provider Outage Failsafe
-        DemoCaseDefinition(
-            demo_id="DEMO-05",
-            filename="demo_05_provider_outage_failsafe.json",
-            title="Provider Outage Resilience (Graceful Degradation)",
-            scenario_summary="Upstream search provider returns HTTP 429 rate limit or timeout during investigation.",
-            input_text=(
-                "Vertex Dynamics Ltd.\n"
-                "Offer for Senior Database Administrator.\n"
-                "Contact: hr@vertexdynamics.example"
-            ),
-            search_setup_description="Underlying search client returns rate limit failure on external queries.",
-            expected_outcome="CANNOT_VERIFY",
-            highlight_evidence="RunError recorded with code SEARCH_CHECK_UNAVAILABLE and retryable=True; local pattern scan results preserved.",
-            what_it_establishes="Pipeline handles infrastructure outages gracefully without crashing or fabricating mock data.",
-            what_it_does_not_establish="Does not render a substantive verdict on the offer due to incomplete external checks.",
-            reproduction_steps=[
-                "Run `python -m backend.app.evaluation.runner --demo 5`",
-                "Verify error recorded in results.errors and outcome=CANNOT_VERIFY.",
-            ],
-            case_input=CaseInput(
-                case_id=305,
-                run_id="demo_run_05_outage",
-                source_type=SourceType.TEXT,
-                redacted_text=(
-                    "Vertex Dynamics Ltd.\n"
-                    "Offer for Senior Database Administrator.\n"
-                    "Contact: hr@vertexdynamics.example"
-                ),
-                demo_mode=False,
-            ),
-            search_responses={},
-            default_response={"status": "failed", "source": "FAILED", "error": "HTTP 429 Rate limit exceeded; provider unavailable"},
-        ),
+    """Demos reuse the executable corpus; there is no second mock-response set."""
+    from app.evaluation.corpus import load_evaluation_corpus
+    cases = {c.case_id[:7]: c for c in load_evaluation_corpus()}
+    descriptions = [
+        (1, 1, 'grounded_scam_warning', 'A grounded payment demand produces a strong risk warning.'),
+        (2, 5, 'plausible_impersonation', 'A fee demand remains high risk despite plausible corporate branding.'),
+        (3, 6, 'legit_confirmation_guidance', 'Public employer/recruiter observations provide an independently sourced confirmation route.'),
+        (4, 8, 'sparse_footprint_unverified', 'Sparse public evidence remains inconclusive without a fraud accusation.'),
+        (5, 21, 'provider_outage_failsafe', 'Provider failure yields structured retryable errors and an inconclusive outcome.'),
     ]
+    demos = []
+    for demo_num, case_num, suffix, establishes in descriptions:
+        case = cases[f'EVAL-{case_num:02d}']
+        demos.append(DemoCaseDefinition(
+            demo_id=f'DEMO-{demo_num:02d}', filename=f'demo_{demo_num:02d}_{suffix}.json',
+            title=case.title, scenario_summary=case.description,
+            input_text=case.case_input.redacted_text,
+            search_setup_description='Offline synthetic replay of ' + case.case_id,
+            expected_outcome=case.expected_outcome,
+            highlight_evidence='Inspect assessed claims and their cited evidence; authenticity remains UNCONFIRMED.',
+            what_it_establishes=establishes,
+            what_it_does_not_establish='This synthetic scenario does not establish real-world accuracy or authenticate an individual offer.',
+            reproduction_steps=[f'python -m backend.app.evaluation.runner --case EVAL-{case_num:02d} --output-dir evaluation_artifacts',
+                'python -m backend.app.evaluation.runner --generate-demos --output-dir evaluation_artifacts'],
+            case_input=case.case_input.to_case_input(),
+            search_responses=case.search_mock.get('query_responses', {}),
+            default_response=case.search_mock.get('default_response', {}),
+        ))
+    return demos
 
 
 async def generate_demo_outputs(
@@ -309,17 +97,29 @@ async def generate_demo_outputs(
     results_map: Dict[str, Dict[str, Any]] = {}
 
     for demo in demo_defs:
-        mock_client = MockDemoSearchClient(
+        from app.evaluation.runner import EvaluationMockSearchClient
+        from app.evaluation.invariants import run_all_invariants
+        from app.evaluation.corpus import load_evaluation_corpus
+        from app.evaluation.checks import check_case_behaviors, check_case_expectations
+        mock_client = EvaluationMockSearchClient(
             query_responses=demo.search_responses,
             default_response=demo.default_response,
         )
         result = await investigate_case(demo.case_input, search_client=mock_client)
-        assert isinstance(result, InvestigationResult)
+        case = next(c for c in load_evaluation_corpus() if c.case_input.run_id == demo.case_input.run_id)
+        failures = check_case_behaviors(case, result) + check_case_expectations(case, result)
+        assessed = {c.kind.value: next((a.status.value for a in result.assessed_claims if a.claim_id == c.claim_id), None) for c in result.claims}
+        failures += [f'Claim expectation failed: {kind}' for kind, status in case.expected_claim_statuses.items() if assessed.get(kind) != status]
+        failures += [i.invariant_name for i in run_all_invariants(result, case.labels, case.planted_secrets,
+            retrieved_observations=mock_client.retrieved_observations) if not i.passed]
+        if result.overall_outcome.value != demo.expected_outcome or failures:
+            raise ValueError(f'Demo {demo.demo_id} failed acceptance: ' + ', '.join(failures))
 
         result_dict = json.loads(result.model_dump_json(indent=2))
         results_map[demo.demo_id] = {
             "metadata": {
                 "demo_id": demo.demo_id,
+                "mode": "offline_synthetic_replay",
                 "title": demo.title,
                 "filename": demo.filename,
                 "expected_outcome": demo.expected_outcome,
@@ -345,6 +145,7 @@ async def generate_demo_outputs(
         manifest = [
             {
                 "demo_id": d_def.demo_id,
+                "mode": "offline_synthetic_replay",
                 "filename": d_def.filename,
                 "title": d_def.title,
                 "expected_outcome": d_def.expected_outcome,

@@ -1,6 +1,6 @@
 {
   "contract_version": "1.0.0",
-  "run_id": "demo_run_03_legit",
+  "run_id": "run_eval_06_legit",
   "demo_mode": false,
   "claims": [
     {
@@ -32,6 +32,16 @@
       "end_offset": null,
       "page": null,
       "extraction_status": "MISSING"
+    },
+    {
+      "claim_id": "c6",
+      "kind": "role",
+      "value": "Associate Consultant",
+      "source_quote": null,
+      "start_offset": null,
+      "end_offset": null,
+      "page": null,
+      "extraction_status": "USER_EDITED"
     }
   ],
   "assessed_claims": [
@@ -43,7 +53,8 @@
         "e1",
         "e2",
         "e3",
-        "e4"
+        "e4",
+        "e5"
       ],
       "reason_codes": [
         "OFFICIAL_DOMAIN_RESOLVED"
@@ -54,7 +65,7 @@
       "status": "SUPPORTED",
       "explanation": "Employer-published evidence supports the claimed recruiter affiliation; it does not prove mailbox control, hiring authority, or offer issuance.",
       "evidence_ids": [
-        "e5"
+        "e6"
       ],
       "reason_codes": [
         "PUBLIC_LISTING_MATCH"
@@ -68,6 +79,19 @@
       "reason_codes": [
         "MISSING_INPUT"
       ]
+    },
+    {
+      "claim_id": "c6",
+      "status": "SUPPORTED",
+      "explanation": "Retrieved public hiring records match the claimed role. Listing currency and individual offer issuance remain unconfirmed.",
+      "evidence_ids": [
+        "e7"
+      ],
+      "reason_codes": [
+        "ROLE_CORROBORATED",
+        "PUBLIC_VACANCY_LISTED",
+        "PUBLIC_VACANCY_MATCH"
+      ]
     }
   ],
   "evidence": [
@@ -76,9 +100,9 @@
       "claim_id": "c1",
       "source_kind": "SEARCH_SNIPPET",
       "source_url": "https://www.kestrelsystems.example/",
-      "title": "Kestrel Systems \u2014 Official Website",
+      "title": "Kestrel Systems Pvt Ltd \u2014 Official Website",
       "quote_or_snippet": "Kestrel Systems Pvt Ltd is a technology consulting firm.",
-      "retrieved_at": "2026-10-04T10:17:35.198492Z",
+      "retrieved_at": "2026-10-04T10:50:00.584373Z",
       "query": "\"Kestrel Systems Pvt Ltd\" official website careers",
       "engine": "google",
       "search_id": null,
@@ -93,7 +117,7 @@
       "source_url": "https://www.kestrelsystems.example",
       "title": "Kestrel Systems Pvt Ltd",
       "quote_or_snippet": "{\"title\": \"Kestrel Systems Pvt Ltd\", \"website\": \"https://www.kestrelsystems.example\", \"careers_url\": \"https://careers.kestrelsystems.example\"}",
-      "retrieved_at": "2026-10-04T10:17:35.198492Z",
+      "retrieved_at": "2026-10-04T10:50:00.584373Z",
       "query": "\"Kestrel Systems Pvt Ltd\" official website careers",
       "engine": "google",
       "search_id": null,
@@ -108,7 +132,7 @@
       "source_url": "https://careers.kestrelsystems.example/",
       "title": "Kestrel Systems Careers Portal",
       "quote_or_snippet": "Careers and job offers at Kestrel Systems.",
-      "retrieved_at": "2026-10-04T10:17:35.198492Z",
+      "retrieved_at": "2026-10-04T10:50:00.584373Z",
       "query": "\"Kestrel Systems Pvt Ltd\" official website careers",
       "engine": "google",
       "search_id": null,
@@ -123,7 +147,7 @@
       "source_url": "https://careers.kestrelsystems.example",
       "title": "Kestrel Systems Pvt Ltd",
       "quote_or_snippet": "{\"title\": \"Kestrel Systems Pvt Ltd\", \"website\": \"https://www.kestrelsystems.example\", \"careers_url\": \"https://careers.kestrelsystems.example\"}",
-      "retrieved_at": "2026-10-04T10:17:35.198492Z",
+      "retrieved_at": "2026-10-04T10:50:00.584373Z",
       "query": "\"Kestrel Systems Pvt Ltd\" official website careers",
       "engine": "google",
       "search_id": null,
@@ -133,12 +157,42 @@
     },
     {
       "evidence_id": "e5",
+      "claim_id": "c1",
+      "source_kind": "SEARCH_SNIPPET",
+      "source_url": "https://careers.kestrelsystems.example/jobs/assoc-consultant",
+      "title": "Associate Consultant - Kestrel Systems Pvt Ltd",
+      "quote_or_snippet": "Associate Consultant opening at Kestrel Systems Pvt Ltd.",
+      "retrieved_at": "2026-10-04T10:50:00.584373Z",
+      "query": "\"Kestrel Systems Pvt Ltd\" official website careers",
+      "engine": "google",
+      "search_id": null,
+      "retrieval_status": "LIVE",
+      "source_tier": "OFFICIAL_EMPLOYER",
+      "relation": "SUPPORTS"
+    },
+    {
+      "evidence_id": "e6",
       "claim_id": "c2",
       "source_kind": "SEARCH_SNIPPET",
       "source_url": "https://careers.kestrelsystems.example/team",
       "title": "Recruitment Team",
       "quote_or_snippet": "Contact our talent acquisition recruiter Ananya Rao at ananya.rao@kestrelsystems.example for verification.",
-      "retrieved_at": "2026-10-04T10:17:35.198492Z",
+      "retrieved_at": "2026-10-04T10:50:00.584373Z",
+      "query": "\"Kestrel Systems Pvt Ltd\" official website careers",
+      "engine": "google",
+      "search_id": null,
+      "retrieval_status": "LIVE",
+      "source_tier": "OFFICIAL_EMPLOYER",
+      "relation": "SUPPORTS"
+    },
+    {
+      "evidence_id": "e7",
+      "claim_id": "c6",
+      "source_kind": "SEARCH_SNIPPET",
+      "source_url": "https://careers.kestrelsystems.example/jobs/assoc-consultant",
+      "title": "Associate Consultant - Kestrel Systems Pvt Ltd",
+      "quote_or_snippet": "Associate Consultant opening at Kestrel Systems Pvt Ltd.",
+      "retrieved_at": "2026-10-04T10:50:00.584373Z",
       "query": "\"Kestrel Systems Pvt Ltd\" official website careers",
       "engine": "google",
       "search_id": null,
@@ -150,8 +204,8 @@
   "overall_outcome": "NO_STRONG_RISK_SIGNALS",
   "authenticity_status": "UNCONFIRMED",
   "coverage": {
-    "checked_claims": 2,
-    "total_claims": 3,
+    "checked_claims": 3,
+    "total_claims": 4,
     "unresolved_claims": 1,
     "failed_checks": 0
   },
@@ -161,13 +215,14 @@
     "Review standard employment terms, scope of work, and contract conditions carefully before signing.",
     "Never share sensitive banking passwords, OTPs, or pay any onboarding charges.",
     "Confirm offer issuance independently before accepting; do not rely solely on an emailed link.",
+    "Matching public vacancy records were found, but a public listing does not authenticate individual offer issuance; confirm directly with the employer.",
     "Use the independently sourced published careers portal (https://careers.kestrelsystems.example) to confirm whether this offer was formally issued."
   ],
   "confirmation_route": {
     "channel": "careers_portal",
     "destination": "https://careers.kestrelsystems.example",
     "evidence_id": "e4",
-    "draft_message": "Navigate to Kestrel Systems Pvt Ltd's official portal and locate their published human resources or recruitment contact. Inquire neutrally: 'I have received an employment offer for [Position / Role Title] (Reference: [Candidate/Offer Reference]); could you please verify whether this offer was officially issued?' State your name ([Your Name]) but do not disclose banking details, account passwords, or OTPs."
+    "draft_message": "Navigate to Kestrel Systems Pvt Ltd's official portal and locate their published human resources or recruitment contact. Inquire neutrally: 'I have received an employment offer for Associate Consultant (Reference: [Candidate/Offer Reference]); could you please verify whether this offer was officially issued?' State your name ([Your Name]) but do not disclose banking details, account passwords, or OTPs."
   },
   "tool_trace": [
     {
@@ -176,14 +231,16 @@
       "query": "\"Kestrel Systems Pvt Ltd\" official website careers",
       "reason": "Resolve the employer's official domain before checking contact details",
       "status": "COMPLETED",
-      "started_at": "2026-10-04T10:17:35.198492Z",
+      "started_at": "2026-10-04T10:50:00.584373Z",
       "duration_ms": 0,
       "evidence_ids": [
         "e1",
         "e2",
         "e3",
         "e4",
-        "e5"
+        "e5",
+        "e6",
+        "e7"
       ]
     },
     {
@@ -192,7 +249,7 @@
       "query": "\"ananya.rao@kestrelsystems.example\" scam fraud complaint",
       "reason": "Verify recruiter email alignment with resolved domain",
       "status": "COMPLETED",
-      "started_at": "2026-10-04T10:17:35.203189Z",
+      "started_at": "2026-10-04T10:50:00.587048Z",
       "duration_ms": 0,
       "evidence_ids": []
     },
@@ -202,7 +259,27 @@
       "query": "\"Kestrel Systems Pvt Ltd\" job scam fraud complaint telegram",
       "reason": "Check for upfront fees, credential demands, and adverse reports",
       "status": "COMPLETED",
-      "started_at": "2026-10-04T10:17:35.207366Z",
+      "started_at": "2026-10-04T10:50:00.588946Z",
+      "duration_ms": 0,
+      "evidence_ids": []
+    },
+    {
+      "step": "adaptive_job_role_corroboration",
+      "tool": "serpapi.google",
+      "query": "site:careers.kestrelsystems.example \"Associate Consultant\"",
+      "reason": "Checking the claimed role against established employer careers sources.",
+      "status": "COMPLETED",
+      "started_at": "2026-10-04T10:50:00.589252Z",
+      "duration_ms": 0,
+      "evidence_ids": []
+    },
+    {
+      "step": "adaptive_confirmation_route_discovery",
+      "tool": "serpapi.google",
+      "query": "\"Kestrel Systems Pvt Ltd\" recruitment verification contact site:www.kestrelsystems.example",
+      "reason": "Looking for employer-published guidance for confirming offer issuance.",
+      "status": "COMPLETED",
+      "started_at": "2026-10-04T10:50:00.589404Z",
       "duration_ms": 0,
       "evidence_ids": []
     }

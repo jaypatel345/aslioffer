@@ -1,17 +1,17 @@
 {
-  "case_id": "EVAL-18-INDEPENDENT-CONFIRMATION-CONTACT",
-  "title": "Independently Published Offer Confirmation Channel",
-  "description": "Employer publishes dedicated verification email verify-offers@radiantenergy.example on official website.",
+  "case_id": "EVAL-27-NEGATIVE-CONTACT",
+  "title": "Negative published email guidance cannot become a route",
+  "description": "Negative published email guidance cannot become a route",
   "labels": {
-    "scenario_group": "legitimate_corroborated",
-    "category": "confirmation_route",
+    "scenario_group": "ambiguous_unresolved",
+    "category": "negative_contact",
     "threat_category": "independent_route",
     "primary_entity": "Radiant Energy Solutions Ltd",
     "input_mode": "reviewed_claims"
   },
   "case_input": {
-    "case_id": 118,
-    "run_id": "run_eval_18_confirm",
+    "case_id": 127,
+    "run_id": "run_eval_27",
     "source_type": "text",
     "redacted_text": "Radiant Energy Solutions Ltd.\nRole: Software Engineer.\nCareers: https://careers.radiantenergy.example",
     "confirmed_claims": [
@@ -31,20 +31,19 @@
         "status": "successful",
         "source": "REAL",
         "knowledge_graph": {
-          "website": "https://www.radiantenergy.example",
-          "careers_url": "https://careers.radiantenergy.example",
-          "title": "Radiant Energy Solutions Ltd"
+          "title": "Radiant Energy Solutions Ltd",
+          "website": "https://www.radiantenergy.example"
         },
         "organic_results": [
           {
-            "link": "https://www.radiantenergy.example",
-            "title": "Radiant Energy Solutions Ltd \u2014 Official Website",
-            "snippet": "Energy solutions."
+            "link": "https://www.radiantenergy.example/caution",
+            "title": "Recruitment caution",
+            "snippet": "Never contact verify-offers@radiantenergy.example for recruitment verification."
           },
           {
-            "link": "https://careers.radiantenergy.example/verify",
-            "title": "Offer Verification",
-            "snippet": "Verify offer letters by emailing verify-offers@radiantenergy.example directly."
+            "link": "https://www.radiantenergy.example",
+            "title": "Radiant Energy Solutions Ltd \u2014 Official Website",
+            "snippet": "Radiant Energy Solutions Ltd company information."
           }
         ]
       }
@@ -57,13 +56,11 @@
   },
   "expected_outcome": "CANNOT_VERIFY",
   "allowed_outcomes": [
-    "CANNOT_VERIFY",
-    "NO_STRONG_RISK_SIGNALS"
+    "CANNOT_VERIFY"
   ],
   "expected_claim_statuses": {},
   "required_behaviors": [
-    "authenticity_unconfirmed",
-    "has_confirmation_route"
+    "authenticity_unconfirmed"
   ],
   "forbidden_behaviors": [
     "fake_verification"
@@ -71,7 +68,6 @@
   "planted_secrets": [],
   "rationale": "Confirmation route correctly targets independently published employer channel.",
   "expectations": {
-    "confirmation_channel": "official_email",
-    "confirmation_destination": "verify-offers@radiantenergy.example"
+    "no_confirmation_route": true
   }
 }
