@@ -12,6 +12,11 @@ import { formatTime } from '../report/labels';
 const POLL_MS = 1500;
 const isActive = (run: RunSnapshot) => run.status === 'QUEUED' || run.status === 'RUNNING';
 const hasReport = (run: RunSnapshot) => run.status === 'COMPLETED' || run.status === 'PARTIAL';
+// A run that ended this recently is replayed step by step before the report opens,
+// so a fast investigation is not skipped past. Older runs (e.g. a reload) open directly.
+const REPLAY_WINDOW_MS = 60_000;
+const justFinished = (run: RunSnapshot) =>
+  !!run.finished_at && Date.now() - new Date(run.finished_at).getTime() < REPLAY_WINDOW_MS;
 
 /** The user's claim decisions from a finished report, so "run again" keeps them. */
 function confirmationsFrom(result: InvestigationResult): ConfirmedClaim[] {
@@ -94,6 +99,9 @@ export const OfferReport: React.FC = () => {
         if (isActive(run)) {
           setView({ kind: 'progress', run });
           timer.current = window.setTimeout(() => poll(runId), POLL_MS);
+        } else if (justFinished(run)) {
+          // RunProgress finishes revealing the steps, then calls settle().
+          setView({ kind: 'progress', run });
         } else {
           await settle(run);
         }
@@ -221,7 +229,7 @@ export const OfferReport: React.FC = () => {
   if (view.kind === 'progress') {
     return (
       <div className="py-10">
-        <RunProgress run={view.run} />
+        <RunProgress run={view.run} onFinished={() => settle(view.run).catch(fail)} />
       </div>
     );
   }

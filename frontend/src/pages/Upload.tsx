@@ -1,16 +1,33 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FileUpload } from '../components/FileUpload';
 import { api } from '../services/api';
 
+// Reading an offer takes well under a second once the backend is up; anything
+// slower is a sleeping host (e.g. Render's free plan) starting back up.
+const SLOW_UPLOAD_MS = 4000;
+
 export const Upload: React.FC = () => {
   const navigate = useNavigate();
   const [isProcessing, setIsProcessing] = useState(false);
+  const [slow, setSlow] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const slowTimer = useRef<number | null>(null);
+
+  // Wake the backend while the user is still choosing a file or pasting text,
+  // so its cold start does not land on the upload itself.
+  useEffect(() => {
+    api.checkHealth();
+    return () => {
+      if (slowTimer.current !== null) window.clearTimeout(slowTimer.current);
+    };
+  }, []);
 
   const handleAnalyze = async (payload: { title: string; content: string; file?: File; sample?: boolean }) => {
     setIsProcessing(true);
     setError(null);
+    setSlow(false);
+    slowTimer.current = window.setTimeout(() => setSlow(true), SLOW_UPLOAD_MS);
     try {
       let offerId: number;
       if (payload.file) {
@@ -26,6 +43,9 @@ export const Upload: React.FC = () => {
     } catch (err) {
       setIsProcessing(false);
       setError(err instanceof Error && err.message ? err.message : 'The offer could not be uploaded. Please try again.');
+    } finally {
+      if (slowTimer.current !== null) window.clearTimeout(slowTimer.current);
+      setSlow(false);
     }
   };
 
@@ -47,6 +67,13 @@ export const Upload: React.FC = () => {
       {error && (
         <div role="alert" className="mb-4 p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700">
           {error}
+        </div>
+      )}
+
+      {isProcessing && slow && (
+        <div role="status" className="mb-4 p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-800">
+          The verification server is waking up after being idle. This can take up to a minute the first time; your
+          offer is not lost.
         </div>
       )}
 

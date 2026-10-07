@@ -1,3 +1,4 @@
+import asyncio
 import io
 import re
 from typing import Optional, Dict, Any, List
@@ -124,7 +125,8 @@ class EntityExtractor:
 
         # Local PDF extraction first (privacy-preserving, no external network call)
         if norm_mime == "application/pdf":
-            local_pdf_text = self._extract_pdf_text_local(file_bytes)
+            # pypdf is CPU-bound; a thread keeps a large PDF from stalling running investigations.
+            local_pdf_text = await asyncio.to_thread(self._extract_pdf_text_local, file_bytes)
             if local_pdf_text and local_pdf_text.strip():
                 sanitized_ocr = self.extract_claims(local_pdf_text, "pdf").sanitized_source_buffer
                 return {
