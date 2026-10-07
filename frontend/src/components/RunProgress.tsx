@@ -42,7 +42,7 @@ export const RunProgress: React.FC<{ run: RunSnapshot }> = ({ run }) => {
   const waiting = run.status === 'QUEUED';
 
   return (
-    <div className="glass-panel rounded-2xl p-6 sm:p-8 max-w-xl mx-auto" aria-live="polite">
+    <div className="glass-panel rounded-xl p-6 sm:p-8 max-w-xl mx-auto" aria-live="polite">
       <div className="flex items-center gap-3 mb-5">
         <div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin shrink-0" />
         <div>

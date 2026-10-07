@@ -80,7 +80,7 @@ export const ClaimReview: React.FC = () => {
         <AlertTriangle className="w-8 h-8 text-rose-600 mx-auto mb-3" />
         <h1 className="text-xl font-bold text-slate-900">{error.notFound ? 'Case not found' : 'Claims could not be loaded'}</h1>
         <p className="text-sm text-slate-600 mt-2">{error.message}</p>
-        <Link to="/upload" className="inline-block mt-6 px-4 py-2 rounded-lg text-xs font-semibold bg-emerald-600 text-white">
+        <Link to="/upload" className="inline-block mt-6 px-4 py-2 rounded-lg text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-white">
           Verify an offer
         </Link>
       </div>
@@ -102,7 +102,7 @@ export const ClaimReview: React.FC = () => {
     <div className="max-w-3xl mx-auto py-8 space-y-6">
       <div>
         <p className="text-xs font-semibold text-emerald-700 uppercase tracking-wide">Step 2 of 3 · Check the details</p>
-        <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-1">Is this what your offer says?</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 mt-1">Is this what your offer says?</h1>
         <p className="text-sm text-slate-600 mt-2">
           These details were read from your offer. Searches use them, so fix anything that was read wrongly before
           starting. Nothing has been searched yet.
@@ -177,7 +177,7 @@ export const ClaimReview: React.FC = () => {
         })}
       </ul>
 
-      <div className="glass-panel rounded-2xl p-4">
+      <div className="glass-panel rounded-xl p-4">
         <button
           type="button"
           onClick={() => setShowText((v) => !v)}
@@ -208,7 +208,7 @@ export const ClaimReview: React.FC = () => {
           type="button"
           onClick={start}
           disabled={submitting}
-          className="px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white font-bold text-sm inline-flex items-center gap-2"
+          className="px-5 py-3 rounded-lg bg-slate-900 hover:bg-slate-800 disabled:opacity-60 text-white font-medium text-sm inline-flex items-center gap-2"
         >
           {submitting ? 'Starting…' : 'Start investigation'}
           <ArrowRight className="w-4 h-4" />

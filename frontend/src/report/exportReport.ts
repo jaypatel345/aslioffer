@@ -117,3 +117,11 @@ export function downloadText(filename: string, content: string, type = 'text/mar
   a.remove();
   URL.revokeObjectURL(url);
 }
+
+/** Opens the print dialog on the report page; the page title becomes the suggested PDF file name. */
+export function downloadPdf(filename: string) {
+  const previous = document.title;
+  document.title = filename;
+  window.addEventListener('afterprint', () => (document.title = previous), { once: true });
+  window.print();
+}

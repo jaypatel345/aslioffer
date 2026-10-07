@@ -30,10 +30,10 @@ export const Upload: React.FC = () => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto py-8">
+    <div className="max-w-3xl mx-auto py-10 sm:py-14">
       <div className="mb-8 text-center">
-        <p className="text-xs font-semibold text-emerald-700 uppercase tracking-wide">Step 1 of 3 · Add your offer</p>
-        <h1 className="text-3xl font-extrabold text-slate-900 mt-1">Verify a Job or Internship Offer</h1>
+        <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wider">Step 1 of 3 · Add your offer</p>
+        <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-slate-900 mt-2">Verify a Job or Internship Offer</h1>
         <p className="text-sm text-slate-500 mt-2 max-w-xl mx-auto">
           Upload an offer letter (PDF or image) or paste an email or WhatsApp message. You will check the details we read
           before anything is searched.

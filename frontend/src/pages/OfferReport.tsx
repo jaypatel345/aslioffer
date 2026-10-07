@@ -1,12 +1,12 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { AlertTriangle, ArrowLeft, Download, Printer, RefreshCw, Trash2 } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Download, RefreshCw, Trash2 } from 'lucide-react';
 import { api, ApiError } from '../services/api';
 import { lastReport } from '../services/lastReport';
 import { ConfirmedClaim, InvestigationResult, RunSnapshot } from '../types';
 import { InvestigationReport } from '../components/InvestigationReport';
 import { RunProgress } from '../components/RunProgress';
-import { buildMarkdownReport, downloadText } from '../report/exportReport';
+import { buildMarkdownReport, downloadText, downloadPdf } from '../report/exportReport';
 import { formatTime } from '../report/labels';
 
 const POLL_MS = 1500;
@@ -195,7 +195,7 @@ export const OfferReport: React.FC = () => {
               Try again
             </button>
           )}
-          <Link to="/upload" className="px-4 py-2 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white">
+          <Link to="/upload" className="px-4 py-2 rounded-lg text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-white">
             Verify an offer
           </Link>
         </div>
@@ -210,7 +210,7 @@ export const OfferReport: React.FC = () => {
         <p className="text-sm text-slate-600 mt-2">This offer has not been investigated. Check its details and start the investigation.</p>
         <Link
           to={`/offers/${offerId}/review`}
-          className="inline-block mt-6 px-4 py-2 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white"
+          className="inline-block mt-6 px-4 py-2 rounded-lg text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-white"
         >
           Review and investigate
         </Link>
@@ -253,7 +253,7 @@ export const OfferReport: React.FC = () => {
           {view.previous && (
             <button
               onClick={() => setView({ kind: 'report', run: view.previous as RunSnapshot })}
-              className="px-4 py-2 rounded-lg text-xs font-semibold bg-emerald-600 text-white"
+              className="px-4 py-2 rounded-lg text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-white"
             >
               Show the previous report (version {view.previous.version})
             </button>
@@ -285,21 +285,18 @@ export const OfferReport: React.FC = () => {
         <RefreshCw className="w-3.5 h-3.5" /> Run again with fresh searches
       </button>
       <button
-        onClick={exportMarkdown}
+        onClick={() => downloadPdf(`aslioffer-report-${offerId}-v${run.version}`)}
         className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-slate-300 text-slate-700 hover:bg-slate-50 inline-flex items-center gap-1.5"
       >
-        <Download className="w-3.5 h-3.5" /> Download report
+        <Download className="w-3.5 h-3.5" /> Download PDF
+      </button>
+      <button onClick={exportMarkdown} className="px-1 text-xs text-slate-500 hover:text-slate-900 underline-offset-2 hover:underline">
+        Download as text
       </button>
       <label className="inline-flex items-center gap-1.5 text-xs text-slate-600 px-1">
         <input type="checkbox" checked={includeContacts} onChange={(e) => setIncludeContacts(e.target.checked)} />
         Include emails, phones and UPI IDs (for a cybercrime complaint)
       </label>
-      <button
-        onClick={() => window.print()}
-        className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-slate-300 text-slate-700 hover:bg-slate-50 inline-flex items-center gap-1.5"
-      >
-        <Printer className="w-3.5 h-3.5" /> Print / save PDF
-      </button>
       <button
         onClick={deleteCase}
         disabled={busy}

@@ -3,7 +3,7 @@ import { Link, Navigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Download } from 'lucide-react';
 import { SAMPLE_REPORTS } from '../samples/sampleReports';
 import { InvestigationReport } from '../components/InvestigationReport';
-import { buildMarkdownReport, downloadText } from '../report/exportReport';
+import { downloadPdf } from '../report/exportReport';
 
 /** Explicit, clearly bannered sample report. The only place sample data is shown. */
 export const SampleReport: React.FC = () => {
@@ -31,15 +31,10 @@ export const SampleReport: React.FC = () => {
         meta="ILLUSTRATIVE SAMPLE · SYNTHETIC DATA"
         actions={
           <button
-            onClick={() =>
-              downloadText(
-                `aslioffer-sample-${entry.key}.md`,
-                buildMarkdownReport(entry.result, { title: entry.title, includeContacts: false, sample: true }),
-              )
-            }
+onClick={() => downloadPdf(`aslioffer-sample-${entry.key}`)}
             className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-slate-300 text-slate-700 hover:bg-slate-50 inline-flex items-center gap-1.5"
           >
-            <Download className="w-3.5 h-3.5" /> Download sample report
+            <Download className="w-3.5 h-3.5" /> Download PDF
           </button>
         }
       />

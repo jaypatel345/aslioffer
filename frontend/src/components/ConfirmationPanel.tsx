@@ -57,7 +57,7 @@ export const ConfirmationPanel: React.FC<{ result: InvestigationResult }> = ({ r
   const mentionsSecrets = SECRET_HINT.test(draft);
 
   return (
-    <section className="glass-panel rounded-2xl p-6 sm:p-8 print:break-inside-avoid">
+    <section className="glass-panel rounded-xl p-6 sm:p-8 print:break-inside-avoid">
       <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
         <Mail className="w-5 h-5 text-emerald-600" />
         Confirm with the employer
@@ -136,7 +136,7 @@ export const ConfirmationPanel: React.FC<{ result: InvestigationResult }> = ({ r
         {route && isEmail(route.destination) && (
           <a
             href={`mailto:${route.destination}?subject=${encodeURIComponent('Offer confirmation request')}&body=${encodeURIComponent(draft)}`}
-            className="px-3.5 py-2 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white"
+            className="px-3.5 py-2 rounded-lg text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-white"
           >
             Open in my email app
           </a>

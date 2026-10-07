@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { AlertTriangle, ChevronDown, ExternalLink, FileText, ListChecks, PhoneCall, Search } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ChevronDown, HelpCircle, MinusCircle, XCircle, ExternalLink, ListChecks, PhoneCall, Search } from 'lucide-react';
 import { AssessedClaim, Claim, EvidenceRecord, InvestigationResult } from '../types';
 import { OutcomeBadge } from './OutcomeBadge';
 import { ConfirmationPanel } from './ConfirmationPanel';
@@ -22,78 +22,126 @@ const Chip: React.FC<{ className: string; children: React.ReactNode }> = ({ clas
   </span>
 );
 
-const EvidenceItem: React.FC<{ ev: EvidenceRecord }> = ({ ev }) => (
-  <li className="p-3 rounded-xl bg-white border border-slate-200 text-xs space-y-1.5">
-    <div className="flex flex-wrap items-center gap-1.5">
-      <Chip className={TONE_CLASSES[RELATION[ev.relation].tone].chip}>{RELATION[ev.relation].label}</Chip>
-      <Chip className="bg-slate-50 text-slate-600 border-slate-200">{SOURCE_KIND[ev.source_kind]}</Chip>
-      <Chip className="bg-slate-50 text-slate-600 border-slate-200">{SOURCE_TIER[ev.source_tier]}</Chip>
-      {ev.retrieval_status !== 'LIVE' && (
-        <Chip
-          className={
-            ev.retrieval_status === 'FAILED'
-              ? TONE_CLASSES.rose.chip
-              : ev.retrieval_status === 'DEMO'
-              ? TONE_CLASSES.amber.chip
-              : 'bg-slate-50 text-slate-600 border-slate-200'
-          }
-        >
-          {RETRIEVAL[ev.retrieval_status]}
-        </Chip>
-      )}
-    </div>
-    <p className="font-semibold text-slate-800">{ev.title}</p>
-    {ev.quote_or_snippet && <blockquote className="text-slate-600 border-l-2 border-slate-300 pl-2">{ev.quote_or_snippet}</blockquote>}
-    <div className="text-[11px] text-slate-500 flex flex-wrap gap-x-3 gap-y-0.5">
-      {ev.source_url && (
+const STATUS_ICON = {
+  SUPPORTED: CheckCircle2,
+  CONTRADICTED: XCircle,
+  UNRESOLVED: HelpCircle,
+  NOT_CHECKED: MinusCircle,
+} as const;
+
+const hostOf = (url: string) => {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '');
+  } catch {
+    return url;
+  }
+};
+
+const EvidenceItem: React.FC<{ ev: EvidenceRecord }> = ({ ev }) => {
+  const relation = RELATION[ev.relation];
+  return (
+    <li className="py-3 first:pt-0 last:pb-0 text-xs">
+      <div className="flex flex-wrap items-center gap-1.5">
+        <Chip className={TONE_CLASSES[relation.tone].chip}>{relation.label}</Chip>
+        <span className="text-slate-500">
+          {SOURCE_KIND[ev.source_kind]} · {SOURCE_TIER[ev.source_tier]}
+        </span>
+        {ev.retrieval_status !== 'LIVE' && (
+          <Chip
+            className={
+              ev.retrieval_status === 'FAILED'
+                ? TONE_CLASSES.rose.chip
+                : ev.retrieval_status === 'DEMO'
+                ? TONE_CLASSES.amber.chip
+                : 'bg-slate-50 text-slate-600 border-slate-200'
+            }
+          >
+            {RETRIEVAL[ev.retrieval_status]}
+          </Chip>
+        )}
+      </div>
+      {ev.source_url ? (
         <a
           href={ev.source_url}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-emerald-700 hover:underline inline-flex items-center gap-1 break-all"
+          className="mt-1.5 font-medium text-slate-900 hover:text-emerald-700 inline-flex items-start gap-1 break-words"
         >
-          {ev.source_url}
-          <ExternalLink className="w-3 h-3 shrink-0" />
+          {ev.title}
+          <ExternalLink className="w-3 h-3 mt-0.5 shrink-0 text-slate-400" />
         </a>
+      ) : (
+        <p className="mt-1.5 font-medium text-slate-900">{ev.title}</p>
       )}
-      <span>Retrieved {formatTime(ev.retrieved_at)}</span>
-      {ev.query && <span>Query: “{ev.query}”</span>}
-    </div>
-  </li>
-);
+      {ev.quote_or_snippet && <p className="mt-1 text-slate-600 leading-relaxed">{ev.quote_or_snippet}</p>}
+      <div className="mt-1 text-[11px] text-slate-400 flex flex-wrap gap-x-2">
+        {ev.source_url && <span className="print:hidden">{hostOf(ev.source_url)}</span>}
+        {ev.source_url && <span className="hidden print:inline break-all">{ev.source_url}</span>}
+        <span>Retrieved {formatTime(ev.retrieved_at)}</span>
+        {ev.query && <span>Search: “{ev.query}”</span>}
+      </div>
+    </li>
+  );
+};
 
 const ClaimRow: React.FC<{ claim: Claim; assessment?: AssessedClaim; evidence: EvidenceRecord[] }> = ({
   claim,
   assessment,
   evidence,
 }) => {
-  const status = assessment ? CLAIM_STATUS[assessment.status] : CLAIM_STATUS.NOT_CHECKED;
+  const statusKey = assessment?.status ?? 'NOT_CHECKED';
+  const status = CLAIM_STATUS[statusKey];
   const tone = TONE_CLASSES[status.tone];
+  const Icon = STATUS_ICON[statusKey];
+  // Problems open by default so the reader sees them without clicking.
+  const [open, setOpen] = useState(statusKey === 'CONTRADICTED');
+
   return (
-    <li className={`p-4 sm:p-5 rounded-xl bg-slate-50/80 border border-slate-200 border-l-4 ${tone.border} print:break-inside-avoid`}>
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div className="min-w-0">
-          <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{CLAIM_KIND_LABEL[claim.kind]}</div>
-          <div className="text-sm font-bold text-slate-900 break-words">
-            {claim.value ?? <span className="italic font-normal text-slate-500">Not in the offer</span>}
+    <li className="py-5 first:pt-0 last:pb-0 print:break-inside-avoid">
+      <div className="flex items-start gap-3">
+        <Icon className={`w-5 h-5 mt-0.5 shrink-0 ${tone.text}`} aria-hidden />
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
+            <div className="min-w-0">
+              <div className="text-xs text-slate-500">{CLAIM_KIND_LABEL[claim.kind]}</div>
+              <div className="text-sm font-semibold text-slate-900 break-words">
+                {claim.value ?? <span className="italic font-normal text-slate-500">Not in the offer</span>}
+              </div>
+            </div>
+            <Chip className={tone.chip}>{status.label}</Chip>
           </div>
+
+          {assessment && <p className="mt-2 text-sm text-slate-600 leading-relaxed">{assessment.explanation}</p>}
+
+          {claim.source_quote && (
+            <p className="mt-2 text-xs text-slate-500">
+              <span className="font-medium text-slate-600">{EXTRACTION_STATUS[claim.extraction_status]}:</span> “
+              {claim.source_quote}”
+            </p>
+          )}
+
+          {evidence.length > 0 && (
+            <div className="mt-3">
+              <button
+                type="button"
+                onClick={() => setOpen((o) => !o)}
+                aria-expanded={open}
+                className="print:hidden inline-flex items-center gap-1 text-xs font-medium text-slate-700 hover:text-slate-900"
+              >
+                <ChevronDown className={`w-3.5 h-3.5 transition-transform ${open ? '' : '-rotate-90'}`} />
+                {open ? 'Hide' : 'Show'} {evidence.length} {evidence.length === 1 ? 'source' : 'sources'}
+              </button>
+              <ul
+                className={`${open ? 'block' : 'hidden'} print:block mt-2 rounded-lg border border-slate-200 bg-slate-50/60 px-4 py-3 divide-y divide-slate-200`}
+              >
+                {evidence.map((ev) => (
+                  <EvidenceItem key={ev.evidence_id} ev={ev} />
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
-        <Chip className={tone.chip}>{status.label}</Chip>
       </div>
-      {claim.source_quote && (
-        <blockquote className="mt-2 text-xs text-slate-600 bg-white border border-slate-200 rounded-lg px-3 py-2">
-          <FileText className="w-3 h-3 inline mr-1 text-slate-400" />“{claim.source_quote}”
-        </blockquote>
-      )}
-      <p className="mt-1 text-[11px] text-slate-500">{EXTRACTION_STATUS[claim.extraction_status]}</p>
-      {assessment && <p className="mt-2 text-sm text-slate-700 leading-relaxed">{assessment.explanation}</p>}
-      {evidence.length > 0 && (
-        <ul className="mt-3 space-y-2">
-          {evidence.map((ev) => (
-            <EvidenceItem key={ev.evidence_id} ev={ev} />
-          ))}
-        </ul>
-      )}
     </li>
   );
 };
@@ -126,11 +174,11 @@ export const InvestigationReport: React.FC<Props> = ({ result, title, actions, m
 
   return (
     <div className="space-y-6">
-      <section className={`glass-panel rounded-2xl p-6 sm:p-8 border-l-4 ${tone.border}`}>
+      <section className={`glass-panel rounded-xl p-6 sm:p-8 border-l-4 ${tone.border}`}>
         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
           <div className="min-w-0">
             {meta && <div className="text-xs text-slate-500 font-mono mb-1">{meta}</div>}
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 break-words">{title}</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 break-words">{title}</h1>
           </div>
           <OutcomeBadge outcome={result.overall_outcome} size="lg" />
         </div>
@@ -158,7 +206,7 @@ export const InvestigationReport: React.FC<Props> = ({ result, title, actions, m
       </section>
 
       {result.errors.length > 0 && (
-        <section role="status" className="rounded-2xl border border-amber-300 bg-amber-50 p-5 text-sm text-amber-900">
+        <section role="status" className="rounded-xl border border-amber-300 bg-amber-50 p-5 text-sm text-amber-900">
           <h2 className="font-bold flex items-center gap-2 mb-2">
             <AlertTriangle className="w-4 h-4" />
             Some checks did not complete
@@ -175,15 +223,25 @@ export const InvestigationReport: React.FC<Props> = ({ result, title, actions, m
         </section>
       )}
 
-      <section className="glass-panel rounded-2xl p-6 sm:p-8">
+      <section className="glass-panel rounded-xl p-6 sm:p-8">
         <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2 mb-1">
           <ListChecks className="w-5 h-5 text-emerald-600" />
           Claims and evidence
         </h2>
-        <p className="text-xs text-slate-500 mb-5">
+        <p className="text-sm text-slate-500 mb-4">
           Each claim from the offer, what the investigation found, and the sources behind it.
         </p>
-        <ul className="space-y-3">
+        <div className="flex flex-wrap gap-2 mb-6">
+          {(['CONTRADICTED', 'UNRESOLVED', 'SUPPORTED', 'NOT_CHECKED'] as const).map((k) => {
+            const n = result.claims.filter((c) => (assessmentById.get(c.claim_id)?.status ?? 'NOT_CHECKED') === k).length;
+            return n ? (
+              <Chip key={k} className={TONE_CLASSES[CLAIM_STATUS[k].tone].chip}>
+                {n} {CLAIM_STATUS[k].label.toLowerCase()}
+              </Chip>
+            ) : null;
+          })}
+        </div>
+        <ul className="divide-y divide-slate-100">
           {result.claims.map((claim) => (
             <ClaimRow
               key={claim.claim_id}
@@ -195,7 +253,7 @@ export const InvestigationReport: React.FC<Props> = ({ result, title, actions, m
         </ul>
       </section>
 
-      <section className={`glass-panel rounded-2xl p-6 sm:p-8 ${highRisk ? 'border-rose-200 bg-rose-50/60' : ''}`}>
+      <section className={`glass-panel rounded-xl p-6 sm:p-8 ${highRisk ? 'border-rose-200 bg-rose-50/60' : ''}`}>
         <h2 className="text-lg font-bold text-slate-900 mb-4">Recommended next steps</h2>
         <ol className="space-y-2.5">
           {result.recommended_actions.map((action, idx) => (
@@ -226,7 +284,7 @@ export const InvestigationReport: React.FC<Props> = ({ result, title, actions, m
 
       <ConfirmationPanel key={result.run_id} result={result} />
 
-      <section className="glass-panel rounded-2xl p-6 sm:p-8 print:hidden">
+      <section className="glass-panel rounded-xl p-6 sm:p-8 print:hidden">
         <button
           type="button"
           onClick={() => setShowTrace((v) => !v)}

@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Upload, FileText, Sparkles, AlertCircle, Check, HelpCircle } from 'lucide-react';
+import { Upload, FileText, Sparkles, AlertCircle, Check, X, HelpCircle } from 'lucide-react';
 
 const MAX_FILE_BYTES = 5 * 1024 * 1024;
 const MAX_TEXT_CHARS = 20000;
@@ -171,7 +171,7 @@ HR Manager`;
   };
 
   return (
-    <div className="glass-panel rounded-2xl p-6 sm:p-8">
+    <div className="glass-panel rounded-xl p-6 sm:p-8">
       {/* Quick Presets */}
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3 pb-5 border-b border-slate-200">
         <div>
@@ -186,7 +186,7 @@ HR Manager`;
             onClick={handlePresetScam}
             className="px-3 py-1.5 rounded-lg text-xs font-medium bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 transition-colors flex items-center gap-1.5"
           >
-            <Sparkles className="w-3.5 h-3.5" />
+            <X className="w-3.5 h-3.5" />
             <span>Load Scam Pattern (TCS + UPI Fee)</span>
           </button>
           <button
@@ -287,7 +287,7 @@ HR Manager`;
               onDragLeave={() => setDragOver(false)}
               onDrop={handleFileDrop}
               onClick={() => fileInputRef.current?.click()}
-              className={`border-2 border-dashed rounded-2xl p-8 text-center cursor-pointer transition-all ${
+              className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all ${
                 dragOver
                   ? 'border-emerald-500 bg-emerald-50'
                   : 'border-slate-300 bg-slate-50/40 hover:border-slate-400 hover:bg-slate-50/60'
@@ -343,7 +343,7 @@ HR Manager`;
         <button
           type="submit"
           disabled={isLoading || (activeTab === 'text' && (!content.trim() || content.length > MAX_TEXT_CHARS)) || (activeTab === 'file' && !selectedFile)}
-          className="w-full py-3.5 px-6 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-sm tracking-wide shadow-lg shadow-emerald-200 transition-all flex items-center justify-center gap-2"
+          className="w-full py-3.5 px-6 rounded-xl bg-slate-900 hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-sm tracking-wide transition-all flex items-center justify-center gap-2"
         >
           {isLoading ? (
             <>

@@ -6,206 +6,198 @@ import {
   UserCheck,
   IndianRupee,
   AlertTriangle,
-  ExternalLink,
+  FileText,
+  ListChecks,
+  ShieldCheck,
 } from 'lucide-react';
 import { OutcomeBadge } from '../components/OutcomeBadge';
+import type { ComponentProps } from 'react';
+
+type Outcome = ComponentProps<typeof OutcomeBadge>['outcome'];
+
+const agents = [
+  {
+    icon: Building,
+    title: 'Company',
+    body: 'Finds the employer’s official domain and careers pages from public search results.',
+  },
+  {
+    icon: UserCheck,
+    title: 'Recruiter',
+    body: 'Checks the sender’s email belongs to the employer — not Gmail or a lookalike domain.',
+  },
+  {
+    icon: IndianRupee,
+    title: 'Salary',
+    body: 'Compares the stated pay with public figures for the role to catch bait offers.',
+  },
+  {
+    icon: AlertTriangle,
+    title: 'Scam signals',
+    body: 'Flags fee, deposit, UPI and OTP demands — without flagging “we never charge fees”.',
+  },
+];
+
+const steps = [
+  { icon: FileText, title: 'Add your offer', body: 'Upload the letter or paste the email or WhatsApp message.' },
+  { icon: ListChecks, title: 'Confirm the details', body: 'Check what we read before anything is searched.' },
+  { icon: ShieldCheck, title: 'Get the verdict', body: 'See the result with every source linked as proof.' },
+];
+
+const samples: { to: string; outcome: Outcome; title: string; body: string; tags: string[] }[] = [
+  {
+    to: '/samples/impersonation',
+    outcome: 'HIGH_RISK',
+    title: 'Nimbus Infotech — Graduate Engineer Trainee',
+    body: 'Sent from Gmail while the employer has its own domain, and asks for a ₹15,000 laptop deposit via UPI.',
+    tags: ['UPI fee demanded', 'Personal webmail'],
+  },
+  {
+    to: '/samples/sparse-startup',
+    outcome: 'CANNOT_VERIFY',
+    title: 'Coorix Labs — Backend Developer Intern',
+    body: 'A small startup with almost no public footprint. No fee is asked, so the report says it cannot verify — not that it is a scam.',
+    tags: ['Sparse footprint', 'No fee demand'],
+  },
+];
 
 export const Dashboard: React.FC = () => {
   return (
-    <div className="space-y-20 sm:space-y-28 pb-24">
-      {/* Hero Section */}
-      <section className="relative overflow-hidden pt-12 pb-6 text-center">
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-600 text-xs font-semibold mb-6">
-          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-          <span>SerpApi India Hackathon 2026 • AI Agents Track</span>
+    <div className="space-y-24 pb-16">
+      {/* Hero */}
+      <section className="relative pt-16 sm:pt-24 text-center">
+        <div className="hero-grid absolute inset-x-0 -top-6 h-96 -z-10" aria-hidden />
+
+        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white border border-slate-200 text-slate-600 text-xs font-medium shadow-sm">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+          Built for Indian freshers · Powered by SerpApi
         </div>
 
-        <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight text-slate-900 max-w-4xl mx-auto leading-tight">
-          Verify Job Offers With{' '}
-          <span className="bg-clip-text text-transparent bg-gradient-to-r from-emerald-600 via-teal-500 to-cyan-600">
-            Real Public Footprint Proof
-          </span>
+        <h1 className="mt-6 text-4xl sm:text-6xl font-bold tracking-tight text-slate-900 max-w-3xl mx-auto leading-[1.08]">
+          Is your job offer real?
+          <br />
+          <span className="text-emerald-600">Check it with proof.</span>
         </h1>
 
-        <p className="mt-5 text-base sm:text-xl text-slate-600 max-w-2xl mx-auto leading-relaxed">
-          Scammers can copy a corporate logo, but they cannot fake a company’s entire public footprint.
-          Protect Indian freshers with automated multi-agent forensic verification.
+        <p className="mt-5 text-base sm:text-lg text-slate-500 max-w-xl mx-auto leading-relaxed">
+          Scammers can copy a logo, but not a company’s whole public footprint. AsliOffer checks your offer against
+          live public records and shows you the evidence.
         </p>
 
-        <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
+        <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
           <Link
             to="/upload"
-            className="px-6 py-3.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-sm tracking-wide transition-all flex items-center gap-2"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg bg-slate-900 hover:bg-slate-800 text-white font-medium text-sm transition-colors shadow-sm"
           >
-            <span>Verify an Offer Now</span>
+            Verify an offer
             <ArrowRight className="w-4 h-4" />
           </Link>
           <Link
             to="/samples/impersonation"
-            className="px-6 py-3.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-900 font-medium text-sm transition-colors flex items-center gap-2"
+            className="w-full sm:w-auto inline-flex items-center justify-center px-5 py-3 rounded-lg bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-medium text-sm transition-colors"
           >
-            <span>View Illustrative Sample Report</span>
-            <ExternalLink className="w-3.5 h-3.5 text-slate-500" />
+            See a sample report
           </Link>
         </div>
+
+        <p className="mt-4 text-xs text-slate-400">No sign-up · Your case is deleted after 7 days</p>
       </section>
 
-      {/* Core Insight Callout */}
-      <section className="max-w-4xl mx-auto">
-        <div className="glass-panel rounded-2xl p-6 sm:p-8 border-l-4 border-l-emerald-500">
-          <h2 className="text-lg font-bold text-slate-900 mb-2">The AsliOffer Principle</h2>
-          <blockquote className="text-slate-600 text-sm sm:text-base italic leading-relaxed">
-            "A genuine job offer leaves a consistent trail across the internet — an official domain, real
-            careers pages and published contacts. A scam usually breaks that trail somewhere. When the trail is
-            too thin to check, AsliOffer says so instead of guessing."
-          </blockquote>
-        </div>
-      </section>
-
-      {/* Multi-Agent Architecture Visualization */}
+      {/* How it works */}
       <section className="max-w-5xl mx-auto">
-        <div className="text-center mb-10">
-          <h2 className="text-2xl font-bold text-slate-900">Multi-Agent Investigation Pipeline</h2>
-          <p className="text-sm text-slate-500 mt-1">
-            Independent specialized agents query live SerpApi endpoints to cross-verify claims
-          </p>
-        </div>
+        <SectionHeading eyebrow="How it works" title="Three simple steps" />
+        <ol className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {steps.map((s, i) => (
+            <li key={s.title} className="glass-card rounded-xl p-5">
+              <div className="flex items-center gap-3">
+                <span className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center">
+                  <s.icon className="w-4 h-4" />
+                </span>
+                <span className="text-xs font-medium text-slate-400">Step {i + 1}</span>
+              </div>
+              <h3 className="mt-4 text-sm font-semibold text-slate-900">{s.title}</h3>
+              <p className="mt-1 text-sm text-slate-500 leading-relaxed">{s.body}</p>
+            </li>
+          ))}
+        </ol>
+      </section>
 
+      {/* Agents */}
+      <section className="max-w-5xl mx-auto">
+        <SectionHeading
+          eyebrow="What we check"
+          title="Four independent checks"
+          sub="Each agent looks at one part of the offer and cites the public sources it used."
+        />
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Company Agent */}
-          <div className="glass-card rounded-xl p-5 border-t-2 border-t-blue-500">
-            <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600 mb-3">
-              <Building className="w-5 h-5" />
+          {agents.map((a) => (
+            <div key={a.title} className="glass-card rounded-xl p-5 hover:border-slate-300">
+              <a.icon className="w-5 h-5 text-slate-700" />
+              <h3 className="mt-4 text-sm font-semibold text-slate-900">{a.title}</h3>
+              <p className="mt-1 text-sm text-slate-500 leading-relaxed">{a.body}</p>
             </div>
-            <h3 className="text-base font-semibold text-slate-900">Company Agent</h3>
-            <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
-              Resolves the employer’s official domain and careers pages from public search results.
-            </p>
-          </div>
+          ))}
+        </div>
+        <p className="mt-6 text-center text-sm text-slate-500">
+          When the trail is too thin to check, AsliOffer says so instead of guessing.
+        </p>
+      </section>
 
-          {/* Recruiter Agent */}
-          <div className="glass-card rounded-xl p-5 border-t-2 border-t-purple-500">
-            <div className="w-9 h-9 rounded-lg bg-purple-50 flex items-center justify-center text-purple-600 mb-3">
-              <UserCheck className="w-5 h-5" />
-            </div>
-            <h3 className="text-base font-semibold text-slate-900">Recruiter Agent</h3>
-            <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
-              Checks whether the sender’s email domain belongs to the employer (@company.com vs @gmail.com or a lookalike).
-            </p>
-          </div>
-
-          {/* Salary Agent */}
-          <div className="glass-card rounded-xl p-5 border-t-2 border-t-emerald-500">
-            <div className="w-9 h-9 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-600 mb-3">
-              <IndianRupee className="w-5 h-5" />
-            </div>
-            <h3 className="text-base font-semibold text-slate-900">Salary Agent</h3>
-            <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
-              Compares the stated pay with publicly listed figures for the role to flag implausible bait offers.
-            </p>
-          </div>
-
-          {/* Scam Agent */}
-          <div className="glass-card rounded-xl p-5 border-t-2 border-t-rose-500">
-            <div className="w-9 h-9 rounded-lg bg-rose-50 flex items-center justify-center text-rose-600 mb-3">
-              <AlertTriangle className="w-5 h-5" />
-            </div>
-            <h3 className="text-base font-semibold text-slate-900">Scam Agent</h3>
-            <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
-              Detects fee, deposit and UPI payment demands and requests for OTPs or passwords, without flagging no-fee policies or quoted warnings.
-            </p>
-          </div>
+      {/* Samples */}
+      <section className="max-w-5xl mx-auto">
+        <SectionHeading
+          eyebrow="Examples"
+          title="Sample reports"
+          sub="Built from synthetic data to show the report — not live investigations."
+        />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {samples.map((s) => (
+            <Link
+              key={s.to}
+              to={s.to}
+              className="glass-card group rounded-xl p-6 flex flex-col hover:border-slate-300 hover:-translate-y-0.5"
+            >
+              <span className="self-start"><OutcomeBadge outcome={s.outcome} /></span>
+              <h3 className="mt-4 text-base font-semibold text-slate-900">{s.title}</h3>
+              <p className="mt-1.5 text-sm text-slate-500 leading-relaxed">{s.body}</p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {s.tags.map((t) => (
+                  <span key={t} className="text-xs px-2 py-0.5 rounded-md bg-slate-100 text-slate-600">
+                    {t}
+                  </span>
+                ))}
+              </div>
+              <span className="mt-6 pt-4 border-t border-slate-100 text-sm font-medium text-slate-900 inline-flex items-center gap-1">
+                View report
+                <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
+              </span>
+            </Link>
+          ))}
         </div>
       </section>
 
-      {/* Case Studies / Recent Demo Offers */}
+      {/* Final CTA */}
       <section className="max-w-5xl mx-auto">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h2 className="text-xl font-bold text-slate-900">Sample Offer Verifications</h2>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Built from synthetic example data to show the report — not live investigations
-            </p>
-          </div>
+        <div className="rounded-2xl bg-slate-900 px-6 py-12 sm:px-12 text-center">
+          <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">Got an offer that feels off?</h2>
+          <p className="mt-2 text-slate-400 text-sm">Check it before you pay anything or share any OTP.</p>
           <Link
             to="/upload"
-            className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 flex items-center gap-1"
+            className="mt-6 inline-flex items-center gap-2 px-5 py-3 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-semibold text-sm transition-colors"
           >
-            <span>Scan New Offer</span>
-            <ArrowRight className="w-3.5 h-3.5" />
+            Verify an offer
+            <ArrowRight className="w-4 h-4" />
           </Link>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Card 1: Scam */}
-          <div className="glass-card rounded-2xl p-6 border-slate-200 hover:border-slate-300 transition-all flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-xs text-slate-500 font-mono">Illustrative sample</span>
-                <OutcomeBadge outcome="HIGH_RISK" />
-              </div>
-              <h3 className="text-base font-bold text-slate-900 mb-1">
-                Nimbus Infotech Graduate Engineer Trainee Offer
-              </h3>
-              <p className="text-xs text-slate-600 line-clamp-2">
-                Sent from a Gmail address while the employer publishes its own domain, and demands a ₹15,000 laptop deposit via UPI.
-              </p>
-              <div className="mt-3 flex items-center gap-2 flex-wrap">
-                <span className="text-[10px] px-2 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-200 font-mono">
-                  UPI Fee Demanded
-                </span>
-                <span className="text-[10px] px-2 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-200 font-mono">
-                  Personal Webmail
-                </span>
-              </div>
-            </div>
-            <div className="mt-5 pt-4 border-t border-slate-200/80 flex items-center justify-between">
-              <span className="text-xs text-slate-500">Synthetic example</span>
-              <Link
-                to="/samples/impersonation"
-                className="text-xs font-semibold text-rose-600 hover:text-rose-700 flex items-center gap-1"
-              >
-                <span>View Full Audit</span>
-                <ArrowRight className="w-3 h-3" />
-              </Link>
-            </div>
-          </div>
-
-          {/* Card 2: Verified */}
-          <div className="glass-card rounded-2xl p-6 border-slate-200 hover:border-slate-300 transition-all flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-xs text-slate-500 font-mono">Illustrative sample</span>
-                <OutcomeBadge outcome="CANNOT_VERIFY" />
-              </div>
-              <h3 className="text-base font-bold text-slate-900 mb-1">
-                Coorix Labs Backend Developer Intern Offer
-              </h3>
-              <p className="text-xs text-slate-600 line-clamp-2">
-                A small startup with almost no public footprint. No fee is asked, so the report says it cannot verify the offer instead of accusing it.
-              </p>
-              <div className="mt-3 flex items-center gap-2 flex-wrap">
-                <span className="text-[10px] px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-300 font-mono">
-                  Sparse Footprint
-                </span>
-                <span className="text-[10px] px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-300 font-mono">
-                  No Fee Demand
-                </span>
-              </div>
-            </div>
-            <div className="mt-5 pt-4 border-t border-slate-200/80 flex items-center justify-between">
-              <span className="text-xs text-slate-500">Synthetic example</span>
-              <Link
-                to="/samples/sparse-startup"
-                className="text-xs font-semibold text-slate-700 hover:text-slate-900 flex items-center gap-1"
-              >
-                <span>View Full Audit</span>
-                <ArrowRight className="w-3 h-3" />
-              </Link>
-            </div>
-          </div>
         </div>
       </section>
     </div>
   );
 };
+
+const SectionHeading: React.FC<{ eyebrow: string; title: string; sub?: string }> = ({ eyebrow, title, sub }) => (
+  <div className="text-center mb-8">
+    <p className="text-xs font-semibold uppercase tracking-wider text-emerald-600">{eyebrow}</p>
+    <h2 className="mt-2 text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">{title}</h2>
+    {sub && <p className="mt-2 text-sm text-slate-500 max-w-lg mx-auto">{sub}</p>}
+  </div>
+);
