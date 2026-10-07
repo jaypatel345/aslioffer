@@ -1,280 +1,257 @@
-# AsliOffer — Evidence-Backed Job Offer Verification
+# AsliOffer — Is your job offer real? Check it with proof.
 
-[![SerpApi Hackathon 2026](https://img.shields.io/badge/SerpApi%20India%20Hackathon-2026-emerald.svg)](https://serpapi.com)
-[![Track](https://img.shields.io/badge/Track-AI%20Agents-blue.svg)](#)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-009688.svg?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
-[![React](https://img.shields.io/badge/React-18-61DAFB.svg?logo=react&logoColor=black)](https://react.dev)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-3178C6.svg?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![SerpApi India Hackathon 2026](https://img.shields.io/badge/SerpApi%20India%20Hackathon-2026-10b981.svg)](https://serpapi.com)
+[![Track](https://img.shields.io/badge/Track-AI%20Agents-2563eb.svg)](#how-it-works)
+[![Live demo](https://img.shields.io/badge/Live%20demo-aslioffer.vercel.app-111827.svg)](https://aslioffer.vercel.app)
+[![Tests](https://img.shields.io/badge/backend%20tests-634%20passing-10b981.svg)](#quality-and-evaluation)
+[![Evaluation](https://img.shields.io/badge/eval-27%2F27%20cases-10b981.svg)](#quality-and-evaluation)
 
-> **Scammers can copy a company's name, but they cannot fake the company's entire public footprint.**
-> 
-> AsliOffer is an AI-powered job offer verification platform that cross-references employment claims against live public search data to protect Indian freshers and job seekers from employment fraud in under a minute — with proof.
+> **Scammers can copy a company's logo. They cannot copy its whole public footprint.**
+>
+> AsliOffer reads a job or internship offer, pulls out every claim it makes, and checks those claims
+> against **live Google results via SerpApi** — the employer's real website, the recruiter's email domain,
+> public scam reports, salary benchmarks and real job postings. It then shows a verdict **with every source linked**,
+> and tells you how to confirm the offer with the real employer.
 
----
+**Live demo:** [aslioffer.vercel.app](https://aslioffer.vercel.app) · No sign-up · Cases are deleted after 7 days
 
-## 1. Problem Statement
-
-Every year, lakhs of students, final-year undergraduates, and fresh graduates in India receive fraudulent job and internship offers via WhatsApp, Telegram, email, and LinkedIn. 
-
-These scams are devastatingly effective because they **borrow the brand names of legitimate, trusted enterprises** (e.g. TCS, Infosys, Wipro, Accenture, India Post, or fast-growing startups).
-
-### The Typical Scam Pattern:
-1. **Unsolicited Shortlisting:** Candidate receives an unsolicited message claiming their profile was shortlisted.
-2. **Superficial Chat Interview:** A perfunctory chat interview takes place over WhatsApp or Telegram.
-3. **Official-Looking Offer:** An offer letter is issued on forged corporate letterhead with realistic CTC figures.
-4. **The Catch (Advance Fee Fraud):** The recruiter demands a "refundable laptop security deposit," "screening fee," "gate pass charge," or "training deposit" via UPI or QR code.
-5. **Disappearance:** Once payment is made, the recruiter blocks the victim.
-
-Victims lose substantial savings and risk identity theft through shared Aadhaar and bank details. In 2025 alone, the Ministry of Home Affairs recorded over 11,000 online job fraud incidents on the National Cyber Crime Reporting Portal.
+<p align="center">
+  <img src="docs/screenshots/01-home.jpg" width="49%" alt="AsliOffer home page" />
+  <img src="docs/screenshots/05-report-high-risk.jpg" width="49%" alt="High-risk report for a fake TCS offer" />
+</p>
 
 ---
 
-## 2. Our Core Insight
+## The problem
 
-A genuine job offer leaves an immutable public trail across the internet:
+Every year lakhs of Indian students and freshers receive fake job and internship offers on WhatsApp,
+Telegram, email and LinkedIn. They borrow trusted names — TCS, Infosys, Wipro — and follow one script:
 
-| Verification Surface | Genuine Offer | Fraudulent Offer Pattern |
+1. "Your profile has been shortlisted" (you never applied).
+2. A quick chat "interview" on WhatsApp or Telegram.
+3. A polished offer letter with a realistic CTC.
+4. **The catch:** a "refundable" laptop deposit, training fee or verification charge — paid by UPI.
+5. The recruiter disappears.
+
+A fresher has no quick, trustworthy way to check. Searching manually takes skill, and most "is this a scam?"
+tools just guess from the wording.
+
+## Our insight
+
+A real offer leaves a public trail; a fake one breaks it somewhere.
+
+| What we check | Genuine offer | Typical scam |
 |---|---|---|
-| **Sender Email** | Official corporate domain (`@company.com`) | Free webmail (`@gmail.com`, `@outlook.com`) or lookalikes |
-| **Corporate Existence** | Verified MCA registration & active CIN | Unregistered entity or hijacked name |
-| **Careers Portal** | Verifiable listing or recruiter registry | No matching openings on official careers site |
-| **Compensation** | Realistic market salary bands | Inflated salary bait to induce emotional compliance |
-| **Fee Demanded** | **Strictly ₹0** (Complies with Ministry of Labour) | Demands advance deposit for laptop, badge, or training |
-| **Public Reports** | Zero fraud advisories | Flagged on CyberDost or scam registries |
+| Sender email | The employer's own domain | Gmail/Outlook, or a lookalike domain |
+| Employer website | Resolves to one official domain | Name only appears on job-board spam |
+| Payment | Never asks for money | "Refundable" deposit via UPI / QR |
+| Credentials | Never asks for OTPs or bank logins | Asks for OTP, net-banking, "verification" |
+| Public reports | No fraud warnings | Scam complaints on forums and news |
+| Salary and role | Consistent with public data | Inflated bait, no matching vacancy |
 
-A scam almost always breaks **at least one** of these pillars. AsliOffer automates checking all of them in seconds using live public search data.
+AsliOffer turns each of these into a **claim**, checks it against live evidence, and is honest when it cannot tell.
 
 ---
 
-## 3. Architecture Overview
+## How it works
 
-```
-User Upload
-    │
-    ▼
-Extraction Layer
-    │
-    ▼
-Entity Extraction
-    │
-    ▼
-Investigation Agents
- ├── Company Agent
- ├── Recruiter Agent
- ├── Salary Agent
- └── Scam Agent
-    │
-    ▼
-Risk Engine
-    │
-    ▼
-Evidence Report
+```mermaid
+flowchart LR
+    A[Paste text or<br/>upload PDF] --> B[Grounded claim<br/>extraction]
+    B --> C[You review and<br/>correct the claims]
+    C --> D{Investigation<br/>agents}
+    D --> E[Company agent<br/>official domain]
+    D --> F[Recruiter agent<br/>email, phone, agency]
+    D --> G[Scam agent<br/>fees, OTPs, reports]
+    D --> H[Salary agent<br/>benchmarks]
+    E & F & G & H --> I[Adaptive planner<br/>follow-up searches]
+    I --> J[Assessment engine<br/>per-claim status]
+    J --> K[Report with sources<br/>+ confirmation route]
 ```
 
-### Risk Classification Matrix:
-To avoid misleading binary reassurance, AsliOffer classifies offers into three evidence-backed tiers:
-- **`VERIFIED`**: Credentials match the company's authentic public footprint, legitimate domain, no advance fees.
-- **`NEEDS_REVIEW`**: Ambiguous third-party agency, unverified recruiter identity, or salary anomaly.
-- **`HIGH_RISK`**: Advance fee demand detected, personal webmail used for corporate hiring, or known fraud pattern.
+1. **Add your offer** — paste an email/WhatsApp message or upload a PDF. Text is read locally; nothing is searched yet.
+2. **Check the details** — every extracted claim is shown with the exact quote it came from. Fix anything that was misread.
+   Scam signals (payment and credential requests) are read-only so they cannot be edited away.
+3. **Investigate** — four agents run against live SerpApi results inside a fixed budget
+   (max 8 searches, 3 follow-ups, 3 in parallel, 15 s deadline). Progress is streamed step by step from real events.
+4. **Get the verdict** — each claim is marked *Supported*, *Contradicted*, *Unresolved* or *Not checked*,
+   with linked sources, plus a draft message to confirm the offer through an independently found channel.
 
-> **Note on the current version:** This is a hackathon MVP, not a production system. Investigations use live SerpApi search when `SERPAPI_API_KEY` is set; without it, searches fail and the report says so (no mock or sample data is substituted). Only the illustrative samples under `/samples/*` use synthetic data, and they are labelled.
+<p align="center">
+  <img src="docs/screenshots/03-review-claims.jpg" width="32%" alt="Claim review" />
+  <img src="docs/screenshots/04-live-progress.jpg" width="32%" alt="Live investigation progress" />
+  <img src="docs/screenshots/06-checks-finished.jpg" width="32%" alt="Finished checklist" />
+</p>
 
----
+### The four outcomes
 
-## 4. Repository Structure
+AsliOffer never says an offer is "genuine" — only the employer can confirm that.
 
-```
-aslioffer/
-├── backend/
-│   ├── app/
-│   │   ├── api/
-│   │   │   └── v1/
-│   │   │       └── routers/
-│   │   │           ├── analysis.py        # POST /analysis/run
-│   │   │           ├── offers.py          # POST /offers/upload, GET /offers/{id}, /report
-│   │   │           └── health.py          # GET /health
-│   │   ├── core/
-│   │   │   ├── config.py                  # Pydantic Settings & environment variables
-│   │   │   └── logging.py                 # Structured application logging
-│   │   ├── db/
-│   │   │   ├── session.py                 # Engine & Session generator (Postgres/SQLite)
-│   │   │   └── models/
-│   │   │       ├── offer.py               # Offer model
-│   │   │       ├── company.py             # Company model
-│   │   │       ├── recruiter.py           # Recruiter model
-│   │   │       └── evidence.py            # Evidence model
-│   │   ├── schemas/
-│   │   │   ├── offer.py                   # Request/response schemas
-│   │   │   └── analysis.py                # Agent findings & report schemas
-│   │   ├── services/
-│   │   │   ├── extractor/
-│   │   │   │   └── entity_extractor.py    # Regex & NLP entity extraction
-│   │   │   ├── agents/
-│   │   │   │   ├── company_agent.py       # Corporate & MCA verification
-│   │   │   │   ├── recruiter_agent.py     # Email domain & contact audit
-│   │   │   │   ├── salary_agent.py        # Compensation benchmark checks
-│   │   │   │   └── scam_agent.py          # Advance fee & fraud detection
-│   │   │   ├── search/
-│   │   │   │   └── serpapi_client.py      # SerpApi client contract & fallback
-│   │   │   ├── ai/
-│   │   │   │   └── gemini_client.py       # Gemini 2.5 Flash client contract
-│   │   │   ├── graph/
-│   │   │   │   └── graph_builder.py       # Graph entity linking & cluster stub
-│   │   │   ├── risk/
-│   │   │   │   └── risk_engine.py         # Evidence-weighted scoring engine
-│   │   │   └── report/
-│   │   │       └── report_generator.py    # Forensic report compilation
-│   │   └── main.py                        # FastAPI application entrypoint
-│   ├── requirements.txt
-│   └── .env.example
-├── frontend/
-│   ├── src/
-│   │   ├── components/
-│   │   │   ├── EvidenceCard.tsx           # Verifiable live source citations
-│   │   │   ├── FileUpload.tsx             # Drag-drop & text input with presets
-│   │   │   ├── EntityPanel.tsx            # Extracted claims & flag badges
-│   │   │   ├── RiskBadge.tsx              # VERIFIED / NEEDS_REVIEW / HIGH_RISK
-│   │   │   └── Navbar.tsx                 # Brand navigation & status
-│   │   ├── pages/
-│   │   │   ├── Dashboard.tsx              # Verification overview & case studies
-│   │   │   ├── Upload.tsx                 # Offer ingestion & agent pipeline
-│   │   │   └── OfferReport.tsx            # Comprehensive forensic report
-│   │   ├── services/
-│   │   │   └── api.ts                     # Typed API client with mock fallbacks
-│   │   ├── types/
-│   │   │   └── index.ts                   # TypeScript interfaces
-│   │   ├── App.tsx                        # Client routing
-│   │   ├── main.tsx                       # React DOM entrypoint
-│   │   └── index.css                      # Tailwind styling & glassmorphism
-│   ├── package.json
-│   ├── vite.config.ts
-│   └── tailwind.config.js
-├── docker/
-│   ├── Dockerfile.backend                 # Multi-stage Python 3.12 image
-│   └── Dockerfile.frontend                # Multi-stage Node 22 + Nginx image
-├── docs/
-│   └── architecture.md                    # In-depth architectural blueprint
-├── docker-compose.yml                     # Full orchestration (App, DB, Redis)
-├── .env.example
-├── .gitignore
-└── README.md
-```
+| Outcome | Meaning |
+|---|---|
+| 🔴 **High risk** | Strong scam evidence (fee demand, OTP/credential request, impersonation). Do not pay or share anything. |
+| 🟠 **Needs review** | Some claims conflict with public evidence. Confirm with the employer before acting. |
+| ⚪ **Cannot verify** | Not enough independent evidence either way. Not proof of a scam. |
+| 🟢 **No strong risk signals** | Checks found no strong warnings. Still confirm directly with the employer. |
+
+### How SerpApi is used
+
+Every external fact comes from a live Google search through SerpApi. Examples of queries the agents build:
+
+| Agent | Example query | Why |
+|---|---|---|
+| Company | `"Infosys Limited" official website careers` | Resolve the one official domain and careers page |
+| Recruiter | `"rohit.tcs.hiring@gmail.com" scam fraud complaint` | Find public reports of that exact contact |
+| Recruiter | `"<agency>" official website` | Check a staffing agency is real and authorised |
+| Scam | `"Tata Consultancy Services" job scam fraud complaint telegram` | Find impersonation warnings |
+| Salary | `"Systems Engineer" salary "Infosys" AmbitionBox Glassdoor` | Compare the CTC with public data |
+| Planner | `site:<official-domain> "<role>"` | Look for the vacancy on the employer's own site |
+
+Results are cached per run (a repeated query costs nothing), every query is recorded in the report's tool trace,
+and **a failed search is reported as failed — no mock or demo data is ever substituted in a real report.**
 
 ---
 
-## 5. Local Setup Instructions
+## What makes it different
 
-### Prerequisites
-- **Python 3.12+**
-- **Node.js 20+** and **npm**
-- (Optional) **Docker** & **Docker Compose**
-
----
-
-### Option A: Running with Docker Compose (Recommended)
-
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/jaypatel345/aslioffer.git
-   cd aslioffer
-   ```
-
-2. Configure environment variables:
-   ```bash
-   cp .env.example .env
-   ```
-
-3. Launch all services:
-   ```bash
-   docker compose up --build
-   ```
-
-4. Access the application:
-   - **Frontend UI:** [http://localhost:3000](http://localhost:3000) (or `http://localhost:5173`)
-   - **Backend API Docs:** [http://localhost:8000/docs](http://localhost:8000/docs)
-   - **Health Check:** [http://localhost:8000/health](http://localhost:8000/health)
+- **Grounded, not guessed.** Every claim carries the exact character span it was quoted from, and the report contract
+  rejects any search step that cites evidence it did not actually retrieve.
+- **Context-aware scam detection.** "Infosys *never* asks for fees" or a quoted scam warning is *not* flagged;
+  "deposit ₹15,000 via UPI" is.
+- **Lookalike-domain defence.** Punycode homoglyphs, `tcs.com.attacker.example` subdomain tricks,
+  `tcs-careers-portal` style names and multi-part suffixes like `.co.in` are all handled by one resolver.
+- **Honest uncertainty.** If search fails or evidence is thin, the report says *Cannot verify* and lists which checks
+  did not complete — instead of inventing a verdict.
+- **Human in the loop.** You confirm or correct the extracted details before any search runs.
+- **Adaptive, budgeted agents.** After the first pass a planner decides which gaps are worth a follow-up search, within a
+  hard search and time budget.
+- **Real progress, not a fake spinner.** Each step is shown as it really happens: green ✓ when completed,
+  red ✗ when a check failed or its data was not found.
+- **Privacy by design.** Aadhaar, PAN, card, bank-account numbers and OTPs are redacted before any search.
+  Each case is locked to the uploading browser with a secret token, auto-deleted after 7 days, and can be deleted at once.
+- **Action, not just a verdict.** Download the report as PDF or text (optionally including emails, phones and UPI IDs
+  for a cybercrime complaint), and use the draft to confirm the offer with the real employer.
 
 ---
 
-### Option B: Running Locally for Development
+## Quality and evaluation
 
-#### 1. Backend Setup:
+| Check | Result |
+|---|---|
+| Backend tests (`pytest`) | **634 passing** |
+| Offline evaluation corpus | **27 / 27 cases pass**, 100% safety invariants |
+| Legitimate offers marked High risk | **0 / 9** |
+| Fee / OTP threats missed | **0 / 5** |
+
+The evaluation runs the real investigation pipeline over 27 labelled scenarios (fee demands, OTP requests, task scams,
+impersonation, authorised agencies, negated policies, provider outages, deadline timeouts, …) with networking blocked.
+Report: [`backend/app/evaluation/output/evaluation_summary.md`](backend/app/evaluation/output/evaluation_summary.md).
+These are synthetic regression cases, not real-world accuracy figures.
+
 ```bash
+cd backend && python -m pytest -q             # unit + integration tests
+cd .. && python -m backend.app.evaluation.runner   # offline evaluation corpus
+```
+
+---
+
+## Tech stack
+
+- **Frontend:** React 18, TypeScript, Vite, Tailwind CSS, React Router — deployed on Vercel
+- **Backend:** Python, FastAPI, SQLModel (SQLite by default, PostgreSQL supported) — deployed on Render
+- **Search:** SerpApi (Google engine) for every external fact
+- **Delivery:** Docker / Docker Compose, Render blueprint (`render.yaml`), versioned API contract
+
+## Run it locally
+
+**Prerequisites:** Python 3.12+, Node.js 20+, a [SerpApi key](https://serpapi.com/manage-api-key).
+
+```bash
+git clone https://github.com/jaypatel345/aslioffer.git
+cd aslioffer
+
+# Backend
 cd backend
-python -m venv venv
-# On Windows:
-.\venv\Scripts\activate
-# On Linux/macOS:
-source venv/bin/activate
-
+python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-cp .env.example .env
-
-# Run FastAPI dev server (default SQLite local storage requires zero DB setup)
+cp .env.example .env                                # add SERPAPI_API_KEY
 uvicorn app.main:app --reload --port 8000
-```
 
-#### 2. Frontend Setup:
-```bash
+# Frontend (new terminal)
 cd frontend
 npm install
-npm run dev
+npm run dev                                         # http://localhost:5173
 ```
-Open [http://localhost:5173](http://localhost:5173) in your browser.
 
----
+Or with Docker: `cp .env.example .env && docker compose up --build`, then open http://localhost:3000.
 
-## 6. Environment Variables
+### Environment variables
 
-| Variable | Description | Default / Example |
+| Variable | Purpose | Default |
 |---|---|---|
-| `SERPAPI_API_KEY` | SerpApi key for live Google web/jobs search | `""` (searches fail visibly when blank) |
-| `GROQ_API_KEY` / `GROQ_MODEL` | Document reading for screenshots and scanned PDFs (tried first) | `""` / `qwen/qwen3.8-27b` |
-| `GEMINI_API_KEY` / `GEMINI_MODEL` | Document reading fallback | `""` / `gemini-3.8-flash` |
-| `DATABASE_URL` | SQLModel database connection string | `sqlite:///./aslioffer.db` or PostgreSQL |
-| `RUN_TIMEOUT_SECONDS` | Hard limit for one investigation run | `90` |
-| `MAX_UPLOAD_BYTES` / `MAX_TEXT_CHARS` | Upload limits (PDF, PNG, JPG, WEBP only) | `5242880` / `20000` |
-| `CASE_RETENTION_DAYS` | Cases and reports are deleted this many days after upload | `7` |
-| `VITE_API_BASE_URL` | API base URL for the frontend (build-time) | `http://localhost:8000` |
+| `SERPAPI_API_KEY` | Live Google search. Without it, searches fail visibly | — |
+| `DATABASE_URL` | Database connection | `sqlite:///./aslioffer.db` |
+| `SEARCH_TIMEOUT_SECONDS` | Per-request search timeout | `8` |
+| `RUN_TIMEOUT_SECONDS` | Hard limit for one investigation | `90` |
+| `MAX_UPLOAD_BYTES` / `MAX_TEXT_CHARS` | Upload limits | 5 MB / 20,000 |
+| `CASE_RETENTION_DAYS` | Cases are deleted this many days after upload | `7` |
+| `VITE_API_BASE_URL` | Backend URL for the frontend (build time) | `http://localhost:8000` |
 
-`REDIS_URL` is accepted but not used by any code path.
-
-To confirm the configured keys and model names actually work: `cd backend && python -m app.core.provider_check`.
-
----
-
-## 7. API Endpoints Specification
+## API
 
 | Method | Endpoint | Description |
 |---|---|---|
-| `GET` | `/health` | System health check and service status |
-| `POST` | `/offers/upload` | Upload a PDF/image or text. Returns the case ID and a one-time access token |
-| `GET` | `/offers/{id}` | Offer metadata |
-| `GET` | `/offers/{id}/claims` | Locally extracted claims for the user to review (no search) |
-| `POST` | `/analysis/run` | Start or reuse an investigation; returns a `RunSnapshot` (202 when queued) |
-| `GET` | `/analysis/runs/{run_id}` | Poll a run: status and real progress events |
-| `GET` | `/offers/{id}/report` | Latest finished report (read-only; 409 if none yet) |
-| `GET` | `/offers/{id}/runs` | Every report version for the case |
+| `POST` | `/offers/upload` | Upload a PDF or text; returns the case ID and a one-time access token |
+| `GET` | `/offers/{id}/claims` | Locally extracted claims for review (no search) |
+| `POST` | `/analysis/run` | Start (or reuse) an investigation |
+| `GET` | `/analysis/runs/{run_id}` | Poll status and real progress events |
+| `GET` | `/offers/{id}/report` | Latest finished report |
+| `GET` | `/offers/{id}/runs` | Every report version |
 | `DELETE` | `/offers/{id}` | Delete the case and all its reports |
 
-Every case route requires the `X-Case-Token` header returned by upload; without it the case is a 404. Full rules: [docs/api-contract.md](docs/api-contract.md).
+Case routes require the `X-Case-Token` header from upload. Full contract: [docs/api-contract.md](docs/api-contract.md) ·
+Swagger UI at `/docs`.
 
-Interactive Swagger documentation is available at [http://localhost:8000/docs](http://localhost:8000/docs).
+## Repository layout
 
----
+```
+backend/app/
+  api/v1/routers/        offers, analysis (runs), health
+  services/extractor/    grounded claim extraction (quotes + character spans)
+  services/agents/       company, recruiter, salary, scam agents + scam classifier
+  services/search/       SerpApi client, domain resolver (lookalike defence)
+  services/investigation/ pipeline, adaptive planner, budget, corroborator, assessor
+  services/risk/         assessment engine and verdict reasoning
+  services/privacy/      redaction and case-token access
+  services/runs/         persisted, versioned investigation runs
+  evaluation/            27-case offline evaluation corpus and runner
+frontend/src/
+  pages/                 Upload → ClaimReview → OfferReport
+  components/            RunProgress, InvestigationReport, ConfirmationPanel
+docs/                    architecture, API contract, design notes per task
+```
 
-## 8. Future Roadmap
+## Known limitations
 
-- [ ] **Gmail Ingestion:** 1-click Chrome extension / OAuth integration to audit recruiter emails directly from inboxes.
-- [ ] **Neo4j Syndicate Graph:** Graph-based correlation of phone numbers, UPI handles, and domains across reported scam syndicates.
-- [ ] **Automated NCRP Filing:** 1-click generation of formatted incident complaint drafts for the National Cyber Crime Portal ([cybercrime.gov.in](https://cybercrime.gov.in)).
-- [ ] **Community Intelligence Hub:** Crowdsourced scam registry allowing freshers to verify burner numbers and Telegram handles.
-- [ ] **WhatsApp & Telegram Bot:** Direct forwarding of suspicious messages for instant mobile verification.
+- **Screenshots are not read yet.** Images are refused rather than sent to an external vision model without
+  explicit consent; paste the text or upload a text PDF instead.
+- **Large employers often come back "Cannot verify".** Google results for big brands are dominated by job boards;
+  the resolver deliberately refuses to call a domain official without corroboration.
+- **Live search latency.** Uncached SerpApi queries can take several seconds; a run stops searching at 15 s and
+  reports any check that did not finish.
+- The free Render instance sleeps when idle, so the first request after a pause can take up to a minute.
 
----
+## Roadmap
 
-## 9. Acknowledgments
+- Consent-based screenshot reading (OCR / vision) for WhatsApp images
+- Gmail and WhatsApp / Telegram forwarding bot
+- One-click draft for the National Cyber Crime Reporting Portal
+- Shared registry of reported scam numbers, UPI IDs and domains
 
-Developed for the **SerpApi India Hackathon 2026** under the **AI Agents Track**.  
-National Cyber Crime Reporting Portal helpline: **1930** | [cybercrime.gov.in](https://cybercrime.gov.in).
+## Team
+
+Built for the **SerpApi India Hackathon 2026 — AI Agents track** by
+[Jay Patel](https://github.com/jaypatel345) and [shriza1991](https://github.com/shriza1991).
+
+If you have been targeted by a job scam in India, call the cybercrime helpline **1930** or report at
+[cybercrime.gov.in](https://cybercrime.gov.in).
