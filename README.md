@@ -3,7 +3,7 @@
 [![SerpApi India Hackathon 2026](https://img.shields.io/badge/SerpApi%20India%20Hackathon-2026-10b981.svg)](https://serpapi.com)
 [![Track](https://img.shields.io/badge/Track-AI%20Agents-2563eb.svg)](#how-it-works)
 [![Live demo](https://img.shields.io/badge/Live%20demo-aslioffer.vercel.app-111827.svg)](https://aslioffer.vercel.app)
-[![Tests](https://img.shields.io/badge/backend%20tests-634%20passing-10b981.svg)](#quality-and-evaluation)
+[![Tests](https://img.shields.io/badge/backend%20tests-651%20passing-10b981.svg)](#quality-and-evaluation)
 [![Evaluation](https://img.shields.io/badge/eval-27%2F27%20cases-10b981.svg)](#quality-and-evaluation)
 
 > **Scammers can copy a company's logo. They cannot copy its whole public footprint.**
@@ -73,7 +73,7 @@ flowchart LR
 2. **Check the details** — every extracted claim is shown with the exact quote it came from. Fix anything that was misread.
    Scam signals (payment and credential requests) are read-only so they cannot be edited away.
 3. **Investigate** — four agents run against live SerpApi results inside a fixed budget
-   (max 8 searches, 3 follow-ups, 3 in parallel, 15 s deadline). Progress is streamed step by step from real events.
+   (max 8 searches, 3 follow-ups, 3 in parallel, 30 s search deadline). Progress is streamed step by step from real events.
 4. **Get the verdict** — each claim is marked *Supported*, *Contradicted*, *Unresolved* or *Not checked*,
    with linked sources, plus a draft message to confirm the offer through an independently found channel.
 
@@ -100,15 +100,16 @@ Every external fact comes from a live Google search through SerpApi. Examples of
 
 | Agent | Example query | Why |
 |---|---|---|
-| Company | `"Infosys Limited" official website careers` | Resolve the one official domain and careers page |
+| Company | `Infosys Limited official website` + `Infosys Limited` | Resolve the one official domain (with Google's entity card) |
 | Recruiter | `"rohit.tcs.hiring@gmail.com" scam fraud complaint` | Find public reports of that exact contact |
 | Recruiter | `"<agency>" official website` | Check a staffing agency is real and authorised |
 | Scam | `"Tata Consultancy Services" job scam fraud complaint telegram` | Find impersonation warnings |
 | Salary | `"Systems Engineer" salary "Infosys" AmbitionBox Glassdoor` | Compare the CTC with public data |
 | Planner | `site:<official-domain> "<role>"` | Look for the vacancy on the employer's own site |
 
-Results are cached per run (a repeated query costs nothing), every query is recorded in the report's tool trace,
-and **a failed search is reported as failed — no mock or demo data is ever substituted in a real report.**
+Searches run as from India (`gl=in`, `google.co.in`), results are cached per run (a repeated query costs nothing),
+every query is recorded in the report's tool trace, and **a failed search is reported as failed — no mock or demo
+data is ever substituted in a real report.**
 
 ---
 
@@ -120,6 +121,9 @@ and **a failed search is reported as failed — no mock or demo data is ever sub
   "deposit ₹15,000 via UPI" is.
 - **Lookalike-domain defence.** Punycode homoglyphs, `tcs.com.attacker.example` subdomain tricks,
   `tcs-careers-portal` style names and multi-part suffixes like `.co.in` are all handled by one resolver.
+- **Finds big employers' real domains — but not a scammer's.** A domain is accepted as official only when it is the
+  single brand-named domain dominating the search *and* Google has an entity card for that company. Infosys, TCS, Wipro
+  and Accenture resolve; a made-up company that ranks for its own name does not.
 - **Honest uncertainty.** If search fails or evidence is thin, the report says *Cannot verify* and lists which checks
   did not complete — instead of inventing a verdict.
 - **Human in the loop.** You confirm or correct the extracted details before any search runs.
@@ -138,7 +142,7 @@ and **a failed search is reported as failed — no mock or demo data is ever sub
 
 | Check | Result |
 |---|---|
-| Backend tests (`pytest`) | **634 passing** |
+| Backend tests (`pytest`) | **651 passing** |
 | Offline evaluation corpus | **27 / 27 cases pass**, 100% safety invariants |
 | Legitimate offers marked High risk | **0 / 9** |
 | Fee / OTP threats missed | **0 / 5** |
@@ -191,7 +195,9 @@ Or with Docker: `cp .env.example .env && docker compose up --build`, then open h
 |---|---|---|
 | `SERPAPI_API_KEY` | Live Google search. Without it, searches fail visibly | — |
 | `DATABASE_URL` | Database connection | `sqlite:///./aslioffer.db` |
-| `SEARCH_TIMEOUT_SECONDS` | Per-request search timeout | `8` |
+| `SEARCH_TIMEOUT_SECONDS` | Per-request search timeout | `15` |
+| `INVESTIGATION_SEARCH_DEADLINE_SECONDS` | Time limit for all searches in one investigation | `30` |
+| `SEARCH_COUNTRY` / `SEARCH_GOOGLE_DOMAIN` | Search locale | `in` / `google.co.in` |
 | `RUN_TIMEOUT_SECONDS` | Hard limit for one investigation | `90` |
 | `MAX_UPLOAD_BYTES` / `MAX_TEXT_CHARS` | Upload limits | 5 MB / 20,000 |
 | `CASE_RETENTION_DAYS` | Cases are deleted this many days after upload | `7` |
@@ -235,10 +241,10 @@ docs/                    architecture, API contract, design notes per task
 
 - **Screenshots are not read yet.** Images are refused rather than sent to an external vision model without
   explicit consent; paste the text or upload a text PDF instead.
-- **Large employers often come back "Cannot verify".** Google results for big brands are dominated by job boards;
-  the resolver deliberately refuses to call a domain official without corroboration.
-- **Live search latency.** Uncached SerpApi queries can take several seconds; a run stops searching at 15 s and
-  reports any check that did not finish.
+- **"Cannot verify" is common, by design.** Even when the employer's domain is found, a recruiter email or vacancy that
+  is not publicly corroborated stays unresolved — an address typed into a message proves nothing on its own.
+- **Live search latency.** Uncached SerpApi queries can take 5–15 s; a run stops searching at 30 s and reports any
+  check that did not finish.
 - The free Render instance sleeps when idle, so the first request after a pause can take up to a minute.
 
 ## Roadmap

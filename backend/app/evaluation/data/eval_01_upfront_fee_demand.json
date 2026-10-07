@@ -19,7 +19,7 @@
   "budget": null,
   "search_mock": {
     "query_responses": {
-      "\"Nimbus Infotech Ltd\" official website careers": {
+      "Nimbus Infotech Ltd official website": {
         "status": "successful",
         "source": "REAL",
         "organic_results": [

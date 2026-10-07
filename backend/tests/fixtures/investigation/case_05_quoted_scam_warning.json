@@ -27,7 +27,7 @@
   "provider_status": "successful",
   "search_mock": {
     "query_responses": {
-      "\"Wipro\" official website careers": {
+      "Wipro official website": {
         "status": "successful",
         "source": "DEMO",
         "knowledge_graph": {

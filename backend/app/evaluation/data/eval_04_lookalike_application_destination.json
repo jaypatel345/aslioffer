@@ -26,7 +26,7 @@
   "budget": null,
   "search_mock": {
     "query_responses": {
-      "\"Tata Consultancy Services Ltd\" official website careers": {
+      "Tata Consultancy Services Ltd official website": {
         "status": "successful",
         "source": "REAL",
         "organic_results": [

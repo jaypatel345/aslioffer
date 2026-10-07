@@ -30,7 +30,7 @@ class MockSearch:
 def test_well_supported_company_identity_and_canonical_website():
     """Well-supported company identity with aligned Knowledge Graph and organic hits resolves cleanly."""
     search_res = SearchResult(
-        query='"Wipro Limited" official website careers',
+        query='Wipro Limited official website',
         outcome=SearchOutcome.SUCCESS,
         source="REAL",
         knowledge_graph={
@@ -68,7 +68,7 @@ def test_well_supported_company_identity_and_canonical_website():
 def test_lookalike_brand_containing_hostname():
     """Lookalike domain with brand and portal keyword concatenation must be rejected."""
     search_res = SearchResult(
-        query='"Tata Consultancy Services" official website careers',
+        query='Tata Consultancy Services official website',
         outcome=SearchOutcome.SUCCESS,
         source="REAL",
         results=[
@@ -94,7 +94,7 @@ def test_lookalike_brand_containing_hostname():
 def test_brand_in_attacker_controlled_subdomain():
     """Brand name in a subdomain of an unrelated registrable domain must be rejected."""
     search_res = SearchResult(
-        query='"Tata Consultancy Services" official website careers',
+        query='Tata Consultancy Services official website',
         outcome=SearchOutcome.SUCCESS,
         source="REAL",
         results=[
@@ -119,7 +119,7 @@ def test_brand_in_attacker_controlled_subdomain():
 def test_brand_appearing_only_in_url_path():
     """Brand/domain name appearing only in URL path of an unrelated host must be rejected."""
     search_res = SearchResult(
-        query='"Tata Consultancy Services" official website careers',
+        query='Tata Consultancy Services official website',
         outcome=SearchOutcome.SUCCESS,
         source="REAL",
         results=[
@@ -144,7 +144,7 @@ def test_brand_appearing_only_in_url_path():
 def test_unrelated_knowledge_graph_identity():
     """Knowledge graph representing an unrelated entity must not be accepted."""
     search_res = SearchResult(
-        query='"Apex Horizon Tech" official website careers',
+        query='Apex Horizon Tech official website',
         outcome=SearchOutcome.SUCCESS,
         source="REAL",
         knowledge_graph={
@@ -167,7 +167,7 @@ def test_unrelated_knowledge_graph_identity():
 def test_insufficient_knowledge_graph_identity():
     """Knowledge graph website without an entity title lacks sufficient identity to resolve."""
     search_res = SearchResult(
-        query='"Apex Horizon Tech" official website careers',
+        query='Apex Horizon Tech official website',
         outcome=SearchOutcome.SUCCESS,
         source="REAL",
         knowledge_graph={
@@ -190,7 +190,7 @@ def test_insufficient_knowledge_graph_identity():
 def test_similar_company_names_and_ambiguous_candidates():
     """Multiple competing plausible corporate domains without decisive corroboration yield AMBIGUOUS."""
     search_res = SearchResult(
-        query='"Apex Technologies" official website careers',
+        query='Apex Technologies official website',
         outcome=SearchOutcome.SUCCESS,
         source="REAL",
         results=[
@@ -220,7 +220,7 @@ def test_similar_company_names_and_ambiguous_candidates():
 def test_social_and_directory_results_ranked_first():
     """Rank-1 social media, directory, or encyclopedia links must not become official company website."""
     search_res = SearchResult(
-        query='"Tata Consultancy Services" official website careers',
+        query='Tata Consultancy Services official website',
         outcome=SearchOutcome.SUCCESS,
         source="REAL",
         results=[
@@ -330,7 +330,7 @@ def test_genuine_subdomain_alignment_and_deceptive_suffixes():
 def test_unrelated_careers_results():
     """Unrelated results mentioning 'careers' in the title must not be accepted as careers URL."""
     search_res = SearchResult(
-        query='"Wipro Limited" official website careers',
+        query='Wipro Limited official website',
         outcome=SearchOutcome.SUCCESS,
         source="REAL",
         knowledge_graph={
@@ -365,7 +365,7 @@ def test_unrelated_careers_results():
 def test_explicitly_associated_hosted_careers_pages():
     """Hosted ATS platforms (Greenhouse, Workday) associate only when the company-aligned entity card links the exact tenant URL."""
     search_res = SearchResult(
-        query='"Wipro Limited" official website careers',
+        query='Wipro Limited official website',
         outcome=SearchOutcome.SUCCESS,
         source="REAL",
         knowledge_graph={
@@ -424,7 +424,7 @@ def test_empty_results_and_provider_failure_outcomes(outcome, expected_state):
 def test_demo_and_mock_results_cannot_resolve_live_ownership():
     """Non-live results (DEMO / MOCK) must return SEARCH_UNAVAILABLE."""
     search_res = SearchResult(
-        query='"Wipro Limited" official website careers',
+        query='Wipro Limited official website',
         outcome=SearchOutcome.SUCCESS,
         source="DEMO",
         results=[
@@ -448,7 +448,7 @@ def test_demo_and_mock_results_cannot_resolve_live_ownership():
 async def test_consistent_domain_resolution_in_both_agents():
     """Both CompanyAgent and RecruiterAgent use the exact same DomainResolver policy."""
     search_res = SearchResult(
-        query='"Wipro Limited" official website careers',
+        query='Wipro Limited official website',
         outcome=SearchOutcome.SUCCESS,
         source="REAL",
         knowledge_graph={

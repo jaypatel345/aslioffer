@@ -380,6 +380,10 @@ class SerpApiClient:
 
     async def _search_live(self, query: str, engine: str, num: int) -> SearchResult:
         params = {"q": query, "engine": engine, "num": num, "api_key": self.api_key}
+        for key, value in (("gl", settings.SEARCH_COUNTRY), ("hl", settings.SEARCH_LANGUAGE),
+                           ("google_domain", settings.SEARCH_GOOGLE_DOMAIN)):
+            if value:
+                params[key] = value
         max_attempts = self.max_retries + 1
         async with httpx.AsyncClient(timeout=self.timeout) as client:
             for attempt in range(max_attempts):

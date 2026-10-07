@@ -2,7 +2,7 @@ import re
 from typing import Optional, List, Dict, Any, Tuple
 from app.schemas.analysis import AgentFinding, EvidenceItem
 from app.services.search.serpapi_client import SerpApiClient, SearchResult, SearchOutcome
-from app.services.search.domain_resolver import DomainResolver, DomainResolutionState
+from app.services.search.domain_resolver import DomainResolver, DomainResolutionState, resolve_employer_domain
 from app.core.logging import logger
 
 FREE_EMAIL_DOMAINS = {
@@ -398,10 +398,9 @@ class RecruiterAgent:
                     confidence=0.85,
                 ))
 
-            query = f'"{company_name}" official website careers'
-            company_search_res = SearchResult.from_dict_or_result(await self.search_client.search(query), query=query)
+            # Same shared resolution as CompanyAgent; the run's search cache makes the repeat free.
+            company_search_res, resolution, _ = await resolve_employer_domain(self.search_client, company_name)
             record("company_domain", company_search_res)
-            resolution = DomainResolver.resolve(company_name, company_search_res)
             checks["company_domain"].update({
                 "resolution_state": resolution.state.value,
                 "resolution_basis": resolution.basis,

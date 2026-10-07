@@ -1,7 +1,7 @@
 from typing import Optional, Dict, Any, List
 from app.schemas.analysis import AgentFinding, EvidenceItem
 from app.services.search.serpapi_client import SerpApiClient, SearchResult
-from app.services.search.domain_resolver import DomainResolver, DomainResolutionState
+from app.services.search.domain_resolver import DomainResolutionState, resolve_employer_domain
 from app.core.logging import logger
 
 
@@ -21,9 +21,7 @@ class CompanyAgent:
         """
         logger.info("CompanyAgent investigation started")
 
-        query = f'"{company_name}" official website careers'
-        raw_res = await self.search_client.search(query)
-        search_res = SearchResult.from_dict_or_result(raw_res, query=query)
+        search_res, resolution, _ = await resolve_employer_domain(self.search_client, company_name)
 
         # 1. Handle provider outage, rate limits, timeouts, auth failures
         if not search_res.is_live:
@@ -66,9 +64,7 @@ class CompanyAgent:
                 },
             )
 
-        # 3. Resolve official domain using shared DomainResolver
-        resolution = DomainResolver.resolve(company_name, search_res)
-
+        # 3. Official domain, as resolved by the shared DomainResolver above
         if resolution.state == DomainResolutionState.RESOLVED:
             evidence_list: List[EvidenceItem] = [
                 EvidenceItem(

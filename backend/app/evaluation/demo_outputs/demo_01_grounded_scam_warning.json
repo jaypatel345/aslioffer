@@ -109,7 +109,7 @@
     {
       "step": "resolve_employer_domain",
       "tool": "serpapi.google",
-      "query": "\"Nimbus Infotech Ltd\" official website careers",
+      "query": "Nimbus Infotech Ltd official website",
       "reason": "Resolve the employer's official domain before checking contact details",
       "status": "COMPLETED",
       "started_at": "2026-10-04T10:50:00.503806Z",

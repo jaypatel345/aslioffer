@@ -110,11 +110,148 @@ class DomainResolutionResult:
     diagnostics: Dict[str, Any] = field(default_factory=dict)
 
 
+def company_website_query(company_name: str) -> str:
+    """Query for the employer's own website. Unquoted on purpose: quoting the full
+    legal name plus "careers" ranks job-board pages above the employer's own site."""
+    return f"{company_name} official website"
+
+
+def company_entity_query(company_name: str) -> str:
+    """Bare-name query, which is what returns Google's knowledge panel for an entity."""
+    return company_name
+
+
+async def resolve_employer_domain(search_client: Any, company_name: str
+                                  ) -> Tuple[SearchResult, "DomainResolutionResult", Optional[SearchResult]]:
+    """Search for the employer's website and resolve it, shared by every agent.
+
+    A second, bare-name search is made only when one brand-matching domain already
+    dominates the website results but has no other corroboration. Agents share a
+    per-run search cache, so repeating this in another agent costs no extra calls.
+    Returns (website_search, resolution, entity_search_or_None).
+    """
+    query = company_website_query(company_name)
+    search_res = SearchResult.from_dict_or_result(await search_client.search(query), query=query)
+    resolution = DomainResolver.resolve(company_name, search_res)
+    entity_res = None
+    if (search_res.is_live and not search_res.is_empty
+            and resolution.state != DomainResolutionState.RESOLVED
+            and DomainResolver.dominant_brand_domain(company_name, search_res) is not None):
+        entity_query = company_entity_query(company_name)
+        entity_res = SearchResult.from_dict_or_result(await search_client.search(entity_query), query=entity_query)
+        if entity_res.is_live:
+            resolution = DomainResolver.resolve(company_name, search_res, entity_res)
+    return search_res, resolution, entity_res
+
+
 class DomainResolver:
     """Deterministic search-evidence inference, not proof of domain ownership."""
 
+    # A dominant domain must hold the top organic result and this many of the top five.
+    DOMINANCE_TOP_N = 5
+    DOMINANCE_MIN_HITS = 3
+
     @classmethod
-    def resolve(cls, company_name: str, search_res: SearchResult) -> DomainResolutionResult:
+    def resolve(cls, company_name: str, search_res: SearchResult,
+                entity_res: Optional[SearchResult] = None) -> DomainResolutionResult:
+        base = cls._resolve_from_website_search(company_name, search_res)
+        if entity_res is None or base.state not in (DomainResolutionState.AMBIGUOUS, DomainResolutionState.UNRESOLVED):
+            return base
+        return cls._resolve_by_entity_and_dominance(company_name, SearchResult.from_dict_or_result(search_res),
+                                                    SearchResult.from_dict_or_result(entity_res), base)
+
+    @classmethod
+    def _brand_candidate(cls, link: str, identity: Dict[str, Any]) -> Optional[ParsedDomain]:
+        """The parsed URL when its registrable name *is* the brand (infosys.com, tcs.com), else None."""
+        parsed = cls.normalize_and_parse_url(link or "")
+        if not parsed.is_valid or cls.is_excluded_platform(parsed.hostname) or cls.is_hosted_careers_platform(parsed.hostname):
+            return None
+        if cls._check_lookalike(parsed, identity)[0] or not cls._sld_matches_identity(parsed.sld, identity):
+            return None
+        return parsed
+
+    @classmethod
+    def dominant_brand_domain(cls, company_name: str, search_res: SearchResult
+                              ) -> Optional[Tuple[str, List[Tuple[int, ParsedDomain, Dict[str, Any]]]]]:
+        """One brand-named domain that owns the website search: it is the top organic
+        result, fills most of the top five, is the only brand-named domain anywhere in
+        the results, and at least one of its pages names the company. A ranking alone is
+        never enough to resolve; it only qualifies the domain for the entity check."""
+        search_res = SearchResult.from_dict_or_result(search_res)
+        identity = cls._extract_company_identity(company_name)
+        if not identity["bare_words"]:
+            return None
+        domains: Dict[str, List[Tuple[int, ParsedDomain, Dict[str, Any]]]] = {}
+        for rank, item in enumerate(search_res.organic_results, start=1):
+            parsed = cls._brand_candidate(item.get("link") or "", identity)
+            if parsed is not None:
+                domains.setdefault(parsed.registrable_domain, []).append((rank, parsed, item))
+        if len(domains) != 1:
+            return None
+        domain, hits = next(iter(domains.items()))
+        if hits[0][0] != 1 or sum(1 for rank, _, _ in hits if rank <= cls.DOMINANCE_TOP_N) < cls.DOMINANCE_MIN_HITS:
+            return None
+        if not any(cls._title_or_snippet_corroborates(item.get("title") or "", item.get("snippet") or "", identity)
+                   for _, _, item in hits):
+            return None
+        return domain, hits
+
+    @classmethod
+    def _resolve_by_entity_and_dominance(cls, company_name: str, search_res: SearchResult,
+                                         entity_res: SearchResult, base: DomainResolutionResult
+                                         ) -> DomainResolutionResult:
+        """Resolve a well-known employer whose search card carries no website link.
+
+        Requires both (1) a single brand-named domain dominating the website search and
+        (2) a search entity card for exactly this company, with no conflicting website
+        and no other brand-named domain in the entity results. A newly registered or
+        fake company can dominate its own name search, but does not get an entity card.
+        """
+        dominant = cls.dominant_brand_domain(company_name, search_res)
+        if dominant is None or not entity_res.is_live:
+            return base
+        domain, hits = dominant
+        identity = cls._extract_company_identity(company_name)
+        kg = entity_res.knowledge_graph or {}
+        title = kg.get("title") or ""
+        if not title or not cls._title_matches_identity(title, identity):
+            return base
+        if kg.get("website"):
+            kg_site = cls.normalize_and_parse_url(kg["website"])
+            if kg_site.is_valid and kg_site.registrable_domain != domain:
+                return base
+        for item in entity_res.organic_results:
+            parsed = cls._brand_candidate(item.get("link") or "", identity)
+            if parsed is not None and parsed.registrable_domain != domain:
+                return base
+
+        top_parsed = hits[0][1]
+        entity_label = f"{title} ({kg['type']})" if kg.get("type") else title
+        evidence = []
+        seen = set()
+        for _, _, item in hits:
+            if item["link"] in seen:
+                continue
+            seen.add(item["link"])
+            evidence.append(cls._evidence(
+                item["link"], item.get("title") or f"{company_name} website",
+                (item.get("snippet") or "Top search result on the employer's own domain.")
+                + f" Google's entity card identifies '{entity_label}'; ownership is inferred, not authenticated.",
+                0.80))
+        careers = cls._find_careers_url(domain, [(p, i, True) for _, p, i in hits], None, [])
+        return DomainResolutionResult(
+            state=DomainResolutionState.RESOLVED, canonical_domain=top_parsed.hostname,
+            canonical_url=top_parsed.normalized_url, careers_url=careers, confidence=0.80,
+            basis=(f"'{domain}' is the only brand-named domain and leads the employer website search, "
+                   f"and a search entity card identifies '{entity_label}'."),
+            evidence=evidence, rejected_candidates=base.rejected_candidates,
+            diagnostics={**base.diagnostics, "resolution_method": "entity_card_and_search_dominance",
+                         "registrable_domain": domain, "domain_hits": len(hits),
+                         "entity_title": title, "entity_type": kg.get("type"),
+                         "prior_state": base.state.value, "same_domain_pages_are_independent": False})
+
+    @classmethod
+    def _resolve_from_website_search(cls, company_name: str, search_res: SearchResult) -> DomainResolutionResult:
         search_res = SearchResult.from_dict_or_result(search_res)
         if not search_res.is_live:
             return DomainResolutionResult(

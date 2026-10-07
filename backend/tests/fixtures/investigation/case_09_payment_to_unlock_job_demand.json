@@ -27,7 +27,7 @@
   "provider_status": "successful",
   "search_mock": {
     "query_responses": {
-      "\"TaskMatrix Media\" official website careers": {
+      "TaskMatrix Media official website": {
         "status": "successful",
         "source": "DEMO",
         "knowledge_graph": {},

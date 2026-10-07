@@ -74,7 +74,7 @@
       "title": "Retrieval unavailable",
       "quote_or_snippet": "No completed search result was obtained.",
       "retrieved_at": "2026-10-04T10:50:00.606642Z",
-      "query": "\"Vertex Dynamics Ltd\" official website careers",
+      "query": "Vertex Dynamics Ltd official website",
       "engine": "google",
       "search_id": null,
       "retrieval_status": "FAILED",
@@ -107,7 +107,7 @@
     {
       "step": "resolve_employer_domain",
       "tool": "serpapi.google",
-      "query": "\"Vertex Dynamics Ltd\" official website careers",
+      "query": "Vertex Dynamics Ltd official website",
       "reason": "Resolve the employer's official domain before checking contact details",
       "status": "FAILED",
       "started_at": "2026-10-04T10:50:00.606642Z",

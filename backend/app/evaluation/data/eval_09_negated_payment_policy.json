@@ -19,7 +19,7 @@
   "budget": null,
   "search_mock": {
     "query_responses": {
-      "\"Apex Global Services\" official website careers": {
+      "Apex Global Services official website": {
         "status": "successful",
         "source": "REAL",
         "organic_results": [

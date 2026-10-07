@@ -200,7 +200,7 @@ async def test_different_domain_alone_is_needs_review(recruiter_agent, mock_serp
 async def test_staffing_agency_identity_supported_but_mandate_unconfirmed(recruiter_agent, mock_serpapi):
     """Agency domain is verified, but authorization to hire for Acme is unconfirmed -> NEEDS_REVIEW."""
     async def mock_search(query):
-        if "Acme Corp" in query and "careers" in query:
+        if "Acme Corp" in query and "official website" in query:
             return make_serp_response(
                 [{"title": "Acme Corp Official Site", "link": "https://acme.com", "snippet": "Acme Corp."}],
                 knowledge_graph={"title": "Acme Corp", "website": "https://acme.com"},
@@ -233,7 +233,7 @@ async def test_staffing_agency_identity_supported_but_mandate_unconfirmed(recrui
 async def test_agency_self_claim_vs_employer_supported_authorization(recruiter_agent, mock_serpapi):
     """Employer-published agency partnership is SUPPORTED."""
     async def mock_search(query):
-        if "Acme Corp" in query and "careers" in query:
+        if "Acme Corp" in query and "official website" in query:
             return make_serp_response(
                 [
                     {"title": "Acme Corp Official Site", "link": "https://acme.com", "snippet": "Acme Corp official site. Preferred staffing partner: Apex Staffing."},

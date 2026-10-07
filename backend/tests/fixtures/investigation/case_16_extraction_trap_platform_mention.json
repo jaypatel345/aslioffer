@@ -28,7 +28,7 @@
   "provider_status": "successful",
   "search_mock": {
     "query_responses": {
-      "\"V-Guard Industries Ltd\" official website careers": {
+      "V-Guard Industries Ltd official website": {
         "status": "successful",
         "source": "DEMO",
         "knowledge_graph": {

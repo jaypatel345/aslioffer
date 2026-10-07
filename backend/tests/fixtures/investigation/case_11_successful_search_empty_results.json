@@ -29,7 +29,7 @@
   "provider_status": "empty",
   "search_mock": {
     "query_responses": {
-      "\"Prathamesh Robotics Enterprise\" official website careers": {
+      "Prathamesh Robotics Enterprise official website": {
         "status": "successful",
         "source": "DEMO",
         "search_metadata": {

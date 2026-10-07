@@ -27,7 +27,7 @@
   "budget": null,
   "search_mock": {
     "query_responses": {
-      "\"Kestrel Systems Pvt Ltd\" official website careers": {
+      "Kestrel Systems Pvt Ltd official website": {
         "status": "successful",
         "source": "REAL",
         "knowledge_graph": {

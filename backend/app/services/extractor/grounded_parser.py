@@ -357,6 +357,8 @@ class GroundedEntityParser:
             is_hr_label = (
                 not is_general_mailbox and (
                     bool(re.search(r"\b(?:contact\s+hr|official\s+hr|hr\s+team|with\s+hr|to\s+hr|at\s+hr|recruiter|talent\s+acquisition|regards|sincerely)\b", pre_context))
+                    # Named hiring roles: "contact your recruitment coordinator at ...", "HR manager: ..."
+                    or bool(re.search(r"\b(?:recruitment|recruiting|hiring|hr|talent)\s+(?:coordinator|team|manager|partner|officer|executive|specialist|desk)\b", pre_context))
 
                     or (bool(re.search(r"\bcontact\s*:?\s*$", pre_context.strip())) and not bool(re.search(r"\bhiring\s+contact\b", pre_context)))
                 )

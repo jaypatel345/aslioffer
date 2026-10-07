@@ -30,7 +30,7 @@
   "provider_status": "successful",
   "search_mock": {
     "query_responses": {
-      "\"Infosys BPM Limited\" official website careers": {
+      "Infosys BPM Limited official website": {
         "status": "successful",
         "source": "DEMO",
         "knowledge_graph": {

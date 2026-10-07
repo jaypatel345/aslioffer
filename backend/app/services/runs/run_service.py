@@ -47,6 +47,7 @@ from app.schemas.contract import (
     RunStatus,
     SourceType,
 )
+from app.services.investigation.budget import InvestigationBudget
 from app.services.investigation.pipeline import investigate_case
 from app.services.privacy.redaction import redact_case_text
 
@@ -243,7 +244,8 @@ async def execute_run(run_id: str, search_client=None) -> None:
     logger.info("Run %s started for case %d", run_id, case_input.case_id)
     try:
         report = await asyncio.wait_for(
-            investigate_case(case_input, search_client=search_client, emit_event=emit),
+            investigate_case(case_input, search_client=search_client, emit_event=emit,
+                             budget=InvestigationBudget(deadline_seconds=settings.INVESTIGATION_SEARCH_DEADLINE_SECONDS)),
             timeout=settings.RUN_TIMEOUT_SECONDS,
         )
     except asyncio.TimeoutError:

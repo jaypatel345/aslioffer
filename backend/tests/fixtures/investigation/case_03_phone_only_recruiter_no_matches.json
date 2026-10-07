@@ -30,7 +30,7 @@
   "provider_status": "successful",
   "search_mock": {
     "query_responses": {
-      "\"Zen Vertex Logistics\" official website careers": {
+      "Zen Vertex Logistics official website": {
         "status": "successful",
         "source": "DEMO",
         "knowledge_graph": {},

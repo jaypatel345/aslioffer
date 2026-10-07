@@ -39,7 +39,7 @@
   "budget": null,
   "search_mock": {
     "query_responses": {
-      "\"Radiant Energy Solutions Ltd\" official website careers": {
+      "Radiant Energy Solutions Ltd official website": {
         "status": "successful",
         "source": "REAL",
         "knowledge_graph": {
@@ -60,7 +60,7 @@
           }
         ]
       },
-      "\"Apex Staffing Solutions\" official website careers": {
+      "Apex Staffing Solutions official website": {
         "status": "successful",
         "source": "REAL",
         "organic_results": [

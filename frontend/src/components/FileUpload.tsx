@@ -195,7 +195,7 @@ HR Manager`;
             className="px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 transition-colors flex items-center gap-1.5"
           >
             <Check className="w-3.5 h-3.5" />
-            <span>Load Verified Pattern (Infosys)</span>
+            <span>Load Real Employer Offer (Infosys)</span>
           </button>
           <button
             type="button"

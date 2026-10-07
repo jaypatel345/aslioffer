@@ -107,7 +107,7 @@
     {
       "step": "resolve_employer_domain",
       "tool": "serpapi.google",
-      "query": "\"Coorix Labs\" official website careers",
+      "query": "Coorix Labs official website",
       "reason": "Resolve the employer's official domain before checking contact details",
       "status": "COMPLETED",
       "started_at": "2026-10-04T07:20:45.714768Z",

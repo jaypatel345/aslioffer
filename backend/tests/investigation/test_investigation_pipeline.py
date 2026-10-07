@@ -77,7 +77,7 @@ async def test_grounded_upfront_fee_high_risk():
     )
     search_mock = MockSearchClient(
         query_responses={
-            '"Nimbus Infotech Ltd" official website careers': {
+            'Nimbus Infotech Ltd official website': {
                 "status": "successful",
                 "source": "REAL",
                 "organic_results": [
@@ -140,7 +140,7 @@ async def test_clean_completed_checks_authenticity_unconfirmed():
     )
     search_mock = MockSearchClient(
         query_responses={
-            '"Kestrel Systems Pvt Ltd" official website careers': {
+            'Kestrel Systems Pvt Ltd official website': {
                 "status": "successful",
                 "source": "REAL",
                 "knowledge_graph": {
@@ -204,7 +204,7 @@ async def test_sparse_employer_cannot_verify():
     )
     search_mock = MockSearchClient(
         query_responses={
-            '"Coorix Labs" official website careers': {
+            'Coorix Labs official website': {
                 "status": "successful",
                 "source": "REAL",
                 "organic_results": [
@@ -252,7 +252,7 @@ async def test_provider_outage_preserves_evidence():
     )
     search_mock = MockSearchClient(
         query_responses={
-            '"Vardhan Analytics Pvt Ltd" official website careers': {
+            'Vardhan Analytics Pvt Ltd official website': {
                 "status": "error",
                 "source": "FAILED",
                 "error": "Upstream search engine rate limited after 2 retries",
@@ -298,7 +298,7 @@ async def test_strong_local_warning_survives_external_failure():
     )
     search_mock = MockSearchClient(
         query_responses={
-            '"Vardhan Analytics Pvt Ltd" official website careers': {
+            'Vardhan Analytics Pvt Ltd official website': {
                 "status": "error",
                 "source": "FAILED",
                 "error": "Upstream provider timed out",
@@ -340,7 +340,7 @@ async def test_one_agent_exception_not_discarding_other_results():
     )
     search_mock = MockSearchClient(
         query_responses={
-            '"Nimbus Infotech Ltd" official website careers': {
+            'Nimbus Infotech Ltd official website': {
                 "status": "successful",
                 "source": "REAL",
                 "knowledge_graph": {
@@ -390,7 +390,7 @@ async def test_missing_recruiter_identifiers_and_redacted_placeholders():
     )
     search_mock = MockSearchClient(
         query_responses={
-            '"Infosys Ltd" official website careers': {
+            'Infosys Ltd official website': {
                 "status": "successful",
                 "source": "REAL",
                 "organic_results": [
@@ -431,7 +431,7 @@ async def test_quoted_and_negated_scam_text():
     )
     search_mock = MockSearchClient(
         query_responses={
-            '"Tata Consultancy Services" official website careers': {
+            'Tata Consultancy Services official website': {
                 "status": "successful",
                 "source": "REAL",
                 "organic_results": [
@@ -522,7 +522,7 @@ async def test_claim_specific_evidence_integrity():
     )
     search_mock = MockSearchClient(
         query_responses={
-            '"Nimbus Infotech Ltd" official website careers': {
+            'Nimbus Infotech Ltd official website': {
                 "status": "successful",
                 "source": "REAL",
                 "organic_results": [
@@ -567,7 +567,7 @@ async def test_no_salary_support_from_fixed_bands_alone():
     # Search returns empty results for salary
     search_mock = MockSearchClient(
         query_responses={
-            '"TechCorp" official website careers': {
+            'TechCorp official website': {
                 "status": "successful",
                 "source": "REAL",
                 "organic_results": [{"link": "https://techcorp.example/", "title": "TechCorp", "snippet": "TechCorp site"}],
@@ -709,7 +709,7 @@ async def test_demo_isolation_enforced():
     # Search client returns synthetic demo source
     search_mock = MockSearchClient(
         query_responses={
-            '"ThetaCorp" official website careers': {
+            'ThetaCorp official website': {
                 "status": "successful",
                 "source": "DEMO",
                 "organic_results": [{"link": "https://thetacorp.example/", "title": "Demo", "snippet": "Demo snippet"}],
@@ -752,9 +752,9 @@ async def test_no_repeated_company_resolution_query():
 
     result = await investigate_case(case_input, search_client=mock_client)
 
-    # The company resolution query '"OmegaCorp Ltd" official website careers' was called by CompanyAgent
+    # The company resolution query 'OmegaCorp Ltd official website' was called by CompanyAgent
     # and RecruiterAgent, but counting_search must have been invoked only ONCE for it due to in-memory caching!
-    comp_exact_count = searched_queries.count('"OmegaCorp Ltd" official website careers')
+    comp_exact_count = searched_queries.count('OmegaCorp Ltd official website')
     assert comp_exact_count == 1
 
 
@@ -790,7 +790,7 @@ async def test_generate_and_roundtrip_handoff_fixtures(tmp_path):
             ),
             MockSearchClient(
                 query_responses={
-                    '"Kestrel Systems Pvt Ltd" official website careers': {
+                    'Kestrel Systems Pvt Ltd official website': {
                         "status": "successful",
                         "source": "REAL",
                         "knowledge_graph": {"title": "Kestrel Systems Pvt Ltd", "website": "https://www.kestrelsystems.example", "careers_url": "https://careers.kestrelsystems.example"},
@@ -830,7 +830,7 @@ async def test_generate_and_roundtrip_handoff_fixtures(tmp_path):
             ),
             MockSearchClient(
                 query_responses={
-                    '"Nimbus Infotech Ltd" official website careers': {
+                    'Nimbus Infotech Ltd official website': {
                         "status": "successful",
                         "source": "REAL",
                         "organic_results": [
@@ -866,7 +866,7 @@ async def test_generate_and_roundtrip_handoff_fixtures(tmp_path):
             ),
             MockSearchClient(
                 query_responses={
-                    '"Coorix Labs" official website careers': {
+                    'Coorix Labs official website': {
                         "status": "successful",
                         "source": "REAL",
                         "organic_results": [
@@ -891,7 +891,7 @@ async def test_generate_and_roundtrip_handoff_fixtures(tmp_path):
             ),
             MockSearchClient(
                 query_responses={
-                    '"Vardhan Analytics Pvt Ltd" official website careers': {
+                    'Vardhan Analytics Pvt Ltd official website': {
                         "status": "error",
                         "source": "FAILED",
                         "error": "Upstream search engine rate limited after 2 retries",

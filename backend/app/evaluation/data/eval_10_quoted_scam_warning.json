@@ -19,7 +19,7 @@
   "budget": null,
   "search_mock": {
     "query_responses": {
-      "\"Zenith Global Tech\" official website careers": {
+      "Zenith Global Tech official website": {
         "status": "successful",
         "source": "REAL",
         "organic_results": [

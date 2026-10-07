@@ -247,7 +247,7 @@ async def test_deadline_expiry_cancels_pending_work_and_retains_completed_eviden
     budget = InvestigationBudget(deadline_seconds=0.05)
 
     async def hanging_search(query: str, **kwargs):
-        if "careers" in query.lower():
+        if "official website" in query.lower():
             await asyncio.sleep(2.0)
         return {"source": "REAL", "organic_results": []}
 
@@ -343,7 +343,7 @@ async def test_unresolved_employer_gets_justified_bounded_contextual_search():
     search_mock = MockSearchClient(
         query_responses={
             # Initial query yields sparse aggregator results
-            '"Horizon Robotics Ltd" official website careers': {
+            'Horizon Robotics Ltd official website': {
                 "status": "successful",
                 "source": "REAL",
                 "organic_results": [{"link": "https://directory.example/horizon", "title": "Directory", "snippet": "Company profile"}],
@@ -409,7 +409,7 @@ async def test_agency_domain_conflict_gets_attributable_followup_without_automat
 
     search_mock = MockSearchClient(
         query_responses={
-            '"Titan Technologies Ltd" official website careers': {
+            'Titan Technologies Ltd official website': {
                 "status": "successful",
                 "source": "REAL",
                 "knowledge_graph": {
@@ -488,7 +488,7 @@ async def test_no_match_produces_bounded_abstention():
 
     search_mock = MockSearchClient(
         query_responses={
-            '"StealthAI Ltd" official website careers': {
+            'StealthAI Ltd official website': {
                 "status": "successful",
                 "source": "REAL",
                 "organic_results": [],
@@ -529,7 +529,7 @@ async def test_followup_evidence_has_real_provenance_and_correct_claim_links():
 
     search_mock = MockSearchClient(
         query_responses={
-            '"ZetaCorp Ltd" official website careers': {
+            'ZetaCorp Ltd official website': {
                 "status": "successful",
                 "source": "REAL",
                 "knowledge_graph": {
@@ -581,7 +581,7 @@ async def test_additional_snippets_alone_do_not_authenticate_offer():
 
     search_mock = MockSearchClient(
         query_responses={
-            '"Kestrel Systems Pvt Ltd" official website careers': {
+            'Kestrel Systems Pvt Ltd official website': {
                 "status": "successful",
                 "source": "REAL",
                 "knowledge_graph": {
@@ -620,7 +620,7 @@ async def test_event_and_trace_reasons_explain_actual_planner_decisions():
     events: List[RunEvent] = []
     search_mock = MockSearchClient(
         query_responses={
-            '"NovaTech Ltd" official website careers': {"status": "successful", "source": "REAL", "organic_results": []},
+            'NovaTech Ltd official website': {"status": "successful", "source": "REAL", "organic_results": []},
             '"NovaTech Ltd" "Pune" official website': {"status": "successful", "source": "REAL", "organic_results": []},
         }
     )
@@ -651,7 +651,7 @@ async def test_generate_and_roundtrip_task11_fixtures(tmp_path):
     case1 = CaseInput(case_id=301, run_id="run_01J9X1GAPRESOLVED", source_type=SourceType.TEXT, redacted_text=text1)
     mock1 = MockSearchClient(
         query_responses={
-            '"Radiant Energy Solutions Ltd" official website careers': {
+            'Radiant Energy Solutions Ltd official website': {
                 "status": "successful",
                 "source": "REAL",
                 "organic_results": [{"link": "https://directory.example/radiant", "title": "Directory", "snippet": "Profile"}],
@@ -696,7 +696,7 @@ async def test_generate_and_roundtrip_task11_fixtures(tmp_path):
     case2 = CaseInput(case_id=302, run_id="run_01J9X2ABSTAINSEXHAUSTED", source_type=SourceType.TEXT, redacted_text=text2)
     mock2 = MockSearchClient(
         query_responses={
-            '"NexaCore Technologies Ltd" official website careers': {
+            'NexaCore Technologies Ltd official website': {
                 "status": "successful",
                 "source": "REAL",
                 "organic_results": [],

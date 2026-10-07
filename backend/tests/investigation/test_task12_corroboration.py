@@ -107,7 +107,7 @@ async def test_matching_employer_role_and_vacancy_location():
 
     search_mock = MockSearchClient(
         query_responses={
-            '"Radiant Energy Solutions Ltd" official website careers': {
+            'Radiant Energy Solutions Ltd official website': {
                 "status": "successful",
                 "source": "REAL",
                 "knowledge_graph": {
@@ -166,7 +166,7 @@ async def test_employer_headquarters_does_not_support_job_location():
 
     search_mock = MockSearchClient(
         query_responses={
-            '"MetroTech Pvt Ltd" official website careers': {
+            'MetroTech Pvt Ltd official website': {
                 "status": "successful",
                 "source": "REAL",
                 "knowledge_graph": {
@@ -249,7 +249,7 @@ async def test_exact_public_requisition_match():
 
     search_mock = MockSearchClient(
         query_responses={
-            '"CloudScale Systems Ltd" official website careers': {
+            'CloudScale Systems Ltd official website': {
                 "status": "successful",
                 "source": "REAL",
                 "knowledge_graph": {
@@ -319,7 +319,7 @@ async def test_empty_or_expired_listing_remains_unresolved():
 
     search_mock = MockSearchClient(
         query_responses={
-            '"ZetaWave Technologies Ltd" official website careers': {
+            'ZetaWave Technologies Ltd official website': {
                 "status": "successful",
                 "source": "REAL",
                 "knowledge_graph": {
@@ -453,7 +453,7 @@ async def test_independently_published_recruitment_contact():
 
     search_mock = MockSearchClient(
         query_responses={
-            '"Radiant Energy Solutions Ltd" official website careers': {
+            'Radiant Energy Solutions Ltd official website': {
                 "status": "successful",
                 "source": "REAL",
                 "knowledge_graph": {
@@ -498,7 +498,7 @@ async def test_submitted_only_recruiter_contact_does_not_become_route():
 
     search_mock = MockSearchClient(
         query_responses={
-            '"Apex Horizon Tech Pvt Ltd" official website careers': {
+            'Apex Horizon Tech Pvt Ltd official website': {
                 "status": "successful",
                 "source": "REAL",
                 "knowledge_graph": {
@@ -630,7 +630,7 @@ async def test_claim_specific_citations_and_provenance():
 
     search_mock = MockSearchClient(
         query_responses={
-            '"Horizon Retail Ltd" official website careers': {
+            'Horizon Retail Ltd official website': {
                 "status": "successful",
                 "source": "REAL",
                 "knowledge_graph": {
@@ -660,7 +660,7 @@ async def test_claim_specific_citations_and_provenance():
 
     assert len(role_ev) > 0
     assert len(loc_ev) > 0
-    assert role_ev[0].query == '"Horizon Retail Ltd" official website careers'
+    assert role_ev[0].query == 'Horizon Retail Ltd official website'
     assert role_ev[0].source_kind == SourceKind.SEARCH_SNIPPET
 
 
@@ -677,7 +677,7 @@ async def test_budget_exhaustion_skips_pending_corroboration():
     budget = InvestigationBudget(max_search_calls=1, max_followup_calls=0)
     search_mock = MockSearchClient(
         query_responses={
-            '"AlphaTech Ltd" official website careers': {
+            'AlphaTech Ltd official website': {
                 "status": "successful",
                 "source": "REAL",
                 "knowledge_graph": {"website": "https://www.alphatech.example"},
@@ -711,7 +711,7 @@ async def test_earlier_strong_warnings_remain_high_risk_despite_matching_vacancy
 
     search_mock = MockSearchClient(
         query_responses={
-            '"Radiant Energy Solutions Ltd" official website careers': {
+            'Radiant Energy Solutions Ltd official website': {
                 "status": "successful",
                 "source": "REAL",
                 "knowledge_graph": {
@@ -753,7 +753,7 @@ async def test_earlier_recruiter_uncertainty_survives_vacancy_corroboration():
 
     search_mock = MockSearchClient(
         query_responses={
-            '"Radiant Energy Solutions Ltd" official website careers': {
+            'Radiant Energy Solutions Ltd official website': {
                 "status": "successful",
                 "source": "REAL",
                 "knowledge_graph": {
@@ -864,7 +864,7 @@ async def test_generate_and_roundtrip_task12_fixtures(tmp_path):
             ),
             MockSearchClient(
                 query_responses={
-                    '"Radiant Energy Solutions Ltd" official website careers': {
+                    'Radiant Energy Solutions Ltd official website': {
                         "status": "successful",
                         "source": "REAL",
                         "knowledge_graph": {
@@ -915,7 +915,7 @@ async def test_generate_and_roundtrip_task12_fixtures(tmp_path):
             ),
             MockSearchClient(
                 query_responses={
-                    '"Wipro Limited" official website careers': {
+                    'Wipro Limited official website': {
                         "status": "successful",
                         "source": "REAL",
                         "knowledge_graph": {
@@ -952,7 +952,7 @@ async def test_generate_and_roundtrip_task12_fixtures(tmp_path):
             ),
             MockSearchClient(
                 query_responses={
-                    '"Radiant Energy Solutions Ltd" official website careers': {
+                    'Radiant Energy Solutions Ltd official website': {
                         "status": "successful",
                         "source": "REAL",
                         "knowledge_graph": {

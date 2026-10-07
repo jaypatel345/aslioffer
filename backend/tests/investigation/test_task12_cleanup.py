@@ -29,7 +29,7 @@ def metadata(url=URL, title="Software Engineer - Acme Careers",
              snippet="We are hiring a Software Engineer in Bengaluru. Apply online.",
              status=RetrievalStatus.LIVE, step="resolve_employer_domain"):
     return dict(source_url=url, title=title, snippet=snippet, retrieval_status=status,
-                query='"Acme" official website careers', engine="google", search_id="search-1",
+                query='Acme official website', engine="google", search_id="search-1",
                 retrieved_at=NOW, step=step)
 
 

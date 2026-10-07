@@ -138,7 +138,7 @@
     {
       "step": "resolve_employer_domain",
       "tool": "serpapi.google",
-      "query": "\"Radiant Energy Solutions Ltd\" official website careers",
+      "query": "Radiant Energy Solutions Ltd official website",
       "reason": "Resolve the employer's official domain before checking contact details",
       "status": "COMPLETED",
       "started_at": "2026-10-04T08:11:23.987665Z",

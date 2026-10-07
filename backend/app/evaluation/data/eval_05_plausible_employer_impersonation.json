@@ -19,7 +19,7 @@
   "budget": null,
   "search_mock": {
     "query_responses": {
-      "\"Infosys Limited\" official website careers": {
+      "Infosys Limited official website": {
         "status": "successful",
         "source": "REAL",
         "knowledge_graph": {

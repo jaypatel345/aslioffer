@@ -27,7 +27,7 @@
   "provider_status": "successful",
   "search_mock": {
     "query_responses": {
-      "\"Infosys BPO Services Limited\" official website careers": {
+      "Infosys BPO Services Limited official website": {
         "status": "successful",
         "source": "DEMO",
         "knowledge_graph": {

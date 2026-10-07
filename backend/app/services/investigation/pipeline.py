@@ -540,7 +540,10 @@ async def investigate_case(
             actions.insert(0, "Re-run this investigation once the search provider is available.")
             actions.append("Do not pay any fee or share bank OTPs.")
         else:
-            actions.insert(0, "Ask the company for an official website or LinkedIn page and a contact you can reach independently.")
+            if canonical_domain:
+                actions.insert(0, f"Confirm this offer through contact details published on {canonical_domain}, not the ones in the message.")
+            else:
+                actions.insert(0, "Ask the company for an official website or LinkedIn page and a contact you can reach independently.")
             actions.append("Do not pay any fee or share bank OTPs at any stage.")
     elif overall_outcome == OverallOutcome.NO_STRONG_RISK_SIGNALS:
         actions.insert(0, f"No strong risk signals were found, but only {company_name or 'the employer'} can confirm this offer.")

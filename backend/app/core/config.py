@@ -53,11 +53,20 @@ class Settings(BaseSettings):
 
     # SerpApi Configuration
     SERPAPI_API_KEY: str = ""
-    SEARCH_TIMEOUT_SECONDS: float = Field(default=8.0, gt=0, le=60)
+    # Uncached SerpApi queries regularly take 8-15 s; a shorter timeout throws them away.
+    SEARCH_TIMEOUT_SECONDS: float = Field(default=15.0, gt=0, le=60)
     SEARCH_MAX_RETRIES: int = Field(default=2, ge=0, le=5)
     SEARCH_RETRY_BACKOFF_SECONDS: float = Field(default=0.5, ge=0, le=5)
     SEARCH_TOTAL_TIMEOUT_SECONDS: float = Field(default=25.0, gt=0, le=120)
     SEARCH_DEMO_MODE: bool = False
+    # Searches run as from India: offers are Indian, and US-localised results bury
+    # employers' own sites under stock tickers and job boards. Empty string = omit.
+    SEARCH_COUNTRY: str = "in"
+    SEARCH_LANGUAGE: str = "en"
+    SEARCH_GOOGLE_DOMAIN: str = "google.co.in"
+    # Elapsed limit for all external searches in one investigation (RUN_TIMEOUT_SECONDS
+    # still bounds the whole run). Progress is streamed, so the user sees each step.
+    INVESTIGATION_SEARCH_DEADLINE_SECONDS: float = Field(default=30.0, gt=0, le=300)
 
     # Run service (J3)
     # Hard ceiling on one investigation run, on top of the investigator's own
