@@ -111,3 +111,23 @@ async def test_slow_discussion_search_does_not_hold_up_the_scam_check(monkeypatc
         company_name="Coorix", demanded_fee=None, payment_method=None, flags=[], raw_text=TEXT)
     assert time.perf_counter() - start < 2
     assert finding.details["public_discussions"] == []
+
+
+@pytest.mark.asyncio
+async def test_no_discussion_search_for_well_known_brand_even_if_unresolved():
+    """'TCS scam' threads are about impersonators, not about TCS."""
+    q = '"Tata Consultancy Services" job scam or legit'
+    client = _Scripted({})
+    finding = await ScamAgent(search_client=client).investigate(
+        company_name="Tata Consultancy Services", demanded_fee=None, payment_method=None, flags=[],
+        raw_text="Offer from Tata Consultancy Services", employer_resolved=False)
+    assert q not in client.queries
+    assert finding.details["public_discussions"] == []
+
+
+def test_related_thread_in_snippet_is_not_a_discussion_about_the_company():
+    """Observed live: a 'Corizo' thread whose snippet listed the related 'Coorix' thread."""
+    assert not ScamAgent._public_discussion(
+        "Coorix", "https://www.reddit.com/r/GITAM/comments/x/corizo_internship_review_scam/",
+        "Corizo internship review scam : r/GITAM",
+        "Coorix Internship — Scam or Legit? 13 upvotes · 82 comments. Corizo course/internship: Real or fraud?")

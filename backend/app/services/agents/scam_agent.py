@@ -31,6 +31,21 @@ class ScamAgent:
     # Where people ask each other about an offer. A thread asking "is X a scam?" is a
     # reason for caution, not evidence of fraud.
     DISCUSSION_TIMEOUT_SECONDS = 20.0
+    # Brands so widely impersonated that "<brand> scam" threads are about impersonators,
+    # not the employer. Their discussion search is skipped even if live search could not
+    # confirm their website on a given run.
+    WELL_KNOWN_EMPLOYERS = (
+        "tata consultancy services", "tata consultancy", "tcs", "infosys", "wipro", "accenture", "cognizant", "hcl", "hcltech",
+        "tech mahindra", "capgemini", "ibm", "deloitte", "genpact", "ltimindtree", "mphasis", "amazon",
+        "google", "microsoft", "ey", "kpmg", "pwc", "flipkart", "reliance", "hdfc", "icici",
+    )
+
+    @classmethod
+    def _well_known(cls, company: str) -> bool:
+        import re
+        name = re.sub(r"\b(?:limited|ltd|private|pvt|india|inc|llp|technologies|services)\b\.?", "", (company or "").lower())
+        name = re.sub(r"\s+", " ", name).strip()
+        return any(name == b or name.startswith(b + " ") for b in cls.WELL_KNOWN_EMPLOYERS)
     DISCUSSION_HOSTS = ("reddit.com", "quora.com", "grapevine.in", "glassdoor.", "linkedin.com",
                         "x.com", "twitter.com", "facebook.com", "teamblind.com")
 
@@ -41,10 +56,11 @@ class ScamAgent:
         host = (urlparse(link or "").hostname or "").lower()
         if not any(host == h or host.endswith("." + h) or (h.endswith(".") and h in host) for h in cls.DISCUSSION_HOSTS):
             return False
-        text = f"{title} {snippet}".lower()
-        if not company or not re.search(r"(?<!\w)" + re.escape(company.lower()) + r"(?!\w)", text):
+        # The thread's own title must name the company: forum snippets often list
+        # *related* threads ("Corizo internship review" showing "Coorix Internship...").
+        if not company or not re.search(r"(?<!\w)" + re.escape(company.lower()) + r"(?!\w)", (title or "").lower()):
             return False
-        return bool(re.search(r"\b(?:scam|legit|legitimate|genuine|fake|fraud)\b", text))
+        return bool(re.search(r"\b(?:scam|legit|legitimate|genuine|fake|fraud)\b", f"{title} {snippet}".lower()))
 
     @staticmethod
     def _relevant_report(company: str, title: str, snippet: str) -> bool:
@@ -197,7 +213,7 @@ class ScamAgent:
             # could not be established: for well-known brands such threads are about
             # impersonators. The caller may still be resolving the employer, so wait for it.
             resolved = await employer_resolved() if callable(employer_resolved) else employer_resolved
-            if not safe_company or resolved:
+            if not safe_company or resolved or self._well_known(safe_company):
                 return None, None
             offer_kind = "internship" if re.search(r"\bintern(?:ship)?s?\b", raw_text or "", re.IGNORECASE) else "job"
             query = f'"{safe_company}" {offer_kind} scam or legit'
