@@ -73,7 +73,7 @@ flowchart LR
 2. **Check the details** — every extracted claim is shown with the exact quote it came from. Fix anything that was misread.
    Scam signals (payment and credential requests) are read-only so they cannot be edited away.
 3. **Investigate** — four agents run against live SerpApi results inside a fixed budget
-   (max 10 searches, 3 follow-ups, 3 in parallel, 30 s search deadline). Progress is streamed step by step from real events.
+   (max 12 searches, 3 follow-ups, 3 in parallel, 30 s search deadline). Progress is streamed step by step from real events.
 4. **Get the verdict** — each claim is marked *Supported*, *Contradicted*, *Unresolved* or *Not checked*,
    with linked sources, plus a draft message to confirm the offer through an independently found channel.
 
