@@ -93,3 +93,21 @@ async def test_failed_discussion_search_is_not_a_failed_check():
     # Still listed in the searches run, as skipped rather than failed.
     assert any(c.query == QUERY and c.status.value == "SKIPPED" for c in client.tool_calls)
     assert finding.details["provider_status"] == "SUCCESS"
+
+
+@pytest.mark.asyncio
+async def test_slow_discussion_search_does_not_hold_up_the_scam_check(monkeypatch):
+    import asyncio, time
+
+    class _Hanging(_Scripted):
+        async def search(self, query, **kwargs):
+            if query == QUERY:
+                await asyncio.sleep(30)
+            return await super().search(query, **kwargs)
+
+    monkeypatch.setattr(ScamAgent, "DISCUSSION_TIMEOUT_SECONDS", 0.05)
+    start = time.perf_counter()
+    finding = await ScamAgent(search_client=_Hanging({})).investigate(
+        company_name="Coorix", demanded_fee=None, payment_method=None, flags=[], raw_text=TEXT)
+    assert time.perf_counter() - start < 2
+    assert finding.details["public_discussions"] == []

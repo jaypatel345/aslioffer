@@ -30,6 +30,7 @@ class ScamAgent:
 
     # Where people ask each other about an offer. A thread asking "is X a scam?" is a
     # reason for caution, not evidence of fraud.
+    DISCUSSION_TIMEOUT_SECONDS = 20.0
     DISCUSSION_HOSTS = ("reddit.com", "quora.com", "grapevine.in", "glassdoor.", "linkedin.com",
                         "x.com", "twitter.com", "facebook.com", "teamblind.com")
 
@@ -204,7 +205,12 @@ class ScamAgent:
             if callable(getattr(type(self.search_client), "mark_optional", None)):
                 # A supplementary cue: if SerpApi is too slow for it, the report is still complete.
                 self.search_client.mark_optional(query)
-            return query, await fetch(query)
+            # Optional cue: never let a slow SerpApi response hold up the main checks.
+            # SerpApi keeps processing it, so a later run of the same offer gets it cached.
+            try:
+                return query, await asyncio.wait_for(fetch(query), timeout=self.DISCUSSION_TIMEOUT_SECONDS)
+            except asyncio.TimeoutError as exc:
+                return query, exc
 
         planned = [q for q in (scam_query, pay_query) if q]
         *results, (discussion_query, discussion_raw) = await asyncio.gather(*(fetch(q) for q in planned), fetch_discussions())
