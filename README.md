@@ -3,7 +3,7 @@
 [![SerpApi India Hackathon 2026](https://img.shields.io/badge/SerpApi%20India%20Hackathon-2026-10b981.svg)](https://serpapi.com)
 [![Track](https://img.shields.io/badge/Track-AI%20Agents-2563eb.svg)](#how-it-works)
 [![Live demo](https://img.shields.io/badge/Live%20demo-aslioffer.vercel.app-111827.svg)](https://aslioffer.vercel.app)
-[![Tests](https://img.shields.io/badge/backend%20tests-661%20passing-10b981.svg)](#quality-and-evaluation)
+[![Tests](https://img.shields.io/badge/backend%20tests-686%20passing-10b981.svg)](#quality-and-evaluation)
 [![Evaluation](https://img.shields.io/badge/eval-27%2F27%20cases-10b981.svg)](#quality-and-evaluation)
 
 > **Scammers can copy a company's logo. They cannot copy its whole public footprint.**
@@ -72,10 +72,15 @@ flowchart LR
 1. **Add your offer** — paste an email/WhatsApp message or upload a PDF. Text is read locally; nothing is searched yet.
 2. **Check the details** — every extracted claim is shown with the exact quote it came from. Fix anything that was misread.
    Scam signals (payment and credential requests) are read-only so they cannot be edited away.
-3. **Investigate** — four agents run against live SerpApi results inside a fixed budget
+3. **Investigate** — four agents run in parallel against live SerpApi results inside a fixed budget
    (max 12 searches, 3 follow-ups, 5 in parallel, 90 s search deadline). Progress is streamed step by step from real events.
-4. **Get the verdict** — each claim is marked *Supported*, *Contradicted*, *Unresolved* or *Not checked*,
-   with linked sources, plus a draft message to confirm the offer through an independently found channel.
+4. **Get the verdict** — the report reads top-down for anyone:
+   - **Verdict** in one sentence, then **Key findings** — 2–5 plain facts such as 🚩 *"Asks you to pay money"*,
+     🚩 *"Recruiter's email doesn't match the company (gmail.com vs tcs.com)"*, ✅ *"TCS is a real company — tcs.com"*.
+   - **What to do now** and **Confirm with the employer** (names the official website when it was found).
+   - **Everything we checked** — each detail labelled 🚩 Red flag, ✅ Confirmed, ❓ Couldn't confirm or ➖ Not checked,
+     with linked sources and everyday explanations.
+   - **How complete was this check?** — coverage numbers and the searches run, at the end.
 
 <p align="center">
   <img src="docs/screenshots/03-review-claims.jpg" width="32%" alt="Claim review" />
@@ -104,6 +109,8 @@ Every external fact comes from a live Google search through SerpApi. Examples of
 | Recruiter | `"rohit.tcs.hiring@gmail.com" scam fraud complaint` | Find public reports of that exact contact |
 | Recruiter | `"<agency>" official website` | Check a staffing agency is real and authorised |
 | Scam | `"Tata Consultancy Services" job scam fraud complaint telegram` | Find impersonation warnings |
+| Scam | `"Coorix" internship scam or legit` | Find "is this a scam?" threads about a little-known employer |
+| Recruiter | `site:accenture.com "candidate.queries@accenture.com"` | Is this exact address published by the employer itself? |
 | Salary | `"Systems Engineer" salary "Infosys" AmbitionBox Glassdoor` | Compare the CTC with public data |
 | Planner | `site:<official-domain> "<role>"` | Look for the vacancy on the employer's own site |
 
@@ -126,13 +133,22 @@ data is ever substituted in a real report.**
 - **Finds big employers' real domains — but not a scammer's.** A domain is accepted as official only when it is the
   single brand-named domain dominating the search *and* Google has an entity card for that company. Infosys, TCS, Wipro
   and Accenture resolve; a made-up company that ranks for its own name does not.
+- **Catches the fake recruiter.** A "TCS recruiter" writing from gmail.com is marked a red flag because the
+  employer's real domain (tcs.com) was found — and a recruiter address the employer publishes on its own site
+  (e.g. Accenture's recruitment page) is confirmed.
+- **Reads real-world wording.** Fee demands like "refundable training kit deposit" or "joining processing fee",
+  and employers named only in a title line or sender ("Offer Letter - Capgemini India", "From: Coorix HR").
 - **Honest uncertainty.** If search fails or evidence is thin, the report says *Cannot verify* and lists which checks
   did not complete — instead of inventing a verdict.
 - **Human in the loop.** You confirm or correct the extracted details before any search runs.
 - **Adaptive, budgeted agents.** After the first pass a planner decides which gaps are worth a follow-up search, within a
   hard search and time budget.
+- **Plain-language report.** Labels say good or bad, not true or false: a ₹15,000 deposit demand is a
+  🚩 *Red flag*, never a green "Supported".
 - **Real progress, not a fake spinner.** Each step is shown as it really happens: green ✓ when completed,
   red ✗ when a check failed or its data was not found.
+- **Built for slow live search.** Checks run in parallel, slow SerpApi responses get time to finish, and an optional
+  search can never hold up the core checks.
 - **Privacy by design.** Aadhaar, PAN, card, bank-account numbers and OTPs are redacted before any search.
   Each case is locked to the uploading browser with a secret token, auto-deleted after 7 days, and can be deleted at once.
 - **Action, not just a verdict.** Download the report as a PDF — including the scammer's email, phone and UPI ID —
@@ -144,7 +160,7 @@ data is ever substituted in a real report.**
 
 | Check | Result |
 |---|---|
-| Backend tests (`pytest`) | **661 passing** |
+| Backend tests (`pytest`) | **686 passing** |
 | Offline evaluation corpus | **27 / 27 cases pass**, 100% safety invariants |
 | Legitimate offers marked High risk | **0 / 9** |
 | Fee / OTP threats missed | **0 / 5** |
