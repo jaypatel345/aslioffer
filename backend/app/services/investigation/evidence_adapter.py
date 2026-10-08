@@ -97,6 +97,25 @@ class EvidenceAdapter:
                     add(by_kind.get(ClaimKind.EMPLOYER), meta, relation=relation)
 
         recruiter = findings.get('RecruiterAgent')
+        sender = by_kind.get(ClaimKind.SENDER_EMAIL)
+        if (company and recruiter and sender and sender.value and canonical_employer_domain
+                and company.details.get('official_domain_resolved') and not recruiter.details.get('is_agency')):
+            # A sender that claims the employer but writes from another domain (often
+            # public webmail) is contradicted by the employer's resolved official site.
+            # The citation is the retrieved result that established that domain.
+            email_domain = (recruiter.details.get('email_domain') or '').lower()
+            if email_domain and not DomainResolver.is_matching_domain(email_domain, canonical_employer_domain):
+                supporting = [r for r in records if by_kind.get(ClaimKind.EMPLOYER)
+                              and r.claim_id == by_kind[ClaimKind.EMPLOYER].claim_id
+                              and r.relation == EvidenceRelation.SUPPORTS and r.source_url]
+                # Cite the page closest to the homepage, not an arbitrary article.
+                official = min(supporting, key=lambda r: len(r.source_url)) if supporting else None
+                if official is not None:
+                    meta = next((m for key, entries in recording_client.snippets_by_url.items()
+                                 if canonicalize_url(key) == canonicalize_url(official.source_url)
+                                 for m in entries if m.get('step') == 'resolve_employer_domain'), None)
+                    if meta:
+                        add(sender, meta, relation=EvidenceRelation.CONTRADICTS)
         if recruiter:
             dimensions = recruiter.details.get('assessment_dimensions') or {}
             affiliation = dimensions.get('recruiter_affiliation') or {}

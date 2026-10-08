@@ -66,7 +66,7 @@ class Settings(BaseSettings):
     SEARCH_GOOGLE_DOMAIN: str = "google.co.in"
     # Elapsed limit for all external searches in one investigation (RUN_TIMEOUT_SECONDS
     # still bounds the whole run). Progress is streamed, so the user sees each step.
-    INVESTIGATION_SEARCH_DEADLINE_SECONDS: float = Field(default=30.0, gt=0, le=300)
+    INVESTIGATION_SEARCH_DEADLINE_SECONDS: float = Field(default=45.0, gt=0, le=300)
     # Searches per investigation. Employer resolution can need up to three (website,
     # off-topic retry, entity card) before the agents' own checks run.
     INVESTIGATION_MAX_SEARCHES: int = Field(default=12, ge=1, le=30)

@@ -73,6 +73,17 @@ class ClaimAssessor:
                 else:
                     status = ClaimStatus.NOT_CHECKED
                     reason, codes = 'No grounded document observation supports this supplied demand value.', ['NO_GROUNDED_DEMAND']
+            elif (claim.kind == ClaimKind.SENDER_EMAIL and canonical_employer_domain
+                  and EvidenceRelation.CONTRADICTS in relations):
+                # Does not depend on the recruiter's own searches finishing.
+                domain = claim.value.rsplit('@', 1)[-1].lower() if '@' in claim.value else claim.value
+                official = canonical_employer_domain[4:] if canonical_employer_domain.startswith('www.') else canonical_employer_domain
+                webmail = domain in ('gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com', 'rediffmail.com', 'ymail.com', 'live.com', 'icloud.com', 'proton.me', 'protonmail.com')
+                status = ClaimStatus.CONTRADICTED
+                reason = (f"The employer's official website is {official}, but this address is on "
+                          f"{'public webmail (' + domain + ')' if webmail else domain}. Genuine recruiters write from the employer's own domain.")
+                codes = ['SENDER_DOMAIN_MISMATCH'] + (['FREE_WEBMAIL_SENDER'] if webmail else [])
+                ids = [e.evidence_id for e in usable if e.relation == EvidenceRelation.CONTRADICTS]
             elif agent is None:
                 status, reason, codes = ClaimStatus.NOT_CHECKED, 'The relevant investigation check did not execute successfully.', ['CHECK_NOT_EXECUTED']
             elif agent.details.get('provider_status') == 'FAILED':

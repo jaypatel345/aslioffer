@@ -12,6 +12,22 @@ function claimValue(claims: Claim[], kind: Claim['kind']) {
   return claims.find((c) => c.kind === kind && c.value)?.value ?? null;
 }
 
+/** The employer's website, only when the investigation itself established it from an official source. */
+function officialSite(result: InvestigationResult): string | null {
+  const employer = result.claims.find((c) => c.kind === 'employer');
+  if (!employer) return null;
+  const assessed = result.assessed_claims.find((a) => a.claim_id === employer.claim_id);
+  if (assessed?.status !== 'SUPPORTED') return null;
+  const official = result.evidence.find(
+    (e) => assessed.evidence_ids.includes(e.evidence_id) && e.relation === 'SUPPORTS' && e.source_tier === 'OFFICIAL_EMPLOYER' && e.source_url,
+  );
+  try {
+    return official?.source_url ? new URL(official.source_url).hostname : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Neutral question for the employer. Never includes contacts taken from the offer. */
 function defaultDraft(result: InvestigationResult): string {
   const employer = claimValue(result.claims, 'employer') ?? 'your company';
@@ -42,6 +58,7 @@ export const ConfirmationPanel: React.FC<{ result: InvestigationResult }> = ({ r
     : undefined;
   const initial = useMemo(() => route?.draft_message || defaultDraft(result), [result, route]);
   const [draft, setDraft] = useState(initial);
+  const site = route ? null : officialSite(result);
   const [copied, setCopied] = useState(false);
 
   const copy = async () => {
@@ -98,6 +115,16 @@ export const ConfirmationPanel: React.FC<{ result: InvestigationResult }> = ({ r
               )}
             </p>
           )}
+        </div>
+      ) : site ? (
+        <div className="p-4 rounded-xl bg-emerald-50/60 border border-emerald-200 text-sm text-slate-700 mb-5">
+          <div className="text-xs font-semibold text-emerald-800 uppercase tracking-wide mb-1">Official website</div>
+          <span className="font-semibold text-emerald-800">{site}</span>
+          <p className="text-xs text-slate-600 mt-1">
+            Our search found this as the employer’s official website, but no specific confirmation contact. Type the
+            address into your browser yourself (don’t follow links in the offer) and use the contact or careers page
+            there. You can use the draft below.
+          </p>
         </div>
       ) : (
         <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-sm text-slate-700 mb-5">

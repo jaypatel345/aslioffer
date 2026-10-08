@@ -73,7 +73,7 @@ flowchart LR
 2. **Check the details** — every extracted claim is shown with the exact quote it came from. Fix anything that was misread.
    Scam signals (payment and credential requests) are read-only so they cannot be edited away.
 3. **Investigate** — four agents run against live SerpApi results inside a fixed budget
-   (max 12 searches, 3 follow-ups, 3 in parallel, 30 s search deadline). Progress is streamed step by step from real events.
+   (max 12 searches, 3 follow-ups, 3 in parallel, 45 s search deadline). Progress is streamed step by step from real events.
 4. **Get the verdict** — each claim is marked *Supported*, *Contradicted*, *Unresolved* or *Not checked*,
    with linked sources, plus a draft message to confirm the offer through an independently found channel.
 
@@ -243,7 +243,7 @@ docs/                    architecture, API contract, design notes per task
   explicit consent; paste the text or upload a text PDF instead.
 - **"Cannot verify" is common, by design.** Even when the employer's domain is found, a recruiter email or vacancy that
   is not publicly corroborated stays unresolved — an address typed into a message proves nothing on its own.
-- **Live search latency.** Uncached SerpApi queries can take 5–15 s; a run stops searching at 30 s and reports any
+- **Live search latency.** Uncached SerpApi queries can take 5–15 s; a run stops searching at 45 s and reports any
   check that did not finish.
 - The free Render instance sleeps when idle, so the first request after a pause can take up to a minute.
 
