@@ -1,7 +1,7 @@
 import { InvestigationResult } from '../types';
 import {
   CLAIM_KIND_LABEL,
-  CLAIM_STATUS,
+  plainStatus,
   EXTRACTION_STATUS,
   OUTCOME,
   RELATION,
@@ -65,7 +65,7 @@ export function buildMarkdownReport(result: InvestigationResult, options: Export
   lines.push('## Claims', '');
   for (const claim of result.claims) {
     const assessment = assessmentById.get(claim.claim_id);
-    const status = assessment ? CLAIM_STATUS[assessment.status].label : 'Not assessed';
+    const status = plainStatus(claim, assessment).label;
     lines.push(`### ${CLAIM_KIND_LABEL[claim.kind]}: ${claim.value ?? '(not in the offer)'}`, '');
     lines.push(`- **Status:** ${status}`);
     lines.push(`- **Extraction:** ${EXTRACTION_STATUS[claim.extraction_status]}`);

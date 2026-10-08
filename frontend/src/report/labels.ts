@@ -1,4 +1,6 @@
 import {
+  AssessedClaim,
+  Claim,
   ClaimKind,
   ClaimStatus,
   EvidenceRelation,
@@ -101,3 +103,66 @@ export const TONE_CLASSES: Record<Tone, { chip: string; border: string; text: st
 };
 
 export const formatTime = (iso: string | null | undefined) => (iso ? new Date(iso).toLocaleString() : '—');
+
+// ---------------------------------------------------------------- plain-language status
+
+export type PlainVerdict = 'red_flag' | 'good' | 'unconfirmed' | 'not_checked';
+
+const DEMAND_KINDS: ClaimKind[] = ['payment_request', 'credential_request'];
+export const isDemandKind = (kind: ClaimKind) => DEMAND_KINDS.includes(kind);
+
+/**
+ * What a claim's status means for the reader: good sign, red flag, or unknown.
+ * Contract statuses say whether a claim is *true*; for a payment demand,
+ * "supported" means the demand really is in the offer, which is a red flag.
+ */
+export function plainStatus(claim: Claim, assessment?: AssessedClaim): { verdict: PlainVerdict; label: string; tone: Tone } {
+  const status = assessment?.status ?? 'NOT_CHECKED';
+  if (isDemandKind(claim.kind)) {
+    if (!claim.value) return { verdict: 'good', label: 'None in the offer', tone: 'emerald' };
+    if (status === 'SUPPORTED') return { verdict: 'red_flag', label: 'Red flag · found in offer', tone: 'rose' };
+    return { verdict: 'not_checked', label: 'Not checked', tone: 'slate' };
+  }
+  if (!claim.value) return { verdict: 'not_checked', label: 'Not in the offer', tone: 'slate' };
+  switch (status) {
+    case 'SUPPORTED':
+      return { verdict: 'good', label: 'Confirmed', tone: 'emerald' };
+    case 'CONTRADICTED':
+      return { verdict: 'red_flag', label: "Red flag · doesn't match", tone: 'rose' };
+    case 'UNRESOLVED':
+      return { verdict: 'unconfirmed', label: "Couldn't confirm", tone: 'amber' };
+    default:
+      return { verdict: 'not_checked', label: 'Not checked', tone: 'slate' };
+  }
+}
+
+/** Everyday wording for the most common assessment reasons; falls back to the backend's own explanation. */
+export function plainExplanation(claim: Claim, assessment?: AssessedClaim): string | null {
+  if (!assessment) return null;
+  const codes = assessment.reason_codes;
+  const has = (code: string) => codes.includes(code);
+  if (claim.kind === 'payment_request' && has('UPFRONT_PAYMENT_DEMAND'))
+    return 'This offer asks you to pay money. Genuine employers never charge candidates — this is the most common job scam.';
+  if (claim.kind === 'credential_request' && has('CREDENTIAL_THEFT_DEMAND'))
+    return 'This offer asks for passwords, OTPs or bank details. No real employer needs these to hire you.';
+  if (has('SENDER_DOMAIN_MISMATCH')) return assessment.explanation;
+  if (has('OFFICIAL_DOMAIN_RESOLVED'))
+    return 'This company really exists — we found its official website. That alone does not prove this offer came from it.';
+  if (has('PUBLIC_LISTING_MATCH'))
+    return 'The company itself publishes this contact on its own website.';
+  if (has('NO_PUBLIC_LISTING_FOUND'))
+    return 'We did not find this contact published by the company. Not a scam sign by itself.';
+  if (has('OFFICIAL_DOMAIN_UNRESOLVED'))
+    return 'We could not find an official website for this company. Small or new companies can be hard to find.';
+  if (has('VACANCY_NOT_FOUND') || has('NO_MATCHING_VACANCY'))
+    return 'We did not find this job listed publicly. Many real jobs are never listed, so this is not a scam sign by itself.';
+  if (codes.some((c) => c.startsWith('LOCATION_')))
+    return 'We could not confirm this job location from public hiring records.';
+  if (has('NO_SALARY_BENCHMARK'))
+    return 'We could not find reliable public salary data for this exact role and pay.';
+  if (has('SEARCH_UNAVAILABLE'))
+    return 'The search for this did not finish. Running the investigation again may help.';
+  if (has('CHECK_NOT_EXECUTED'))
+    return 'This was not checked in this run (time or search limit reached).';
+  return assessment.explanation;
+}
