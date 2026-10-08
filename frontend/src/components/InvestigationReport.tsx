@@ -122,6 +122,17 @@ function keyFindings(result: InvestigationResult, assessmentById: Map<string, As
   // Money and credential demands are the strongest signs; show them first.
   const demandFirst = (f: Finding) => (f.title.startsWith('Asks') ? 0 : 1);
   const findings = [...red.sort((a, b) => demandFirst(a) - demandFirst(b)), ...good];
+  // Threads where people ask whether this employer is genuine: a caution, not proof.
+  const discussions = result.evidence.filter((e) => e.source_url && e.query?.endsWith('scam or legit'));
+  if (discussions.length) {
+    const first = discussions[0];
+    findings.splice(red.length, 0, {
+      tone: 'amber',
+      Icon: AlertTriangle,
+      title: `People online are asking if ${employer?.value ?? 'this company'} is a scam`,
+      detail: `“${clip(first.title, 90)}” on ${hostOf(first.source_url as string)}${discussions.length > 1 ? ` and ${discussions.length - 1} more` : ''}. Read before you share documents or pay anything.`,
+    });
+  }
   if (!employer?.value) {
     findings.push({ tone: 'amber', Icon: HelpCircle, title: 'No company name we could check', detail: 'The message does not clearly name an employer, so its public footprint could not be looked up.' });
   }

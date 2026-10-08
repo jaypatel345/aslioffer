@@ -117,6 +117,8 @@ data is ever substituted in a real report.**
 
 - **Grounded, not guessed.** Every claim carries the exact character span it was quoted from, and the report contract
   rejects any search step that cites evidence it did not actually retrieve.
+- **Finds what people are saying.** For a little-known employer it also searches for public "scam or legit?"
+  threads (Reddit, Quora, LinkedIn…) and links them as a caution — a question thread is never treated as proof.
 - **Context-aware scam detection.** "Infosys *never* asks for fees" or a quoted scam warning is *not* flagged;
   "deposit ₹15,000 via UPI" is.
 - **Lookalike-domain defence.** Punycode homoglyphs, `tcs.com.attacker.example` subdomain tricks,

@@ -214,6 +214,7 @@ async def investigate_case(
                 payment_method=ext_result.to_extracted_data().payment_method,
                 flags=ext_result.to_extracted_data().flags,
                 raw_text=case_input.redacted_text,
+                employer_resolved=bool(canonical_domain),
             )
 
     async def finish_step(fn, name):
@@ -548,6 +549,9 @@ async def investigate_case(
     elif overall_outcome == OverallOutcome.NO_STRONG_RISK_SIGNALS:
         actions.insert(0, f"No strong risk signals were found, but only {company_name or 'the employer'} can confirm this offer.")
         actions.append("Confirm offer issuance independently before accepting; do not rely solely on an emailed link.")
+    if finding_scam and finding_scam.details.get("public_discussions"):
+        actions.insert(0, f"People are publicly asking whether {company_name} is genuine (linked under Employer). "
+                          "Read those discussions and confirm with the company before sharing documents or paying anything.")
 
     # 8. Confirmation Route (Task 12)
     confirmation_route: Optional[ConfirmationRoute] = corroboration_res.confirmation_route

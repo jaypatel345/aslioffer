@@ -290,7 +290,28 @@ class GroundedEntityParser:
                     employer_quote = cand
 
         if not employer_name and not any(c.kind == ClaimKind.CLAIMED_EMPLOYER.value for c in claims):
-            # 4. Known brand fallback, but ONLY if not in platform mentions
+            # 4. Sender team or hiring programme named after the company:
+            #    "From: Coorix HR", "the Coorix Internship Drive". Accepted only when the
+            #    same name appears again in the text, so one stray capitalised word is not
+            #    mistaken for an employer.
+            name_re = r"([A-Z][A-Za-z0-9&\-']+(?:\s+[A-Z][A-Za-z0-9&\-']+){0,2})"
+            team_re = re.compile(r"(?im)^\s*from\s*:\s*" + name_re + r"\s+(?:HR|Team|Careers|Recruitment|Recruiting|Hiring|Talent(?:\s+Acquisition)?)\b")
+            programme_re = re.compile(r"\b(?:the\s+)?" + name_re + r"\s+(?:Internship|Hiring|Recruitment|Campus|Placement)\s+(?:Drive|Program(?:me)?|Process|Notification)\b")
+            for pattern in (team_re, programme_re):
+                for m in pattern.finditer(sanitized):
+                    cand = m.group(1).strip()
+                    if (cand in platform_found_names or cand.lower() in STOPWORD_COMPANIES
+                            or cand.lower() in ("the", "our", "your", "this", "dear", "selection", "subject")):
+                        continue
+                    if len(re.findall(rf"\b{re.escape(cand)}\b", sanitized)) >= 2:
+                        employer_name = cand
+                        employer_quote = cand
+                        break
+                if employer_name:
+                    break
+
+        if not employer_name and not any(c.kind == ClaimKind.CLAIMED_EMPLOYER.value for c in claims):
+            # 5. Known brand fallback, but ONLY if not in platform mentions
             for brand in [
                 "Tata Consultancy Services", "TCS", "Infosys Limited", "Infosys",
                 "Wipro", "Accenture", "Cognizant", "Tata Elxsi", "V-Guard Industries Ltd.",

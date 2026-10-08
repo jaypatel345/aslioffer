@@ -1,3 +1,4 @@
+import re
 from typing import Optional, List, Dict, Any
 from app.schemas.analysis import AgentFinding, EvidenceItem
 from app.services.search.serpapi_client import SerpApiClient, SearchSource, SearchResult
@@ -26,6 +27,23 @@ class ScamAgent:
         self.search_client = search_client or SerpApiClient()
         self.classifier = ScamClassifier()
 
+    # Where people ask each other about an offer. A thread asking "is X a scam?" is a
+    # reason for caution, not evidence of fraud.
+    DISCUSSION_HOSTS = ("reddit.com", "quora.com", "grapevine.in", "glassdoor.", "linkedin.com",
+                        "x.com", "twitter.com", "facebook.com", "teamblind.com")
+
+    @classmethod
+    def _public_discussion(cls, company: str, link: str, title: str, snippet: str) -> bool:
+        import re
+        from urllib.parse import urlparse
+        host = (urlparse(link or "").hostname or "").lower()
+        if not any(host == h or host.endswith("." + h) or (h.endswith(".") and h in host) for h in cls.DISCUSSION_HOSTS):
+            return False
+        text = f"{title} {snippet}".lower()
+        if not company or not re.search(r"(?<!\w)" + re.escape(company.lower()) + r"(?!\w)", text):
+            return False
+        return bool(re.search(r"\b(?:scam|legit|legitimate|genuine|fake|fraud)\b", text))
+
     @staticmethod
     def _relevant_report(company: str, title: str, snippet: str) -> bool:
         import re
@@ -43,6 +61,7 @@ class ScamAgent:
         payment_method: Optional[str],
         flags: List[str],
         raw_text: str,
+        employer_resolved: bool = False,
     ) -> AgentFinding:
         """
         Investigate scam markers, fee demands, suspicious payment channels, and live public warnings.
@@ -183,6 +202,35 @@ class ScamAgent:
             checks["company_reports"] = {"provider_status": "FAILED", "search_status": "PROVIDER_FAILURE", "error": "Search integration failed"}
             logger.warning("ScamAgent: general scam search failed")
 
+        # Community discussion search, only for employers whose official site could not
+        # be established: for well-known brands such threads are about impersonators.
+        public_discussions: List[Dict[str, str]] = []
+        if safe_company and not employer_resolved:
+            offer_kind = "internship" if re.search(r"\bintern(?:ship)?s?\b", raw_text or "", re.IGNORECASE) else "job"
+            discussion_query = f'"{safe_company}" {offer_kind} scam or legit'
+            try:
+                disc_res = SearchResult.from_dict_or_result(await self.search_client.search(query=discussion_query), query=discussion_query)
+                record("community_discussions", disc_res)
+                if disc_res.is_live:
+                    for res in (disc_res.organic_results or [])[:5]:
+                        link = res.get("link") or ""
+                        title = sanitize_and_redact_secrets(res.get("title") or "")
+                        snippet = sanitize_and_redact_secrets(res.get("snippet") or "")
+                        if not (link and title):
+                            continue
+                        if self._relevant_report(safe_company, title, snippet):
+                            evidence_list.append(EvidenceItem(source_url=link, title=title,
+                                description=snippet or f"Public report about {company_name}.",
+                                evidence_type="SCAM_REPORT", confidence=0.85))
+                        elif self._public_discussion(safe_company, link, title, snippet):
+                            public_discussions.append({"url": link, "title": title})
+                            evidence_list.append(EvidenceItem(source_url=link, title=title,
+                                description=snippet or f"Public discussion asking whether {company_name} is genuine.",
+                                evidence_type="PUBLIC_DISCUSSION", confidence=0.5))
+            except Exception:
+                checks["community_discussions"] = {"provider_status": "FAILED", "search_status": "PROVIDER_FAILURE", "error": "Search integration failed"}
+                logger.warning("ScamAgent: community discussion search failed")
+
         payment_term = "UPI" if has_upi else "recruitment fee" if has_upfront_fee else None
         if payment_term and has_upfront_fee:
             pay_query = (
@@ -281,6 +329,7 @@ class ScamAgent:
                     "checks": checks,
                     "error": failed[0]["error"] if failed else None,
                     "local_scan_completed": True,
+                    "public_discussions": public_discussions,
                 },
             )
 
@@ -320,6 +369,7 @@ class ScamAgent:
                     "checks": checks,
                     "error": failed[0]["error"] if failed else None,
                     "local_scan_completed": True,
+                    "public_discussions": public_discussions,
                 },
             )
 
@@ -351,6 +401,7 @@ class ScamAgent:
                     "checks": checks,
                     "error": failed[0]["error"] if failed else None,
                     "local_scan_completed": True,
+                    "public_discussions": public_discussions,
                 },
             )
 
@@ -388,5 +439,6 @@ class ScamAgent:
                 "checks": checks,
                 "error": failed[0]["error"] if failed else None,
                 "local_scan_completed": True,
+                "public_discussions": public_discussions,
             },
         )
