@@ -123,9 +123,10 @@ POLICY_NEGATION_PATTERNS = [
 
 # Upfront fee terminology
 UPFRONT_FEE_PATTERNS = [
-    r'\b(?:registration|onboarding|training|laptop|equipment|document\s+verification|verification|interview|orientation|courier)\s+(?:fee|fees|deposit|deposits|charge|charges|cost)\b',
+    # Up to two words may sit between the purpose and the fee: "training kit deposit".
+    r'\b(?:registration|onboarding|joining|training|laptop|equipment|kit|uniform|id\s+card|document\s+verification|verification|background\s+(?:check|verification)|processing|interview|orientation|courier)\s+(?:\w+\s+){0,2}(?:fee|fees|deposit|deposits|charge|charges|cost)\b',
     r'\b(?:refundable\s+)?security\s+deposit\b',
-    r'\brefundable\s+(?:fee|deposit|charge)\b',
+    r'\brefundable\s+(?:\w+\s+){0,3}(?:fee|deposit|charge)\b',
     r'\bsecurity\s+clearance\s+charges?\b',
     r'\blaptop\s+security\b',
 ]

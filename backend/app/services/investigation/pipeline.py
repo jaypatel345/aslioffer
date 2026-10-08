@@ -112,52 +112,16 @@ async def investigate_case(
     careers_url: Optional[str] = None
     provider_outage = False
 
-    # 2. Company domain resolution stage (sequenced first to resolve official domain)
-    if company_name:
-        await events.emit("resolve_company", EventStatus.STARTED, "Resolving the claimed employer public footprint")
-        try:
-            with recording_client.step("resolve_employer_domain", "Resolve the employer's official domain before checking contact details"):
-                finding_comp = await comp_agent.investigate(company_name)
+    # 2. Checks. Scam and salary checks do not need the employer's domain, so they start
+    # before employer resolution; uncached SerpApi queries can take tens of seconds and
+    # waiting would stack those delays. The recruiter check compares the sender with the
+    # resolved domain, so it starts once resolution has finished.
+    domain_ready = asyncio.Event()
 
-            if finding_comp.details.get("provider_status") == "FAILED" or finding_comp.details.get("resolution_state") == "SEARCH_UNAVAILABLE":
-                denied = any(d["step"] == "resolve_employer_domain" for d in budget_manager.denied_calls)
-                if denied and not any(f["step"] == "resolve_employer_domain" for f in recording_client.failed_searches):
-                    await events.emit("resolve_company", EventStatus.SKIPPED, "Employer search skipped by investigation admission limits")
-                else:
-                    provider_outage = True
-                    await events.emit("resolve_company", EventStatus.FAILED, "Search provider unavailable for employer resolution")
-                    errors.append(
-                        RunError(
-                            code="SEARCH_PROVIDER_OUTAGE",
-                            message="Search provider request timed out or was unavailable",
-                            step="resolve_employer_domain",
-                            retryable=True,
-                        )
-                    )
-            else:
-                canonical_domain = finding_comp.details.get("canonical_domain") or finding_comp.details.get("official_domain")
-                if canonical_domain and "://" in canonical_domain:
-                    from urllib.parse import urlparse
-                    canonical_domain = urlparse(canonical_domain).hostname or canonical_domain
-                careers_url = finding_comp.details.get("careers_url")
-                await events.emit("resolve_company", EventStatus.COMPLETED, "Employer domain resolution finished")
-        except asyncio.CancelledError:
-            raise
-        except Exception as exc:
-            logger.error("CompanyAgent failed")
-            errors.append(
-                RunError(
-                    code="COMPANY_INVESTIGATION_ERROR",
-                    message="Unexpected error during employer domain resolution",
-                    step="resolve_company",
-                    retryable=False,
-                )
-            )
-            await events.emit("resolve_company", EventStatus.FAILED, "Employer resolution encountered an error")
-    else:
-        await events.emit("resolve_company", EventStatus.SKIPPED, "No valid employer name to resolve")
+    async def employer_resolved() -> bool:
+        await domain_ready.wait()
+        return bool(canonical_domain)
 
-    # 3. Concurrent downstream checks (Recruiter, Salary, Scam)
     has_recruiter_contact = bool(recruiter_email or recruiter_phone or recruiter_name)
     has_salary_claim = bool(offered_salary)
 
@@ -212,7 +176,7 @@ async def investigate_case(
                 payment_method=ext_result.to_extracted_data().payment_method,
                 flags=ext_result.to_extracted_data().flags,
                 raw_text=case_input.redacted_text,
-                employer_resolved=bool(canonical_domain),
+                employer_resolved=employer_resolved,
             )
 
     async def finish_step(fn, name):
@@ -223,11 +187,64 @@ async def investigate_case(
                               "Check retained partial results; external retrieval was unavailable" if failed else "Check completed")
         return result
 
-    tasks = [
-        asyncio.create_task(finish_step(run_recruiter, "check_recruiter")),
-        asyncio.create_task(finish_step(run_salary, "check_compensation")),
-        asyncio.create_task(finish_step(run_scam, "check_scam_signals")),
-    ]
+    salary_task = asyncio.create_task(finish_step(run_salary, "check_compensation"))
+    scam_task = asyncio.create_task(finish_step(run_scam, "check_scam_signals"))
+    tasks = [salary_task, scam_task]
+    try:
+        # 3. Company domain resolution, while the scam and salary checks run.
+        if company_name:
+            await events.emit("resolve_company", EventStatus.STARTED, "Resolving the claimed employer public footprint")
+            try:
+                with recording_client.step("resolve_employer_domain", "Resolve the employer's official domain before checking contact details"):
+                    finding_comp = await comp_agent.investigate(company_name)
+
+                if finding_comp.details.get("provider_status") == "FAILED" or finding_comp.details.get("resolution_state") == "SEARCH_UNAVAILABLE":
+                    denied = any(d["step"] == "resolve_employer_domain" for d in budget_manager.denied_calls)
+                    if denied and not any(f["step"] == "resolve_employer_domain" for f in recording_client.failed_searches):
+                        await events.emit("resolve_company", EventStatus.SKIPPED, "Employer search skipped by investigation admission limits")
+                    else:
+                        provider_outage = True
+                        await events.emit("resolve_company", EventStatus.FAILED, "Search provider unavailable for employer resolution")
+                        errors.append(
+                            RunError(
+                                code="SEARCH_PROVIDER_OUTAGE",
+                                message="Search provider request timed out or was unavailable",
+                                step="resolve_employer_domain",
+                                retryable=True,
+                            )
+                        )
+                else:
+                    canonical_domain = finding_comp.details.get("canonical_domain") or finding_comp.details.get("official_domain")
+                    if canonical_domain and "://" in canonical_domain:
+                        from urllib.parse import urlparse
+                        canonical_domain = urlparse(canonical_domain).hostname or canonical_domain
+                    careers_url = finding_comp.details.get("careers_url")
+                    await events.emit("resolve_company", EventStatus.COMPLETED, "Employer domain resolution finished")
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                logger.error("CompanyAgent failed")
+                errors.append(
+                    RunError(
+                        code="COMPANY_INVESTIGATION_ERROR",
+                        message="Unexpected error during employer domain resolution",
+                        step="resolve_company",
+                        retryable=False,
+                    )
+                )
+                await events.emit("resolve_company", EventStatus.FAILED, "Employer resolution encountered an error")
+        else:
+            await events.emit("resolve_company", EventStatus.SKIPPED, "No valid employer name to resolve")
+    except asyncio.CancelledError:
+        for t in tasks:
+            t.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
+        raise
+    finally:
+        domain_ready.set()
+
+    recruiter_task = asyncio.create_task(finish_step(run_recruiter, "check_recruiter"))
+    tasks = [recruiter_task, salary_task, scam_task]
 
     try:
         results = await asyncio.gather(*tasks, return_exceptions=True)

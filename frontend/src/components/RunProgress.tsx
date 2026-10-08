@@ -113,6 +113,15 @@ export const RunProgress: React.FC<{ run: RunSnapshot; onFinished?: () => void }
   EXPECTED_STEPS.forEach((step) => {
     if (!latest.has(step)) order.push(step);
   });
+  // Checks run in parallel and finish in any order; list them in a fixed, logical order.
+  const rank = (step: string) => {
+    const i = EXPECTED_STEPS.indexOf(step);
+    if (i >= 0) return i;
+    if (step === 'external_scam_search') return EXPECTED_STEPS.indexOf('check_scam_signals') + 0.5;
+    if (step === 'check_compensation_benchmark') return EXPECTED_STEPS.indexOf('check_compensation') + 0.5;
+    return EXPECTED_STEPS.indexOf('plan_investigation') + 0.5; // follow-ups and anything else
+  };
+  order.sort((a, b) => rank(a) - rank(b));
 
   const rows = order.map((step) => {
     const info = latest.get(step);

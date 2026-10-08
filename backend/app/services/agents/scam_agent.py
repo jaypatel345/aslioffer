@@ -1,6 +1,6 @@
 import asyncio
 import re
-from typing import Optional, List, Dict, Any
+from typing import Any, Awaitable, Callable, Dict, List, Optional, Union
 from app.schemas.analysis import AgentFinding, EvidenceItem
 from app.services.search.serpapi_client import SerpApiClient, SearchSource, SearchResult
 from app.services.agents.scam_classifier import (
@@ -62,7 +62,7 @@ class ScamAgent:
         payment_method: Optional[str],
         flags: List[str],
         raw_text: str,
-        employer_resolved: bool = False,
+        employer_resolved: Union[bool, Callable[[], Awaitable[bool]]] = False,
     ) -> AgentFinding:
         """
         Investigate scam markers, fee demands, suspicious payment channels, and live public warnings.
@@ -174,12 +174,6 @@ class ScamAgent:
             if safe_company
             else 'job scam fraud complaint telegram recruitment'
         )
-        # Community discussions are searched only for employers whose official site could
-        # not be established: for well-known brands such threads are about impersonators.
-        discussion_query = None
-        if safe_company and not employer_resolved:
-            offer_kind = "internship" if re.search(r"\bintern(?:ship)?s?\b", raw_text or "", re.IGNORECASE) else "job"
-            discussion_query = f'"{safe_company}" {offer_kind} scam or legit'
         payment_term = "UPI" if has_upi else "recruitment fee" if has_upfront_fee else None
         pay_query = None
         if payment_term and has_upfront_fee:
@@ -196,12 +190,27 @@ class ScamAgent:
                 return await self.search_client.search(query=query)
             except Exception as exc:  # surfaced per search below
                 return exc
-        # Checked on the class: test doubles such as AsyncMock answer every attribute.
-        if discussion_query and callable(getattr(type(self.search_client), "mark_optional", None)):
-            # A supplementary cue: if SerpApi is too slow for it, the report is still complete.
-            self.search_client.mark_optional(discussion_query)
-        planned = [q for q in (scam_query, discussion_query, pay_query) if q]
-        fetched = dict(zip(planned, await asyncio.gather(*(fetch(q) for q in planned))))
+
+        async def fetch_discussions():
+            # Community discussions are searched only for employers whose official site
+            # could not be established: for well-known brands such threads are about
+            # impersonators. The caller may still be resolving the employer, so wait for it.
+            resolved = await employer_resolved() if callable(employer_resolved) else employer_resolved
+            if not safe_company or resolved:
+                return None, None
+            offer_kind = "internship" if re.search(r"\bintern(?:ship)?s?\b", raw_text or "", re.IGNORECASE) else "job"
+            query = f'"{safe_company}" {offer_kind} scam or legit'
+            # Checked on the class: test doubles such as AsyncMock answer every attribute.
+            if callable(getattr(type(self.search_client), "mark_optional", None)):
+                # A supplementary cue: if SerpApi is too slow for it, the report is still complete.
+                self.search_client.mark_optional(query)
+            return query, await fetch(query)
+
+        planned = [q for q in (scam_query, pay_query) if q]
+        *results, (discussion_query, discussion_raw) = await asyncio.gather(*(fetch(q) for q in planned), fetch_discussions())
+        fetched = dict(zip(planned, results))
+        if discussion_query:
+            fetched[discussion_query] = discussion_raw
 
         def take(query):
             result = fetched[query]

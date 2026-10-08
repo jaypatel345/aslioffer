@@ -2,7 +2,7 @@ import re
 from typing import Optional, List, Dict, Any, Tuple
 from app.schemas.analysis import AgentFinding, EvidenceItem
 from app.services.search.serpapi_client import SerpApiClient, SearchResult, SearchOutcome
-from app.services.search.domain_resolver import DomainResolver, DomainResolutionState, resolve_employer_domain
+from app.services.search.domain_resolver import DomainResolutionResult, DomainResolver, DomainResolutionState, resolve_employer_domain
 from app.core.logging import logger
 
 FREE_EMAIL_DOMAINS = {
@@ -409,9 +409,15 @@ class RecruiterAgent:
                 ))
 
             # Same shared resolution as CompanyAgent; the run's search cache makes the repeat free.
-            company_search_res, resolution, _ = await resolve_employer_domain(self.search_client, company_name)
-            record("company_domain", company_search_res)
-            checks["company_domain"].update({
+            # With no employer name there is nothing to resolve (and nothing to search for).
+            if (company_name or "").strip():
+                company_search_res, resolution, _ = await resolve_employer_domain(self.search_client, company_name)
+                record("company_domain", company_search_res)
+            else:
+                company_search_res = None
+                resolution = DomainResolutionResult(state=DomainResolutionState.UNRESOLVED,
+                                                    basis="No employer name was given to resolve.")
+            checks.setdefault("company_domain", {"provider_status": "NOT_CHECKED", "search_status": "NOT_CHECKED"}).update({
                 "resolution_state": resolution.state.value,
                 "resolution_basis": resolution.basis,
                 "resolution_diagnostics": resolution.diagnostics,
@@ -423,7 +429,11 @@ class RecruiterAgent:
                 "canonical_domain": resolution.canonical_domain,
                 "basis": resolution.basis,
             }
-            if company_search_res.is_live:
+            if company_search_res is None:
+                employer_domain_status = "UNCONFIRMED"
+                employer_domain_expl = "No employer name was given, so no employer domain could be checked."
+                domain_match = None
+            elif company_search_res.is_live:
                 if resolution.state == DomainResolutionState.RESOLVED and resolution.canonical_domain:
                     parsed_emp = DomainResolver.normalize_and_parse_url("https://" + resolution.canonical_domain)
                     resolved_employer_domain = parsed_emp.registrable_domain or resolution.canonical_domain
@@ -654,7 +664,7 @@ class RecruiterAgent:
                     recruiter_affiliation_urls.append(ev.source_url)
 
             # If unconfirmed and recruiter_name provided (and not generic), perform bounded affiliation search
-            if aff_status != "SUPPORTED" and (is_valid_email or (recruiter_name and recruiter_name.lower().strip() not in GENERIC_TITLES)):
+            if aff_status != "SUPPORTED" and (affiliation_company or "").strip() and (is_valid_email or (recruiter_name and recruiter_name.lower().strip() not in GENERIC_TITLES)):
                 aff_subject = recruiter_name.strip() if recruiter_name and recruiter_name.lower().strip() not in GENERIC_TITLES else recruiter_email.strip()
                 if aff_subject == (recruiter_email or "").strip() and affiliation_domain:
                     # Is this exact address published on the employer's own site (e.g. an

@@ -248,6 +248,21 @@ class GroundedEntityParser:
                 employer_quote = all_corps[0]
 
         if not employer_name:
+            # 1b. Title line naming the employer: "Offer Letter - Capgemini India",
+            #     "Offer of Employment: HCLTech". Only within the first lines.
+            for line in [ln.strip() for ln in sanitized.splitlines() if ln.strip()][:3]:
+                m = re.match(r"(?i)(?:subject\s*:\s*)?(?:offer\s+letter|letter\s+of\s+offer|offer\s+of\s+employment|employment\s+offer|appointment\s+letter|internship\s+offer(?:\s+letter)?)\s*[-–—:|]\s*(.+)$", line)
+                if not m:
+                    continue
+                cand = re.split(r"\s+[-–—|(]", m.group(1))[0].strip().rstrip(".,")
+                greeting = cand.lower().split()[0] in ("congratulations", "welcome", "dear", "hello", "hi", "greetings", "important", "urgent")
+                if (2 <= len(cand) <= 60 and re.fullmatch(r"[A-Z][A-Za-z0-9&.\-' ]+", cand) and not greeting
+                        and cand not in platform_found_names and cand.lower() not in STOPWORD_COMPANIES):
+                    employer_name = cand
+                    employer_quote = cand
+                break
+
+        if not employer_name:
             # 2. Top of document / heading candidate
             # In offer letters, company name is often on line 1: "V-Guard Industries Ltd."
             lines = [ln.strip() for ln in sanitized.splitlines() if ln.strip()]
