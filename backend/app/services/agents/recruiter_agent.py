@@ -163,6 +163,13 @@ class RecruiterAgent:
             r"verify.*with",
             r"verify.*immediately",
             r"beware.*fake",
+            # The contact is where fraud is reported to: "report suspected fraud: hr@x.com"
+            # (present tense only: "reported fraud from <number>" is a complaint, not a notice)
+            r"\breport(?:ing)?\s+(?:any\s+|all\s+|such\s+|suspected\s+|suspicious\s+)*(?:fraud|scam|incident|activity)s?(?:\s+to|\s+at|\s+on|\s*:|\s+-)\s*(?:[\w.+-]+@|\+?\d)",
+            # Employer fraud-prevention notices
+            r"\b(?:fraud|scam)\s+(?:alert|awareness|advisory|notice)\b",
+            r"\bresponsible\s+recruitment\b",
+            r"\bofficial\s+hiring\s+notice\b",
         ]
         is_advisory_or_official = (
             has_benign
@@ -218,7 +225,10 @@ class RecruiterAgent:
                         name_hit = bool(rec_name_lower and not is_generic_name and rec_name_lower in text)
                         email_hit = cls._email_match(recruiter_email, text)
                         if email_hit or (not recruiter_email and name_hit):
-                            role_hit = cls._role_match(text) and not re.search(r"\b(?:former|retired|no longer|not a recruiter)\b", text)
+                            # The recruiting context may be the page itself: the employer's own
+                            # recruitment section (e.g. acnrecruitment.accenture.com).
+                            in_hiring_section = "recruit" in link.lower()
+                            role_hit = (cls._role_match(text) or in_hiring_section) and not re.search(r"\b(?:former|retired|no longer|not a recruiter)\b", text)
                             if role_hit:
                                 ev = EvidenceItem(
                                     source_url=link,
@@ -646,7 +656,13 @@ class RecruiterAgent:
             # If unconfirmed and recruiter_name provided (and not generic), perform bounded affiliation search
             if aff_status != "SUPPORTED" and (is_valid_email or (recruiter_name and recruiter_name.lower().strip() not in GENERIC_TITLES)):
                 aff_subject = recruiter_name.strip() if recruiter_name and recruiter_name.lower().strip() not in GENERIC_TITLES else recruiter_email.strip()
-                aff_query = f'"{aff_subject}" "{affiliation_company.strip()}"'
+                if aff_subject == (recruiter_email or "").strip() and affiliation_domain:
+                    # Is this exact address published on the employer's own site (e.g. an
+                    # official hiring-notice page)? Unscoped "<email>" "<company>" searches
+                    # are dominated by forum and job-board chatter about the company.
+                    aff_query = f'site:{affiliation_domain} "{aff_subject}"'
+                else:
+                    aff_query = f'"{aff_subject}" "{affiliation_company.strip()}"'
                 aff_search = SearchResult.from_dict_or_result(await self.search_client.search(aff_query), query=aff_query)
                 record("recruiter_affiliation", aff_search)
                 if aff_search.is_live:

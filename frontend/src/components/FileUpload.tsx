@@ -31,17 +31,19 @@ To complete onboarding and dispatch your company laptop and training kit, kindly
 
 This amount will be refunded in your first month's salary. Send screenshot to HR at rohit.tcs.hiring@gmail.com or on Telegram @tcs_onboarding.`;
 
-  const sampleLegitText = `Employment Offer - Infosys Limited
-Candidate Name: Priyanka Sharma
-Designation: Systems Engineer Specialist
-Location: Electronics City, Bengaluru
-CTC: INR 6,25,000 per annum (Plus standard medical insurance and retiral benefits)
+  // Every checkable claim here is backed by public evidence: accenture.com is the
+  // employer's site, and candidate.queries@accenture.com is the candidate-support
+  // address Accenture publishes on its own recruitment site. The candidate is fictional.
+  const sampleLegitText = `Offer of Employment - Accenture
+Candidate Name: Rahul Verma
+Designation: Associate Software Engineer
+Location: Bengaluru, India
+Compensation: as per the enclosed annexure
 
-Dear Priyanka,
-With reference to your campus interview and subsequent discussions, Infosys Limited is pleased to make you an offer of employment.
-Please review the attached terms. Report to the Bangalore Development Center on July 14, 2026.
-Infosys does not request any fees, deposits, or payments from candidates at any stage.
-For queries, contact your recruitment coordinator at pooja.kulkarni@infosys.com.`;
+Dear Rahul,
+Congratulations! Following your campus selection process, Accenture is pleased to offer you the position of Associate Software Engineer.
+Accenture never asks candidates for any fee, deposit or payment during recruitment.
+For any queries, contact the Accenture recruitment team at candidate.queries@accenture.com.`;
 
   // A real internship mail received by a candidate in Sept 2026. No fee is asked
   // for yet, which is exactly why it matters: the company has no public footprint
@@ -99,7 +101,7 @@ HR Manager`;
   };
 
   const handlePresetLegit = () => {
-    setTitle('Infosys Systems Engineer Specialist Offer');
+    setTitle('Accenture Associate Software Engineer Offer');
     setContent(sampleLegitText);
     setSelectedFile(null);
     setIsSample(true);
@@ -191,19 +193,19 @@ HR Manager`;
           </button>
           <button
             type="button"
-            onClick={handlePresetLegit}
-            className="px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 transition-colors flex items-center gap-1.5"
-          >
-            <Check className="w-3.5 h-3.5" />
-            <span>Load Real Employer Offer (Infosys)</span>
-          </button>
-          <button
-            type="button"
             onClick={handlePresetUnverifiable}
             className="px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 transition-colors flex items-center gap-1.5"
           >
             <HelpCircle className="w-3.5 h-3.5" />
             <span>Load Unverifiable Employer (Coorix)</span>
+          </button>
+          <button
+            type="button"
+            onClick={handlePresetLegit}
+            className="px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 transition-colors flex items-center gap-1.5"
+          >
+            <Check className="w-3.5 h-3.5" />
+            <span>Load Genuine Offer (Accenture)</span>
           </button>
         </div>
       </div>

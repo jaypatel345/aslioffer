@@ -124,11 +124,16 @@ def test_brand_named_domain_in_entity_results_blocks_resolution():
 def test_dominance_requires_top_rank_and_majority_of_top_five():
     not_top = _search(INFOSYS_WEBSITE.query, [INFOSYS_WEBSITE.results[3]] + INFOSYS_WEBSITE.results[:3])
     assert DomainResolver.dominant_brand_domain("Infosys Limited", not_top) is None
-    too_few = _search(INFOSYS_WEBSITE.query, [
+    only_top = _search(INFOSYS_WEBSITE.query, [
         INFOSYS_WEBSITE.results[0], INFOSYS_WEBSITE.results[3], INFOSYS_WEBSITE.results[5],
-        _page("https://www.naukri.com/infosys-jobs", "Infosys Jobs"), INFOSYS_WEBSITE.results[1],
+        _page("https://www.naukri.com/infosys-jobs", "Infosys Jobs"),
+        _page("https://en.wikipedia.org/wiki/Infosys", "Infosys - Wikipedia"),
+        INFOSYS_WEBSITE.results[1],
     ])
-    assert DomainResolver.dominant_brand_domain("Infosys Limited", too_few) is None
+    assert DomainResolver.dominant_brand_domain("Infosys Limited", only_top) is None
+    # Observed live for Accenture: own site at #1 and #2, noise below, is enough to qualify.
+    top_two = _search(INFOSYS_WEBSITE.query, INFOSYS_WEBSITE.results[:2] + INFOSYS_WEBSITE.results[3:4])
+    assert DomainResolver.dominant_brand_domain("Infosys Limited", top_two)[0] == "infosys.com"
 
 
 def test_lookalike_portal_domain_never_counts_as_brand_domain():

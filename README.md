@@ -3,7 +3,7 @@
 [![SerpApi India Hackathon 2026](https://img.shields.io/badge/SerpApi%20India%20Hackathon-2026-10b981.svg)](https://serpapi.com)
 [![Track](https://img.shields.io/badge/Track-AI%20Agents-2563eb.svg)](#how-it-works)
 [![Live demo](https://img.shields.io/badge/Live%20demo-aslioffer.vercel.app-111827.svg)](https://aslioffer.vercel.app)
-[![Tests](https://img.shields.io/badge/backend%20tests-651%20passing-10b981.svg)](#quality-and-evaluation)
+[![Tests](https://img.shields.io/badge/backend%20tests-661%20passing-10b981.svg)](#quality-and-evaluation)
 [![Evaluation](https://img.shields.io/badge/eval-27%2F27%20cases-10b981.svg)](#quality-and-evaluation)
 
 > **Scammers can copy a company's logo. They cannot copy its whole public footprint.**
@@ -142,7 +142,7 @@ data is ever substituted in a real report.**
 
 | Check | Result |
 |---|---|
-| Backend tests (`pytest`) | **651 passing** |
+| Backend tests (`pytest`) | **661 passing** |
 | Offline evaluation corpus | **27 / 27 cases pass**, 100% safety invariants |
 | Legitimate offers marked High risk | **0 / 9** |
 | Fee / OTP threats missed | **0 / 5** |

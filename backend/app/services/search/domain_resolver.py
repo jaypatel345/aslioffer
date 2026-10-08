@@ -148,8 +148,10 @@ class DomainResolver:
     """Deterministic search-evidence inference, not proof of domain ownership."""
 
     # A dominant domain must hold the top organic result and this many of the top five.
+    # Two is enough because resolution additionally needs a matching entity card and no
+    # rival brand-named domain; live results for big brands are often padded with noise.
     DOMINANCE_TOP_N = 5
-    DOMINANCE_MIN_HITS = 3
+    DOMINANCE_MIN_HITS = 2
 
     @classmethod
     def resolve(cls, company_name: str, search_res: SearchResult,
