@@ -1,0 +1,23 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "backend",
+      "runtimeExecutable": "/Users/Jaypatel/Desktop/project/aslioffer/backend/.venv/bin/uvicorn",
+      "runtimeArgs": ["app.main:app", "--reload", "--port", "8010", "--app-dir", "/Users/Jaypatel/Desktop/project/aslioffer/backend"],
+      "port": 8010
+    },
+    {
+      "name": "backend-syspython",
+      "runtimeExecutable": "/bin/sh",
+      "runtimeArgs": ["-c", "cd /Users/Jaypatel/Desktop/project/aslioffer/backend && PYTHONPATH=.venv/lib/python3.13/site-packages exec /opt/homebrew/bin/python3.13 -m uvicorn app.main:app --port 8010"],
+      "port": 8010
+    },
+    {
+      "name": "frontend",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--prefix", "/Users/Jaypatel/Desktop/project/aslioffer/frontend", "--", "--port", "5173"],
+      "port": 5173
+    }
+  ]
+}
