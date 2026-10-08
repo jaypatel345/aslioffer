@@ -174,22 +174,23 @@ class DomainResolver:
     def dominant_brand_domain(cls, company_name: str, search_res: SearchResult
                               ) -> Optional[Tuple[str, List[Tuple[int, ParsedDomain, Dict[str, Any]]]]]:
         """One brand-named domain that owns the website search: it is the top organic
-        result, fills most of the top five, is the only brand-named domain anywhere in
-        the results, and at least one of its pages names the company. A ranking alone is
-        never enough to resolve; it only qualifies the domain for the entity check."""
+        result, fills most of the top five, is the only brand-named domain in the top
+        five, and at least one of its pages names the company. Lower-ranked brand-named
+        sites (e.g. a parent group's tata.com under tcs.com) do not compete. A ranking
+        alone is never enough to resolve; it only qualifies the domain for the entity check."""
         search_res = SearchResult.from_dict_or_result(search_res)
         identity = cls._extract_company_identity(company_name)
         if not identity["bare_words"]:
             return None
         domains: Dict[str, List[Tuple[int, ParsedDomain, Dict[str, Any]]]] = {}
-        for rank, item in enumerate(search_res.organic_results, start=1):
+        for rank, item in enumerate(search_res.organic_results[:cls.DOMINANCE_TOP_N], start=1):
             parsed = cls._brand_candidate(item.get("link") or "", identity)
             if parsed is not None:
                 domains.setdefault(parsed.registrable_domain, []).append((rank, parsed, item))
         if len(domains) != 1:
             return None
         domain, hits = next(iter(domains.items()))
-        if hits[0][0] != 1 or sum(1 for rank, _, _ in hits if rank <= cls.DOMINANCE_TOP_N) < cls.DOMINANCE_MIN_HITS:
+        if hits[0][0] != 1 or len(hits) < cls.DOMINANCE_MIN_HITS:
             return None
         if not any(cls._title_or_snippet_corroborates(item.get("title") or "", item.get("snippet") or "", identity)
                    for _, _, item in hits):
@@ -204,7 +205,7 @@ class DomainResolver:
 
         Requires both (1) a single brand-named domain dominating the website search and
         (2) a search entity card for exactly this company, with no conflicting website
-        and no other brand-named domain in the entity results. A newly registered or
+        and no other brand-named domain in the entity card search's top five. A newly registered or
         fake company can dominate its own name search, but does not get an entity card.
         """
         dominant = cls.dominant_brand_domain(company_name, search_res)
@@ -220,7 +221,7 @@ class DomainResolver:
             kg_site = cls.normalize_and_parse_url(kg["website"])
             if kg_site.is_valid and kg_site.registrable_domain != domain:
                 return base
-        for item in entity_res.organic_results:
+        for item in entity_res.organic_results[:cls.DOMINANCE_TOP_N]:
             parsed = cls._brand_candidate(item.get("link") or "", identity)
             if parsed is not None and parsed.registrable_domain != domain:
                 return base

@@ -84,11 +84,35 @@ def test_entity_card_with_conflicting_website_does_not_resolve():
     assert DomainResolver.resolve("Infosys Limited", INFOSYS_WEBSITE, entity).state != DomainResolutionState.RESOLVED
 
 
-def test_second_brand_named_domain_blocks_dominance():
-    """infosys.com vs infosys.co: two brand-named domains stay ambiguous."""
-    website = _search(INFOSYS_WEBSITE.query, INFOSYS_WEBSITE.results + [_page("https://www.infosys.co/offer")])
+def test_second_brand_named_domain_in_top_five_blocks_dominance():
+    """infosys.com vs infosys.co near the top: two brand-named domains stay unresolved."""
+    results = list(INFOSYS_WEBSITE.results)
+    results.insert(1, _page("https://www.infosys.co/offer"))
+    website = _search(INFOSYS_WEBSITE.query, results)
     assert DomainResolver.dominant_brand_domain("Infosys Limited", website) is None
     assert DomainResolver.resolve("Infosys Limited", website, INFOSYS_ENTITY).state != DomainResolutionState.RESOLVED
+
+
+def test_lower_ranked_parent_brand_site_does_not_block_dominance():
+    """Observed live: tata.com (Tata group) at rank 9 under tcs.com; 'tata' is also a brand word."""
+    website = _search(company_website_query("Tata Consultancy Services"), [
+        _page("https://www.tcs.com/what-we-do", "Connect business operations | TCS", "TCS helps you turn AI into a partner."),
+        _page("https://www.instagram.com/tcsglobal/", "Tata Consultancy Services (@tcsglobal)"),
+        _page("https://www.tcs.com/careers/india/tcs-launchpad", "TCS Launchpad", "TCS Launchpad careers."),
+        _page("https://www.tcs.com/investor-relations", "Corporate Governance | TCS", "TCS board of directors."),
+        _page("https://www.gesi.org/member/tcs/", "Tata Consultancy Services (TCS) - GeSI"),
+        _page("https://www.tcs.com/careers/india/tcs-atlas-hiring", "TCS Atlas Hiring 2026"),
+        _page("https://www.tcs.com/fr-fr/", "Tata Consultancy Services"),
+        _page("https://www.tcs.com/careers/india/tcs-esu-hiring", "TCS ESU Hiring"),
+        _page("https://www.tata.com/home-page", "The Tata group", "The official website for the Tata group."),
+    ])
+    entity = _search(company_entity_query("Tata Consultancy Services"), [
+        _page("https://www.linkedin.com/company/tata-consultancy-services", "Tata Consultancy Services | LinkedIn"),
+    ], knowledge_graph={"title": "Tata Consultancy Services", "type": "IT services company"})
+    assert DomainResolver.dominant_brand_domain("Tata Consultancy Services", website)[0] == "tcs.com"
+    result = DomainResolver.resolve("Tata Consultancy Services", website, entity)
+    assert result.state == DomainResolutionState.RESOLVED
+    assert result.canonical_domain == "www.tcs.com"
 
 
 def test_brand_named_domain_in_entity_results_blocks_resolution():
