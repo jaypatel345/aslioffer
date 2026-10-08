@@ -6,7 +6,7 @@ import { lastReport } from '../services/lastReport';
 import { ConfirmedClaim, InvestigationResult, RunSnapshot } from '../types';
 import { InvestigationReport } from '../components/InvestigationReport';
 import { RunProgress } from '../components/RunProgress';
-import { buildMarkdownReport, downloadText, downloadPdf } from '../report/exportReport';
+import { downloadPdf } from '../report/exportReport';
 import { formatTime } from '../report/labels';
 
 const POLL_MS = 1500;
@@ -52,7 +52,6 @@ export const OfferReport: React.FC = () => {
   const [attempt, setAttempt] = useState(0);
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
-  const [includeContacts, setIncludeContacts] = useState(false);
   const timer = useRef<number | null>(null);
 
   const fail = (err: unknown) => {
@@ -277,12 +276,6 @@ export const OfferReport: React.FC = () => {
   const finished = history.filter(hasReport);
   const newer = history.find((r) => r.version > run.version && hasReport(r));
 
-  const exportMarkdown = () =>
-    downloadText(
-      `aslioffer-report-${offerId}-v${run.version}.md`,
-      buildMarkdownReport(result, { title, includeContacts, generatedAt: run.finished_at, version: run.version }),
-    );
-
   const actions = (
     <>
       <button
@@ -291,13 +284,6 @@ export const OfferReport: React.FC = () => {
       >
         <Download className="w-3.5 h-3.5" /> Download PDF
       </button>
-      <button onClick={exportMarkdown} className="px-1 text-xs text-slate-500 hover:text-slate-900 underline-offset-2 hover:underline">
-        Download as text
-      </button>
-      <label className="inline-flex items-center gap-1.5 text-xs text-slate-600 px-1">
-        <input type="checkbox" checked={includeContacts} onChange={(e) => setIncludeContacts(e.target.checked)} />
-        Include emails, phones and UPI IDs (for a cybercrime complaint)
-      </label>
       <button
         onClick={deleteCase}
         disabled={busy}

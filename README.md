@@ -133,8 +133,8 @@ data is ever substituted in a real report.**
   red ✗ when a check failed or its data was not found.
 - **Privacy by design.** Aadhaar, PAN, card, bank-account numbers and OTPs are redacted before any search.
   Each case is locked to the uploading browser with a secret token, auto-deleted after 7 days, and can be deleted at once.
-- **Action, not just a verdict.** Download the report as PDF or text (optionally including emails, phones and UPI IDs
-  for a cybercrime complaint), and use the draft to confirm the offer with the real employer.
+- **Action, not just a verdict.** Download the report as a PDF — including the scammer's email, phone and UPI ID —
+  for a cybercrime complaint, and use the draft to confirm the offer with the real employer.
 
 ---
 
