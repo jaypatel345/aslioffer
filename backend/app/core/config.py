@@ -67,6 +67,9 @@ class Settings(BaseSettings):
     # Elapsed limit for all external searches in one investigation (RUN_TIMEOUT_SECONDS
     # still bounds the whole run). Progress is streamed, so the user sees each step.
     INVESTIGATION_SEARCH_DEADLINE_SECONDS: float = Field(default=30.0, gt=0, le=300)
+    # Searches per investigation. Employer resolution can need up to three (website,
+    # off-topic retry, entity card) before the agents' own checks run.
+    INVESTIGATION_MAX_SEARCHES: int = Field(default=10, ge=1, le=30)
 
     # Run service (J3)
     # Hard ceiling on one investigation run, on top of the investigator's own
