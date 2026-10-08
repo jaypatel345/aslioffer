@@ -286,13 +286,6 @@ export const OfferReport: React.FC = () => {
   const actions = (
     <>
       <button
-        onClick={() => runAgain(confirmationsFrom(result))}
-        disabled={busy}
-        className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-white inline-flex items-center gap-1.5 disabled:opacity-60"
-      >
-        <RefreshCw className="w-3.5 h-3.5" /> Run again with fresh searches
-      </button>
-      <button
         onClick={() => downloadPdf(`aslioffer-report-${offerId}-v${run.version}`)}
         className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-slate-300 text-slate-700 hover:bg-slate-50 inline-flex items-center gap-1.5"
       >
@@ -321,6 +314,7 @@ export const OfferReport: React.FC = () => {
         <Link to="/" className="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-900">
           <ArrowLeft className="w-4 h-4" /> Back to Dashboard
         </Link>
+        <div className="flex flex-wrap items-center gap-3">
         {finished.length > 1 && (
           <label className="text-xs text-slate-600 inline-flex items-center gap-2">
             Version
@@ -340,6 +334,14 @@ export const OfferReport: React.FC = () => {
             </select>
           </label>
         )}
+          <button
+            onClick={() => runAgain(confirmationsFrom(result))}
+            disabled={busy}
+            className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-white inline-flex items-center gap-1.5 disabled:opacity-60"
+          >
+            <RefreshCw className="w-3.5 h-3.5" /> Run again with fresh searches
+          </button>
+        </div>
       </div>
       {newer && (
         <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
