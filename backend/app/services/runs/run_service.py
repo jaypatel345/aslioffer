@@ -246,7 +246,8 @@ async def execute_run(run_id: str, search_client=None) -> None:
         report = await asyncio.wait_for(
             investigate_case(case_input, search_client=search_client, emit_event=emit,
                              budget=InvestigationBudget(deadline_seconds=settings.INVESTIGATION_SEARCH_DEADLINE_SECONDS,
-                                                         max_search_calls=settings.INVESTIGATION_MAX_SEARCHES)),
+                                                         max_search_calls=settings.INVESTIGATION_MAX_SEARCHES,
+                                                         max_concurrent_calls=settings.INVESTIGATION_MAX_CONCURRENT_SEARCHES)),
             timeout=settings.RUN_TIMEOUT_SECONDS,
         )
     except asyncio.TimeoutError:

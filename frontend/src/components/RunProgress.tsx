@@ -146,7 +146,7 @@ export const RunProgress: React.FC<{ run: RunSnapshot; onFinished?: () => void }
             Version {run.version} ·{' '}
             {done
               ? `${passed} completed, ${failed} could not be confirmed. Opening your report…`
-              : `${settled} of ${rows.length} steps done. This usually takes under a minute.`}
+              : `${settled} of ${rows.length} steps done. Usually under 30 seconds; occasionally up to a minute.`}
           </p>
         </div>
       </div>

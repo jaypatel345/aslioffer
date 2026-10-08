@@ -53,11 +53,13 @@ class Settings(BaseSettings):
 
     # SerpApi Configuration
     SERPAPI_API_KEY: str = ""
-    # Uncached SerpApi queries regularly take 8-15 s; a shorter timeout throws them away.
-    SEARCH_TIMEOUT_SECONDS: float = Field(default=15.0, gt=0, le=60)
+    # SerpApi's own processing time for a query it has not cached varies from a few
+    # seconds to over a minute (measured 3.5-88 s). A timed-out request is not retried
+    # (see serpapi_client), so the per-request timeout is the time a search may take.
+    SEARCH_TIMEOUT_SECONDS: float = Field(default=60.0, gt=0, le=120)
     SEARCH_MAX_RETRIES: int = Field(default=2, ge=0, le=5)
     SEARCH_RETRY_BACKOFF_SECONDS: float = Field(default=0.5, ge=0, le=5)
-    SEARCH_TOTAL_TIMEOUT_SECONDS: float = Field(default=25.0, gt=0, le=120)
+    SEARCH_TOTAL_TIMEOUT_SECONDS: float = Field(default=65.0, gt=0, le=180)
     SEARCH_DEMO_MODE: bool = False
     # Searches run as from India: offers are Indian, and US-localised results bury
     # employers' own sites under stock tickers and job boards. Empty string = omit.
@@ -66,15 +68,18 @@ class Settings(BaseSettings):
     SEARCH_GOOGLE_DOMAIN: str = "google.co.in"
     # Elapsed limit for all external searches in one investigation (RUN_TIMEOUT_SECONDS
     # still bounds the whole run). Progress is streamed, so the user sees each step.
-    INVESTIGATION_SEARCH_DEADLINE_SECONDS: float = Field(default=45.0, gt=0, le=300)
+    INVESTIGATION_SEARCH_DEADLINE_SECONDS: float = Field(default=90.0, gt=0, le=300)
     # Searches per investigation. Employer resolution can need up to three (website,
     # off-topic retry, entity card) before the agents' own checks run.
     INVESTIGATION_MAX_SEARCHES: int = Field(default=12, ge=1, le=30)
+    # Searches in flight at once. One slow SerpApi query holds a slot, so a small pool
+    # makes every other check wait behind it.
+    INVESTIGATION_MAX_CONCURRENT_SEARCHES: int = Field(default=5, ge=1, le=10)
 
     # Run service (J3)
     # Hard ceiling on one investigation run, on top of the investigator's own
     # search deadline. A run that exceeds it is marked FAILED, not left RUNNING.
-    RUN_TIMEOUT_SECONDS: float = Field(default=90.0, gt=0, le=600)
+    RUN_TIMEOUT_SECONDS: float = Field(default=150.0, gt=0, le=600)
 
     # Upload and privacy controls (J6)
     MAX_UPLOAD_BYTES: int = Field(default=5 * 1024 * 1024, gt=0)

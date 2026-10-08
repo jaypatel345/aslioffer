@@ -73,7 +73,7 @@ flowchart LR
 2. **Check the details** — every extracted claim is shown with the exact quote it came from. Fix anything that was misread.
    Scam signals (payment and credential requests) are read-only so they cannot be edited away.
 3. **Investigate** — four agents run against live SerpApi results inside a fixed budget
-   (max 12 searches, 3 follow-ups, 3 in parallel, 45 s search deadline). Progress is streamed step by step from real events.
+   (max 12 searches, 3 follow-ups, 5 in parallel, 90 s search deadline). Progress is streamed step by step from real events.
 4. **Get the verdict** — each claim is marked *Supported*, *Contradicted*, *Unresolved* or *Not checked*,
    with linked sources, plus a draft message to confirm the offer through an independently found channel.
 
@@ -197,10 +197,10 @@ Or with Docker: `cp .env.example .env && docker compose up --build`, then open h
 |---|---|---|
 | `SERPAPI_API_KEY` | Live Google search. Without it, searches fail visibly | — |
 | `DATABASE_URL` | Database connection | `sqlite:///./aslioffer.db` |
-| `SEARCH_TIMEOUT_SECONDS` | Per-request search timeout | `15` |
-| `INVESTIGATION_SEARCH_DEADLINE_SECONDS` | Time limit for all searches in one investigation | `30` |
+| `SEARCH_TIMEOUT_SECONDS` | Per-request search timeout | `60` |
+| `INVESTIGATION_SEARCH_DEADLINE_SECONDS` | Time limit for all searches in one investigation | `90` |
 | `SEARCH_COUNTRY` / `SEARCH_GOOGLE_DOMAIN` | Search locale | `in` / `google.co.in` |
-| `RUN_TIMEOUT_SECONDS` | Hard limit for one investigation | `90` |
+| `RUN_TIMEOUT_SECONDS` | Hard limit for one investigation | `150` |
 | `MAX_UPLOAD_BYTES` / `MAX_TEXT_CHARS` | Upload limits | 5 MB / 20,000 |
 | `CASE_RETENTION_DAYS` | Cases are deleted this many days after upload | `7` |
 | `VITE_API_BASE_URL` | Backend URL for the frontend (build time) | `http://localhost:8000` |
@@ -245,7 +245,7 @@ docs/                    architecture, API contract, design notes per task
   explicit consent; paste the text or upload a text PDF instead.
 - **"Cannot verify" is common, by design.** Even when the employer's domain is found, a recruiter email or vacancy that
   is not publicly corroborated stays unresolved — an address typed into a message proves nothing on its own.
-- **Live search latency.** Uncached SerpApi queries can take 5–15 s; a run stops searching at 45 s and reports any
+- **Live search latency.** Uncached SerpApi queries usually take a few seconds but occasionally 40–60 s; a run stops searching at 90 s and reports any
   check that did not finish.
 - The free Render instance sleeps when idle, so the first request after a pause can take up to a minute.
 

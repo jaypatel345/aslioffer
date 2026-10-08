@@ -448,3 +448,14 @@ async def test_consumer_backwards_compatibility():
     assert res.is_success is True
     assert res.is_available is True
     assert res.results[0]["title"] == "Infosys"
+
+
+@pytest.mark.asyncio
+async def test_read_timeout_is_not_resent():
+    """A read timeout means SerpApi is still working; resending would bill a second search."""
+    client = SerpApiClient(api_key="valid_key", max_retries=2, retry_backoff=0.01)
+    with patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get:
+        mock_get.side_effect = httpx.ReadTimeout("Read timed out")
+        res = await client.search("Infosys careers")
+        assert res.outcome == SearchOutcome.TIMEOUT
+        assert mock_get.call_count == 1

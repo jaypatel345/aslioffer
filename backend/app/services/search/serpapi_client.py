@@ -466,9 +466,12 @@ class SerpApiClient:
                                 return SearchResult(
                                     query=query, outcome=SearchOutcome.SUCCESS if has_results else SearchOutcome.ZERO_RESULTS,
                                     results=organic or [], knowledge_graph=kg or {}, search_metadata=safe_metadata)
-                except httpx.TimeoutException:
+                except httpx.TimeoutException as exc:
                     result = self._failure(query, SearchOutcome.TIMEOUT, "Search request timed out")
-                    retryable = True
+                    # A connect/pool timeout never reached SerpApi, so retrying is free. A read
+                    # timeout is not retried: SerpApi keeps processing the original request, and
+                    # a resend of an uncached query is billed again and is usually just as slow.
+                    retryable = isinstance(exc, (httpx.ConnectTimeout, httpx.PoolTimeout))
                 except (httpx.NetworkError, httpx.RemoteProtocolError):
                     result = self._failure(query, SearchOutcome.PROVIDER_FAILURE,
                                            "Connection error reaching search provider")

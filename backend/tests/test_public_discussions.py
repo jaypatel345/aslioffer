@@ -73,3 +73,23 @@ def test_sender_team_names_the_employer_when_repeated():
 def test_sender_team_is_not_an_employer_without_corroboration(text):
     claims = GroundedEntityParser().parse(text, source_type="text").claims
     assert next(c for c in claims if c.kind.value == "claimed_employer").value is None
+
+
+@pytest.mark.asyncio
+async def test_failed_discussion_search_is_not_a_failed_check():
+    from app.services.investigation.recording_search import RecordingSearchClient
+
+    class _Slow:
+        async def search(self, query, **kwargs):
+            outcome = SearchOutcome.TIMEOUT if query == QUERY else SearchOutcome.SUCCESS
+            return SearchResult(query=query, outcome=outcome, source="REAL" if outcome == SearchOutcome.SUCCESS else "FAILED",
+                                results=[], error=None if outcome == SearchOutcome.SUCCESS else "timed out")
+
+    client = RecordingSearchClient(_Slow())
+    with client.step("check_scam_signals", "test"):
+        finding = await ScamAgent(search_client=client).investigate(
+            company_name="Coorix", demanded_fee=None, payment_method=None, flags=[], raw_text=TEXT)
+    assert client.failed_searches == []
+    # Still listed in the searches run, as skipped rather than failed.
+    assert any(c.query == QUERY and c.status.value == "SKIPPED" for c in client.tool_calls)
+    assert finding.details["provider_status"] == "SUCCESS"

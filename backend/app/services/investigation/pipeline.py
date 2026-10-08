@@ -177,11 +177,9 @@ async def investigate_case(
                 recruiter_phone=recruiter_phone,
             )
 
-    essential_done = asyncio.Event()
-    essential_remaining = 2
-
+    # Runs alongside the recruiter and scam checks: the search budget is large enough
+    # for all three, and waiting for them doubled the time on slow searches.
     async def run_salary():
-        await essential_done.wait()
         if not has_salary_claim or not company_name:
             await events.emit("check_compensation", EventStatus.SKIPPED, "No compensation or employer to benchmark")
             return None
@@ -218,19 +216,12 @@ async def investigate_case(
             )
 
     async def finish_step(fn, name):
-        nonlocal essential_remaining
-        try:
-            result = await fn()
-            if result is not None:
-                failed = result.details.get("provider_status") in ("FAILED", "PARTIAL")
-                await events.emit(name, EventStatus.FAILED if failed else EventStatus.COMPLETED,
-                                  "Check retained partial results; external retrieval was unavailable" if failed else "Check completed")
-            return result
-        finally:
-            if name in ("check_recruiter", "check_scam_signals"):
-                essential_remaining -= 1
-                if essential_remaining == 0:
-                    essential_done.set()
+        result = await fn()
+        if result is not None:
+            failed = result.details.get("provider_status") in ("FAILED", "PARTIAL")
+            await events.emit(name, EventStatus.FAILED if failed else EventStatus.COMPLETED,
+                              "Check retained partial results; external retrieval was unavailable" if failed else "Check completed")
+        return result
 
     tasks = [
         asyncio.create_task(finish_step(run_recruiter, "check_recruiter")),

@@ -1,3 +1,4 @@
+import asyncio
 import re
 from typing import Optional, List, Dict, Any
 from app.schemas.analysis import AgentFinding, EvidenceItem
@@ -173,8 +174,43 @@ class ScamAgent:
             if safe_company
             else 'job scam fraud complaint telegram recruitment'
         )
+        # Community discussions are searched only for employers whose official site could
+        # not be established: for well-known brands such threads are about impersonators.
+        discussion_query = None
+        if safe_company and not employer_resolved:
+            offer_kind = "internship" if re.search(r"\bintern(?:ship)?s?\b", raw_text or "", re.IGNORECASE) else "job"
+            discussion_query = f'"{safe_company}" {offer_kind} scam or legit'
+        payment_term = "UPI" if has_upi else "recruitment fee" if has_upfront_fee else None
+        pay_query = None
+        if payment_term and has_upfront_fee:
+            pay_query = (
+                f'"{safe_company}" "{payment_term}" recruitment scam'
+                if safe_company
+                else f'"{payment_term}" recruitment scam'
+            )
+
+        # The searches are independent, so they run together; uncached SerpApi queries
+        # can each take tens of seconds. Results are then read in a fixed order.
+        async def fetch(query):
+            try:
+                return await self.search_client.search(query=query)
+            except Exception as exc:  # surfaced per search below
+                return exc
+        # Checked on the class: test doubles such as AsyncMock answer every attribute.
+        if discussion_query and callable(getattr(type(self.search_client), "mark_optional", None)):
+            # A supplementary cue: if SerpApi is too slow for it, the report is still complete.
+            self.search_client.mark_optional(discussion_query)
+        planned = [q for q in (scam_query, discussion_query, pay_query) if q]
+        fetched = dict(zip(planned, await asyncio.gather(*(fetch(q) for q in planned))))
+
+        def take(query):
+            result = fetched[query]
+            if isinstance(result, Exception):
+                raise result
+            return result
+
         try:
-            raw_res = await self.search_client.search(query=scam_query)
+            raw_res = take(scam_query)
             search_res = SearchResult.from_dict_or_result(raw_res, query=scam_query)
             search_sources.append(search_res.get("source", SearchSource.FAILED.value))
             record("company_reports", search_res)
@@ -202,16 +238,12 @@ class ScamAgent:
             checks["company_reports"] = {"provider_status": "FAILED", "search_status": "PROVIDER_FAILURE", "error": "Search integration failed"}
             logger.warning("ScamAgent: general scam search failed")
 
-        # Community discussion search, only for employers whose official site could not
-        # be established: for well-known brands such threads are about impersonators.
         public_discussions: List[Dict[str, str]] = []
-        if safe_company and not employer_resolved:
-            offer_kind = "internship" if re.search(r"\bintern(?:ship)?s?\b", raw_text or "", re.IGNORECASE) else "job"
-            discussion_query = f'"{safe_company}" {offer_kind} scam or legit'
+        if discussion_query:
             try:
-                disc_res = SearchResult.from_dict_or_result(await self.search_client.search(query=discussion_query), query=discussion_query)
-                record("community_discussions", disc_res)
+                disc_res = SearchResult.from_dict_or_result(take(discussion_query), query=discussion_query)
                 if disc_res.is_live:
+                    record("community_discussions", disc_res)
                     for res in (disc_res.organic_results or [])[:5]:
                         link = res.get("link") or ""
                         title = sanitize_and_redact_secrets(res.get("title") or "")
@@ -228,18 +260,11 @@ class ScamAgent:
                                 description=snippet or f"Public discussion asking whether {company_name} is genuine.",
                                 evidence_type="PUBLIC_DISCUSSION", confidence=0.5))
             except Exception:
-                checks["community_discussions"] = {"provider_status": "FAILED", "search_status": "PROVIDER_FAILURE", "error": "Search integration failed"}
                 logger.warning("ScamAgent: community discussion search failed")
 
-        payment_term = "UPI" if has_upi else "recruitment fee" if has_upfront_fee else None
-        if payment_term and has_upfront_fee:
-            pay_query = (
-                f'"{safe_company}" "{payment_term}" recruitment scam'
-                if safe_company
-                else f'"{payment_term}" recruitment scam'
-            )
+        if pay_query:
             try:
-                raw_pay = await self.search_client.search(query=pay_query)
+                raw_pay = take(pay_query)
                 pay_res = SearchResult.from_dict_or_result(raw_pay, query=pay_query)
                 search_sources.append(pay_res.get("source", SearchSource.FAILED.value))
                 record("payment_reports", pay_res)

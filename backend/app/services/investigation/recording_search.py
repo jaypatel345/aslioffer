@@ -32,6 +32,11 @@ class RecordingSearchClient:
         self.tool_calls: List[ToolCall] = []
         self.snippets_by_url: Dict[str, List[Dict[str, Any]]] = {}
         self.failed_searches: List[Dict[str, Any]] = []
+        # Supplementary searches: a failure stays in the tool trace but is not a failed check.
+        self._optional_queries: set = set()
+
+    def mark_optional(self, query: str) -> None:
+        self._optional_queries.add(sanitize_public_message(sanitize_and_redact_secrets(query)).strip())
 
     @contextmanager
     def step(self, name, reason):
@@ -115,11 +120,13 @@ class RecordingSearchClient:
             if failed:
                 result = SearchResult(query=query, outcome=result.outcome if not result.is_available else SearchOutcome.PROVIDER_FAILURE,
                                       error='Search result unavailable', source='FAILED')
-                self.failed_searches.append({'query': query, 'engine': engine, 'error': 'Search result unavailable',
-                                            'retrieved_at': started_at, 'step': step})
+                if query not in self._optional_queries:
+                    self.failed_searches.append({'query': query, 'engine': engine, 'error': 'Search result unavailable',
+                                                'retrieved_at': started_at, 'step': step})
             status = RetrievalStatus.FAILED if failed else RetrievalStatus.DEMO if synthetic else RetrievalStatus.LIVE
             call = ToolCall(step=step, tool=f'serpapi.{engine}', query=query, reason=reason,
-                           status=EventStatus.FAILED if failed else EventStatus.COMPLETED,
+                           status=(EventStatus.SKIPPED if query in self._optional_queries else EventStatus.FAILED)
+                           if failed else EventStatus.COMPLETED,
                            started_at=started_at, duration_ms=max(0, int((time.perf_counter()-t0)*1000)))
             self.tool_calls.append(call)
             if not failed:
