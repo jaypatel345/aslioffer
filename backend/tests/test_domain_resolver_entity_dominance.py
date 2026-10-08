@@ -11,6 +11,7 @@ from app.services.search.domain_resolver import (
     DomainResolutionState,
     company_entity_query,
     company_website_query,
+    company_website_retry_query,
     resolve_employer_domain,
 )
 from app.services.search.serpapi_client import SearchOutcome, SearchResult
@@ -173,3 +174,24 @@ async def test_company_agent_reports_resolved_well_known_employer():
     assert finding.verdict == "VERIFIED"
     assert finding.details["canonical_domain"] == "www.infosys.com"
     assert finding.details["official_domain_resolved"] is True
+
+
+@pytest.mark.asyncio
+async def test_off_topic_website_search_is_retried_once():
+    """Observed live: "<name> official website" returned generic pages about websites."""
+    junk = _search(company_website_query("Infosys Limited"), [
+        _page("https://en.wikipedia.org/wiki/Website", "Website", "A website is a set of related web pages."),
+        _page("https://www.website.com/", "Create Your Free Website", "Free website builder."),
+    ])
+    retry = _search(company_website_retry_query("Infosys Limited"), INFOSYS_WEBSITE.results)
+    client = _ScriptedSearch({junk.query: junk, retry.query: retry, INFOSYS_ENTITY.query: INFOSYS_ENTITY})
+    _, resolution, _ = await resolve_employer_domain(client, "Infosys Limited")
+    assert client.queries[:2] == [junk.query, retry.query]
+    assert resolution.state == DomainResolutionState.RESOLVED
+
+
+@pytest.mark.asyncio
+async def test_on_topic_website_search_is_not_retried():
+    client = _ScriptedSearch({INFOSYS_WEBSITE.query: INFOSYS_WEBSITE, INFOSYS_ENTITY.query: INFOSYS_ENTITY})
+    await resolve_employer_domain(client, "Infosys Limited")
+    assert company_website_retry_query("Infosys Limited") not in client.queries

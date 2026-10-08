@@ -116,6 +116,11 @@ def company_website_query(company_name: str) -> str:
     return f"{company_name} official website"
 
 
+def company_website_retry_query(company_name: str) -> str:
+    """Alternate wording, used once when the first website search comes back off-topic."""
+    return f"{company_name} official site"
+
+
 def company_entity_query(company_name: str) -> str:
     """Bare-name query, which is what returns Google's knowledge panel for an entity."""
     return company_name
@@ -132,6 +137,14 @@ async def resolve_employer_domain(search_client: Any, company_name: str
     """
     query = company_website_query(company_name)
     search_res = SearchResult.from_dict_or_result(await search_client.search(query), query=query)
+    if (search_res.is_live and search_res.organic_results
+            and not DomainResolver.mentions_company(company_name, search_res)):
+        # Google sometimes answers the phrase "<name> official website" with generic
+        # pages about websites that never mention the company; retry once.
+        retry_query = company_website_retry_query(company_name)
+        retry_res = SearchResult.from_dict_or_result(await search_client.search(retry_query), query=retry_query)
+        if retry_res.is_live:
+            search_res = retry_res
     resolution = DomainResolver.resolve(company_name, search_res)
     entity_res = None
     if (search_res.is_live and not search_res.is_empty
@@ -161,6 +174,20 @@ class DomainResolver:
             return base
         return cls._resolve_by_entity_and_dominance(company_name, SearchResult.from_dict_or_result(search_res),
                                                     SearchResult.from_dict_or_result(entity_res), base)
+
+    @classmethod
+    def mentions_company(cls, company_name: str, search_res: SearchResult) -> bool:
+        """Whether any organic result names the company at all (title, snippet or domain)."""
+        identity = cls._extract_company_identity(company_name)
+        if not identity["bare_words"]:
+            return True
+        for item in SearchResult.from_dict_or_result(search_res).organic_results:
+            if cls._title_or_snippet_corroborates(item.get("title") or "", item.get("snippet") or "", identity):
+                return True
+            parsed = cls.normalize_and_parse_url(item.get("link") or "")
+            if parsed.is_valid and cls._sld_matches_identity(parsed.sld, identity):
+                return True
+        return False
 
     @classmethod
     def _brand_candidate(cls, link: str, identity: Dict[str, Any]) -> Optional[ParsedDomain]:
