@@ -3,6 +3,7 @@
 [![SerpApi India Hackathon 2026](https://img.shields.io/badge/SerpApi%20India%20Hackathon-2026-10b981.svg)](https://serpapi.com)
 [![Track](https://img.shields.io/badge/Track-AI%20Agents-2563eb.svg)](#how-it-works)
 [![Live demo](https://img.shields.io/badge/Live%20demo-aslioffer.vercel.app-111827.svg)](https://aslioffer.vercel.app)
+[![Demo video](https://img.shields.io/badge/Demo%20video-YouTube-ff0000.svg?logo=youtube)](https://youtu.be/3ICNtxsfxzc)
 [![Tests](https://img.shields.io/badge/backend%20tests-686%20passing-10b981.svg)](#quality-and-evaluation)
 [![Evaluation](https://img.shields.io/badge/eval-27%2F27%20cases-10b981.svg)](#quality-and-evaluation)
 
@@ -13,7 +14,7 @@
 > public scam reports, salary benchmarks and real job postings. It then shows a verdict **with every source linked**,
 > and tells you how to confirm the offer with the real employer.
 
-**Live demo:** [aslioffer.vercel.app](https://aslioffer.vercel.app) · No sign-up · Cases are deleted after 7 days
+**Live demo:** [aslioffer.vercel.app](https://aslioffer.vercel.app) · **Demo video:** [Watch on YouTube](https://youtu.be/3ICNtxsfxzc) · No sign-up · Cases are deleted after 7 days
 
 <p align="center">
   <img src="docs/screenshots/01-home.jpg" width="49%" alt="AsliOffer home page" />
